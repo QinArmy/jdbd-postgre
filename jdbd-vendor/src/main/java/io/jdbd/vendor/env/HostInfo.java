@@ -6,6 +6,7 @@ import reactor.util.annotation.Nullable;
 /**
  * @see JdbcUrl
  */
+@Deprecated
 public interface HostInfo {
 
     String HOST_PORT_SEPARATOR = ":";

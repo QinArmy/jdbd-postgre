@@ -3,6 +3,8 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
+import io.jdbd.vendor.protocol.DatabaseProtocol;
+import io.jdbd.vendor.stmt.ParamStmt;
 import org.testng.annotations.Test;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -17,13 +19,13 @@ public class ComPrepareDataTypeSuiteTests extends AbstractDataTypeSuiteTests {
     }
 
     @Override
-    Mono<ResultStates> executeUpdate(BindStmt stmt, TaskAdjutant adjutant) {
+    Mono<ResultStates> executeUpdate(ParamStmt stmt, TaskAdjutant adjutant) {
         return ComPreparedTask.update(stmt, adjutant);
     }
 
     @Override
-    Flux<ResultRow> executeQuery(BindStmt stmt, TaskAdjutant adjutant) {
-        return ComPreparedTask.query(stmt, adjutant);
+    Flux<ResultRow> executeQuery(ParamStmt stmt, TaskAdjutant adjutant) {
+        return ComPreparedTask.query(stmt, DatabaseProtocol.ROW_FUNC, adjutant);
     }
 
 

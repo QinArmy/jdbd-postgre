@@ -2,11 +2,11 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
-import io.jdbd.mysql.env.Environment;
 import io.jdbd.mysql.env.MySQLKey;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.type.BlobPath;
 import io.jdbd.type.TextPath;
+import io.jdbd.vendor.env.Environment;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 

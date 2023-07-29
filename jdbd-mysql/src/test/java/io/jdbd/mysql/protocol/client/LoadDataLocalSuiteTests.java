@@ -2,11 +2,14 @@ package io.jdbd.mysql.protocol.client;
 
 
 import io.jdbd.mysql.Groups;
-import io.jdbd.mysql.protocol.conf.MyKey;
-import io.jdbd.mysql.stmt.MyStmts;
+import io.jdbd.mysql.TestKey;
+import io.jdbd.mysql.env.MySQLKey;
 import io.jdbd.mysql.util.MySQLTimes;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
+import io.jdbd.vendor.protocol.DatabaseProtocol;
+import io.jdbd.vendor.stmt.ParamStmt;
+import io.jdbd.vendor.stmt.Stmts;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -46,13 +49,13 @@ public class LoadDataLocalSuiteTests extends AbstractStmtTaskSuiteTests {
     }
 
     @Override
-    Mono<ResultStates> executeUpdate(BindStmt stmt, TaskAdjutant adjutant) {
+    Mono<ResultStates> executeUpdate(ParamStmt stmt, TaskAdjutant adjutant) {
         return ComQueryTask.paramUpdate(stmt, adjutant);
     }
 
     @Override
-    Flux<ResultRow> executeQuery(BindStmt stmt, TaskAdjutant adjutant) {
-        return ComQueryTask.paramQuery(stmt, adjutant);
+    Flux<ResultRow> executeQuery(ParamStmt stmt, TaskAdjutant adjutant) {
+        return ComQueryTask.paramQuery(stmt, DatabaseProtocol.ROW_FUNC, adjutant);
     }
 
     @Override
@@ -75,9 +78,9 @@ public class LoadDataLocalSuiteTests extends AbstractStmtTaskSuiteTests {
 
         LOG.info("{} ddl:\n:{}", Groups.LOAD_DATA, ddl);
 
-        ComQueryTask.update(MyStmts.stmt(ddl), adjutant)
+        ComQueryTask.update(Stmts.stmt(ddl), adjutant)
                 .doOnNext(Assert::assertNotNull)
-                .then(ComQueryTask.update(MyStmts.stmt("TRUNCATE mysql_load_data"), adjutant))
+                .then(ComQueryTask.update(Stmts.stmt("TRUNCATE mysql_load_data"), adjutant))
                 .doOnNext(Assert::assertNotNull)
                 .then()
                 .block();
@@ -90,13 +93,13 @@ public class LoadDataLocalSuiteTests extends AbstractStmtTaskSuiteTests {
     public static void afterClass() {
         LOG.info("{} afterClass test start", Groups.LOAD_DATA);
 
-        if (ClientTestUtils.getTestConfig().get("truncate.after.suite", Boolean.class, Boolean.TRUE)) {
+        if (ClientTestUtils.getTestConfig().isOn(TestKey.TRUNCATE_AFTER_SUITE)) {
 
             final TaskAdjutant adjutant = obtainTaskAdjutant();
             final String sql = "TRUNCATE mysql_load_data";
 
             ResultStates status;
-            status = ComQueryTask.update(MyStmts.stmt(sql), adjutant)
+            status = ComQueryTask.update(Stmts.stmt(sql), adjutant)
                     .block();
 
             assertNotNull(status, sql);
@@ -171,9 +174,9 @@ public class LoadDataLocalSuiteTests extends AbstractStmtTaskSuiteTests {
 
     private void doLoadData(Path path, long rows) {
         final TaskAdjutant adjutant = obtainTaskAdjutant();
-        if (!adjutant.host().getProperties().getOrDefault(MyKey.allowLoadLocalInfile, Boolean.class)) {
-            fail(String.format("client no support Load data local statement,please config property[%s]"
-                    , MyKey.allowLoadLocalInfile));
+        if (!adjutant.host().properties().getOrDefault(MySQLKey.ALLOW_LOAD_LOCAL_INFILE)) {
+            fail(String.format("client no support Load data local statement,please config property[%s]",
+                    MySQLKey.ALLOW_LOAD_LOCAL_INFILE));
         }
         if (!adjutant.sessionEnv().isSupportLocalInfile()) {
             LOG.warn("Server no support Local infile ,please config system variables[@@GLOBAL.local_infile]");
@@ -186,7 +189,7 @@ public class LoadDataLocalSuiteTests extends AbstractStmtTaskSuiteTests {
 
         LOG.info("execute loadDataLocal sql :{} ", sql);
         ResultStates status;
-        status = ComQueryTask.update(MyStmts.stmt(sql), adjutant)
+        status = ComQueryTask.update(Stmts.stmt(sql), adjutant)
                 .block();
 
         assertNotNull(status, sql);

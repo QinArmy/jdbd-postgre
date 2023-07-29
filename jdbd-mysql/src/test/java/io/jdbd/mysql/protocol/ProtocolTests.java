@@ -1,6 +1,5 @@
 package io.jdbd.mysql.protocol;
 
-import io.jdbd.mysql.protocol.client.Packets;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
@@ -12,8 +11,6 @@ import io.netty.channel.socket.SocketChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
-
-import java.math.BigInteger;
 
 public class ProtocolTests {
 
@@ -64,12 +61,7 @@ public class ProtocolTests {
         LOG.info("byteNum:{},num:{}", byteNum, num);
     }
 
-    @Test
-    public void simpleTest() {
 
-        BigInteger big = Packets.convertInt8ToBigInteger(Long.MIN_VALUE);
-        LOG.info("max:{},big:{}", Long.MAX_VALUE, big);
-    }
 
 
 }

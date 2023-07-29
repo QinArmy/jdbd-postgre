@@ -1,7 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdException;
-import io.jdbd.mysql.env.Environment;
 import io.jdbd.mysql.env.MySQLHost;
 import io.jdbd.mysql.env.MySQLKey;
 import io.jdbd.mysql.protocol.AuthenticateAssistant;
@@ -10,6 +9,7 @@ import io.jdbd.mysql.protocol.X509TrustManagerWrapper;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLStates;
 import io.jdbd.mysql.util.MySQLStrings;
+import io.jdbd.vendor.env.Environment;
 import io.jdbd.vendor.util.Pair;
 import io.jdbd.vendor.util.SQLStates;
 import io.netty.buffer.ByteBufAllocator;

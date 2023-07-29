@@ -46,7 +46,7 @@ public class ReactorNettyBugReproduceTest {
 
 
     @Test
-    public void mysqlServer() throws Exception {
+    public void mysqlServer() {
         TcpServer.create()
                 .host("localhost")
                 .port(PORT)

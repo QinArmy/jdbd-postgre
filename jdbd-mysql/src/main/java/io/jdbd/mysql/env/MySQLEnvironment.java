@@ -1,6 +1,7 @@
 package io.jdbd.mysql.env;
 
 import io.jdbd.JdbdException;
+import io.jdbd.vendor.env.Environment;
 
 import java.util.Map;
 import java.util.function.Supplier;

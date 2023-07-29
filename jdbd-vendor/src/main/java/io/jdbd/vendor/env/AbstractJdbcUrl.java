@@ -5,6 +5,7 @@ import reactor.util.annotation.Nullable;
 
 import java.util.Map;
 
+@Deprecated
 public abstract class AbstractJdbcUrl implements JdbcUrl {
 
     private final String originalUrl;

@@ -1,8 +1,8 @@
 package io.jdbd.mysql.session;
 
 import io.jdbd.DriverManager;
+import io.jdbd.mysql.env.MySQLKey;
 import io.jdbd.mysql.protocol.client.ClientTestUtils;
-import io.jdbd.mysql.protocol.conf.MyKey;
 import io.jdbd.session.DatabaseSessionFactory;
 import io.jdbd.session.LocalDatabaseSession;
 import io.jdbd.statement.StaticStatement;
@@ -30,7 +30,7 @@ public class SessionFactorySuiteTests {
     @Test
     public void getTxSession() {
         final Map<String, Object> configMap = ClientTestUtils.loadConfigMap();
-        configMap.put(MyKey.sslMode.getKey(), "DISABLED");
+        configMap.put(MySQLKey.SSL_MODE.name, "DISABLED");
         final DatabaseSessionFactory factory;
         factory = DriverManager.forPoolVendor((String) configMap.get("url"), configMap);
         final LocalDatabaseSession session;

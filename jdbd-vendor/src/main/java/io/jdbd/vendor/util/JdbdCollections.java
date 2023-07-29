@@ -85,7 +85,7 @@ public abstract class JdbdCollections {
         try (InputStream in = Files.newInputStream(path, StandardOpenOption.READ)) {
             final Properties properties = new Properties();
             properties.load(in);
-            final Map<String, Object> map = new HashMap<>((int) (properties.size() / 0.75F));
+            final Map<String, Object> map = JdbdCollections.hashMap((int) (properties.size() / 0.75F));
             for (Object key : properties.keySet()) {
                 String k = key.toString();
                 map.put(k, properties.getProperty(k));

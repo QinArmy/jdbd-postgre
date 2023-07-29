@@ -7,6 +7,7 @@ import java.util.List;
 /**
  * @see <a href="https://docs.oracle.com/javase/tutorial/jdbc/basics/connecting.html">Specifying Database Connection URLs</a>
  */
+@Deprecated
 public interface JdbcUrl {
 
     String getOriginalUrl();

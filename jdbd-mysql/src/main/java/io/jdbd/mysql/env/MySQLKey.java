@@ -4,7 +4,7 @@ import io.jdbd.Driver;
 import io.jdbd.lang.Nullable;
 import io.jdbd.mysql.protocol.client.Enums;
 import io.jdbd.mysql.protocol.client.MySQLNativePasswordPlugin;
-import io.jdbd.mysql.util.MySQLStrings;
+import io.jdbd.vendor.env.Key;
 import io.jdbd.vendor.env.Redefine;
 import reactor.netty.resources.ConnectionProvider;
 
@@ -12,7 +12,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 
-public final class MySQLKey<T> {
+public final class MySQLKey<T> extends Key<T> {
 
     /*
      * Properties individually managed after parsing connection string. These property keys are case insensitive.
@@ -1256,6 +1256,10 @@ public final class MySQLKey<T> {
 
     // blow Connection Group
 
+    /**
+     * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/sql-mode.html">Server SQL Modes</a>
+     */
+    public static final MySQLKey<String> APPEND_SQL_MODE = new MySQLKey<>("append.sql.mode", String.class, null);
 
     public static final MySQLKey<Integer> FACTORY_WORKER_COUNT = new MySQLKey<>("factory_work_count", Integer.class, 50);
 
@@ -1264,33 +1268,8 @@ public final class MySQLKey<T> {
     public static final MySQLKey<String> FACTORY_NAME = new MySQLKey<>(Driver.FACTORY_NAME, String.class, "unnamed");
 
 
-    public final String name;
-
-    public final Class<T> valueClass;
-
-    public final T defaultValue;
-
     private MySQLKey(String name, Class<T> valueClass, @Nullable T defaultValue) {
-        this.name = name;
-        this.valueClass = valueClass;
-        this.defaultValue = defaultValue;
-    }
-
-
-    @Override
-    public String toString() {
-        return MySQLStrings.builder()
-                .append(MySQLKey.class.getName())
-                .append("[ name : ")
-                .append(this.name)
-                .append(" , hash : ")
-                .append(System.identityHashCode(this))
-                .append(" , valueClass : ")
-                .append(this.valueClass.getName())
-                .append(" , defaultValue : ")
-                .append(this.defaultValue)
-                .append(" ]")
-                .toString();
+        super(name, valueClass, defaultValue);
     }
 
 

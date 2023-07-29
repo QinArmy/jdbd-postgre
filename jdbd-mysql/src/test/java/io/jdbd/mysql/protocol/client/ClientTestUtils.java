@@ -1,11 +1,11 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.mysql.protocol.conf.MyKey;
+import io.jdbd.mysql.env.MySQLKey;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.mysql.util.MySQLTimes;
-import io.qinarmy.env.Environment;
-import io.qinarmy.env.ImmutableMapEnvironment;
+import io.jdbd.vendor.env.Environment;
+import io.jdbd.vendor.env.SimpleEnvironment;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
@@ -15,9 +15,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeFormatterBuilder;
-import java.util.Locale;
 import java.util.Map;
 
 @Test(enabled = false)
@@ -30,8 +27,6 @@ public abstract class ClientTestUtils {
     private static final Path SERVER_PUBLIC_KEY_PATH = Paths.get(ClientTestUtils.getTestResourcesPath().toString(), "my-local/mysql-server/public_key.pem");
 
     private static final Environment ENV = loadTestConfig();
-
-
 
     public static Path getModulePath() {
         Path path = Paths.get(System.getProperty("user.dir"));
@@ -68,22 +63,20 @@ public abstract class ClientTestUtils {
         } else {
             databaseZoneOffset = ZoneOffset.of("+00:00");
         }
-        DateTimeFormatter formatter = new DateTimeFormatterBuilder()
-                .appendOffset("+HH:MM", "+00:00")
-                .toFormatter(Locale.ENGLISH);
-        String variable = String.format("@@SESSION.time_zone='%s'", formatter.format(databaseZoneOffset));
+
+        String variable = String.format("@@SESSION.time_zone='%s'", MySQLTimes.ZONE_FORMATTER.format(databaseZoneOffset));
         appendSessionVariable(map, variable);
-        map.put(MyKey.connectionTimeZone.getKey(), clientZoneOffset.getId());
+        map.put(MySQLKey.CONNECTION_TIME_ZONE.name, clientZoneOffset.getId());
     }
 
     public static void appendSessionVariable(Map<String, String> map, String pair) {
-        String variables = map.get(MyKey.sessionVariables.getKey());
+        String variables = map.get(MySQLKey.SESSION_VARIABLES.name);
 
         if (MySQLStrings.hasText(variables)) {
             variables += ("," + pair);
-            map.put(MyKey.sessionVariables.getKey(), variables);
+            map.put(MySQLKey.SESSION_VARIABLES.name, variables);
         } else {
-            map.put(MyKey.sessionVariables.getKey(), pair);
+            map.put(MySQLKey.SESSION_VARIABLES.name, pair);
         }
     }
 
@@ -114,7 +107,7 @@ public abstract class ClientTestUtils {
 
 
     private static Environment loadTestConfig() {
-        return ImmutableMapEnvironment.create(loadConfigMap());
+        return SimpleEnvironment.from(loadConfigMap());
     }
 
 

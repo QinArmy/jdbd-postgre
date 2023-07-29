@@ -29,35 +29,36 @@ public class JdbdException extends RuntimeException {
         this.vendorCode = vendorCode;
     }
 
-    public JdbdException(String message, @Nullable Throwable cause) {
+    public JdbdException(String message, Throwable cause) {
         super(message, cause);
         this.sqlState = null;
         this.vendorCode = 0;
     }
 
-    @Deprecated
-    JdbdException(@Nullable Throwable cause, String message) {
-        super(message, cause);
-        this.sqlState = null;
-        this.vendorCode = 0;
-    }
 
-    public JdbdException(String message, @Nullable Throwable cause
-            , boolean enableSuppression, boolean writableStackTrace) {
+    public JdbdException(String message, Throwable cause,
+                         boolean enableSuppression, boolean writableStackTrace) {
         super(message, cause, enableSuppression, writableStackTrace);
         this.sqlState = null;
         this.vendorCode = 0;
     }
 
 
-    protected static String createMessage(@Nullable String messageFormat, @Nullable Object... args) {
-        String msg;
-        if (messageFormat != null && args != null && args.length > 0) {
-            msg = String.format(messageFormat, args);
-        } else {
-            msg = messageFormat;
-        }
-        return msg;
+    public JdbdException(String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace,
+                         @Nullable String sqlState, int vendorCode) {
+        super(message, cause, enableSuppression, writableStackTrace);
+        this.sqlState = sqlState;
+        this.vendorCode = vendorCode;
+    }
+
+
+    @Nullable
+    public final String getSqlState() {
+        return this.sqlState;
+    }
+
+    public final int getVendorCode() {
+        return vendorCode;
     }
 
 

@@ -299,5 +299,49 @@ public enum JdbdType implements DataType {
         return BooleanMode.UNKNOWN;
     }
 
+    /**
+     * @return true : unsigned number
+     */
+    public final boolean isUnsigned() {
+        final boolean match;
+        switch (this) {
+            case TINYINT_UNSIGNED:
+            case SMALLINT_UNSIGNED:
+            case MEDIUMINT_UNSIGNED:
+            case INTEGER_UNSIGNED:
+            case BIGINT_UNSIGNED:
+            case DECIMAL_UNSIGNED:
+                match = true;
+                break;
+            default:
+                match = false;
+        }
+        return match;
+    }
+
+    /**
+     * @return true :  signed number
+     */
+    public final boolean isSigned() {
+        final boolean match;
+        switch (this) {
+            case TINYINT:
+            case SMALLINT:
+            case MEDIUMINT:
+            case INTEGER:
+            case BIGINT:
+            case DECIMAL:
+            case NUMERIC:
+            case FLOAT:
+            case REAL:
+            case DOUBLE:
+                match = true;
+                break;
+            default:
+                match = false;
+        }
+        return match;
+    }
+
 
 }

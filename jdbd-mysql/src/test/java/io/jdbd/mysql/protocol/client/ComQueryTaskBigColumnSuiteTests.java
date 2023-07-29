@@ -1,9 +1,11 @@
 package io.jdbd.mysql.protocol.client;
 
-import io.jdbd.mysql.stmt.MyStmts;
+import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.util.MySQLNumbers;
 import io.jdbd.result.ResultStates;
+import io.jdbd.vendor.stmt.JdbdValues;
 import io.jdbd.vendor.stmt.ParamValue;
+import io.jdbd.vendor.stmt.Stmts;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
@@ -52,10 +54,10 @@ public class ComQueryTaskBigColumnSuiteTests extends AbstractTaskSuiteTests {
 
         sql = "CALL queryNow(?,?)";
         list = new ArrayList<>(2);
-        list.add(MySQLParamValue.wrap(0, 0));
-        list.add(MySQLParamValue.wrap(1, ""));
+        list.add(JdbdValues.paramValue(0, MySQLType.INT, 0));
+        list.add(JdbdValues.paramValue(1, MySQLType.VARCHAR, ""));
         ResultStates states;
-        states = ComPreparedTask.update(MyStmts.multiPrepare(sql, list), adjutant)
+        states = ComPreparedTask.update(Stmts.paramStmt(sql, list), adjutant)
                 .block();
         assertNotNull(states, alias);
         // assertEquals(states.getAffectedRows(), 1L, "myBit20");

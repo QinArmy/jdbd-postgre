@@ -1,6 +1,7 @@
 package io.jdbd.mysql.protocol.conf;
 
 import io.jdbd.mysql.Groups;
+import io.jdbd.mysql.env.MySQLKey;
 import io.jdbd.mysql.env.Protocol;
 import io.jdbd.mysql.protocol.client.Enums;
 import io.jdbd.mysql.util.MySQLStrings;
@@ -48,7 +49,7 @@ public class MySQLUrlParserSuiteTests {
     public void singleConnection() {
         LOG.info("test SINGLE_CONNECTION start.");
         String url = "jdbc:mysql://192.168.0.106:3306/army?sslMode=REQUIRED";
-        final Map<String, String> propMap = Collections.singletonMap(MyKey.user.getKey(), "army_w");
+        final Map<String, String> propMap = Collections.singletonMap(MySQLKey.USER.name, "army_w");
 
         MySQLUrl mySQLUrl = MySQLUrl.getInstance(url, propMap);
         Assert.assertEquals(mySQLUrl.protocolType, Protocol.SINGLE_CONNECTION, "protocolType");

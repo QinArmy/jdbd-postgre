@@ -5,6 +5,7 @@ import reactor.util.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
 
+@Deprecated
 public interface JdbcUrlParser {
 
     String getOriginalUrl();

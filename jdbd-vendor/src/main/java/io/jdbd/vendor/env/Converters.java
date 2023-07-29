@@ -29,6 +29,18 @@ public abstract class Converters {
         throw new UnsupportedOperationException();
     }
 
+    public static final Map<Class<?>, BiFunction<Class<?>, String, ?>> CONVERTOR_MAP;
+
+
+    static {
+        final Map<Class<?>, BiFunction<Class<?>, String, ?>> map = JdbdCollections.hashMap();
+        registerDefaultConverter(map::put);
+        CONVERTOR_MAP = JdbdCollections.unmodifiableMap(map);
+    }
+
+    public static final BiFunction<Class<?>, String, ?> NAME_ENUM_CONVERTOR = Converters::toEnum;
+
+    public static final BiFunction<Class<?>, String, ?> TEXT_ENUM_CONVERTOR = Converters::toTextEnum;
 
     public static void registerDefaultConverter(final BiConsumer<Class<?>, BiFunction<Class<?>, String, ?>> consumer) {
 
@@ -52,7 +64,29 @@ public abstract class Converters {
 
         consumer.accept(ConnectionProvider.class, Converters::createInstanceFromGetInstanceMethod);
 
+    }
 
+
+    /**
+     * @throws JdbdException throw when not found match convertor.
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> BiFunction<Class<T>, String, T> findConvertor(final Class<T> targetClass) throws JdbdException {
+
+        final BiFunction<?, String, ?> convertor;
+
+        if (!Enum.class.isAssignableFrom(targetClass)) {
+            convertor = CONVERTOR_MAP.get(targetClass);
+        } else if (TextEnum.class.isAssignableFrom(targetClass)) {
+            convertor = TEXT_ENUM_CONVERTOR;
+        } else {
+            convertor = NAME_ENUM_CONVERTOR;
+        }
+        if (convertor == null) {
+            String m = String.format("Not found convertor for %s", targetClass.getName());
+            throw new JdbdException(m);
+        }
+        return (BiFunction<Class<T>, String, T>) convertor;
     }
 
 
@@ -205,23 +239,39 @@ public abstract class Converters {
     }
 
     @SuppressWarnings("unchecked")
-    public static <T extends Enum<T>> T toEnum(final Class<?> targetType, final String source) throws JdbdException {
+    private static <T extends Enum<T>> T toEnum(final Class<?> targetType, final String source) throws JdbdException {
+
         try {
-            return Enum.valueOf((Class<T>) targetType, source);
+            return Enum.valueOf((Class<T>) getEnumClass(targetType), source);
         } catch (IllegalArgumentException e) {
             throw convertFailure(source, targetType, e);
         }
     }
 
     @SuppressWarnings("unchecked")
-    public static <T extends Enum<T> & TextEnum> T toTextEnum(final Class<?> targetType, final String source)
+    private static <T extends Enum<T> & TextEnum> T toTextEnum(final Class<?> targetType, final String source)
             throws JdbdException {
+        if (!TextEnum.class.isAssignableFrom(targetType)) {
+            String m = String.format("%s isn't %S.", targetType.getName(), TextEnum.class.getName());
+            throw new JdbdException(m);
+        }
         final T value;
-        value = (T) TextEnumHelper.getTextMap(targetType).get(source);
+        value = (T) TextEnumHelper.getTextMap(getEnumClass(targetType)).get(source);
         if (value == null) {
             throw convertFailure(source, targetType, null);
         }
         return value;
+    }
+
+    private static Class<?> getEnumClass(Class<?> targetType) throws JdbdException {
+        if (!Enum.class.isAssignableFrom(targetType)) {
+            String m = String.format("%s isn't enum class.", targetType.getName());
+            throw new JdbdException(m);
+        }
+        if (targetType.isAnonymousClass()) {
+            targetType = targetType.getSuperclass();
+        }
+        return targetType;
     }
 
 

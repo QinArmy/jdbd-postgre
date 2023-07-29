@@ -392,7 +392,7 @@ final class ComQueryTask extends MySQLCommandTask {
     private ComQueryTask(final Stmt stmt, ResultSink sink, TaskAdjutant adjutant) {
         super(adjutant, sink);
         if (!Capabilities.supportMultiStatement(adjutant.capability())) {
-            throw new MySQLJdbdException("negotiatedCapability not support multi statement.");
+            throw new JdbdException("negotiatedCapability not support multi statement.");
         }
         this.stmt = stmt;
     }

@@ -2,6 +2,7 @@ package io.jdbd.mysql.env;
 
 import io.jdbd.Driver;
 import io.jdbd.JdbdException;
+import io.jdbd.vendor.env.Environment;
 
 import java.util.Map;
 

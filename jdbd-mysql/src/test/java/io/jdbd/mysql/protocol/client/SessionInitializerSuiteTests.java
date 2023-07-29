@@ -3,12 +3,17 @@ package io.jdbd.mysql.protocol.client;
 import io.jdbd.mysql.Groups;
 import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.SessionEnv;
-import io.jdbd.mysql.protocol.conf.MyKey;
-import io.jdbd.mysql.stmt.MyStmts;
+import io.jdbd.mysql.env.MySQLHost;
+import io.jdbd.mysql.env.MySQLKey;
+import io.jdbd.mysql.env.MySQLUrlParser;
+import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLTimes;
 import io.jdbd.result.ResultRow;
+import io.jdbd.vendor.protocol.DatabaseProtocol;
+import io.jdbd.vendor.stmt.Stmts;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -19,6 +24,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.ZoneOffset;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -54,7 +60,7 @@ public class SessionInitializerSuiteTests extends AbstractTaskSuiteTests {
     @Test(timeOut = TIME_OUT)
     public void connectAndInitializing() {
         LOG.info("connectAndInitializing test start.");
-        doConnectionTest(Collections.singletonMap(MyKey.sslMode.getKey(), "DISABLED"));
+        doConnectionTest(Collections.singletonMap(MySQLKey.SSL_MODE.name, "DISABLED"));
 
         LOG.info("connectAndInitializing test success.");
 
@@ -64,7 +70,7 @@ public class SessionInitializerSuiteTests extends AbstractTaskSuiteTests {
     public void detectCustomCollation() {
         LOG.info("detectCustomCollation test start.");
         final Map<String, String> propMap;
-        propMap = Collections.singletonMap(MyKey.detectCustomCollations.getKey(), "true");
+        propMap = Collections.singletonMap(MySQLKey.DETECT_CUSTOM_COLLATIONS.name, "true");
         doConnectionTest(propMap);
         LOG.info("detectCustomCollation test success.");
     }
@@ -78,15 +84,13 @@ public class SessionInitializerSuiteTests extends AbstractTaskSuiteTests {
         final Map<String, String> propMap;
         propMap = new HashMap<>();
 
-        propMap.put(MyKey.sessionVariables.getKey(), "autocommit=1, transaction_isolation='REPEATABLE-READ'");
+        propMap.put(MySQLKey.SESSION_VARIABLES.name, "autocommit=1, transaction_isolation='REPEATABLE-READ'");
 
         doConnectionTest(propMap);
         LOG.info("sessionResetter test success.");
     }
 
-    /**
-     * @see DefaultSessionResetter#configZoneOffsets()
-     */
+
     @Test
     public void configConnectionZone() {
         LOG.info("configConnectionZone test start.");
@@ -95,8 +99,8 @@ public class SessionInitializerSuiteTests extends AbstractTaskSuiteTests {
         final Map<String, String> propMap;
         propMap = new HashMap<>();
 
-        propMap.put(MyKey.connectionTimeZone.getKey(), "SERVER");
-        propMap.put(MyKey.sessionVariables.getKey(), "time_zone='+04:14'");
+        propMap.put(MySQLKey.CONNECTION_TIME_ZONE.name, "SERVER");
+        propMap.put(MySQLKey.SESSION_VARIABLES.name, "time_zone='+04:14'");
         adjutant = doConnectionTest(propMap);
 
         ZoneOffset zoneOffset = ZoneOffset.of("+04:14");
@@ -107,60 +111,57 @@ public class SessionInitializerSuiteTests extends AbstractTaskSuiteTests {
         assertEquals(zoneOffsetDatabase, zoneOffset, "zoneOffsetDatabase");
 
 
-        propMap.put(MyKey.connectionTimeZone.getKey(), "LOCAL");
+        propMap.put(MySQLKey.CONNECTION_TIME_ZONE.name, "LOCAL");
         adjutant = doConnectionTest(propMap);
         zoneOffsetClient = adjutant.connZone();
         assertEquals(zoneOffsetClient, MySQLTimes.systemZoneOffset(), "zoneOffsetClient");
 
-        propMap.put(MyKey.connectionTimeZone.getKey(), "+03:17");
+        propMap.put(MySQLKey.CONNECTION_TIME_ZONE.name, "+03:17");
         adjutant = doConnectionTest(propMap);
         zoneOffsetClient = adjutant.connZone();
         assertEquals(zoneOffsetClient, ZoneOffset.of("+03:17"), "zoneOffsetClient");
 
-        propMap.put(MyKey.connectionTimeZone.getKey(), "Australia/Sydney");
+        propMap.put(MySQLKey.CONNECTION_TIME_ZONE.name, "Australia/Sydney");
         adjutant = doConnectionTest(propMap);
         zoneOffsetClient = adjutant.connZone();
-        assertEquals(zoneOffsetClient, MySQLTimes.toZoneOffset(ZoneOffset.of("Australia/Sydney", ZoneOffset.SHORT_IDS)), "zoneOffsetClient");
+        assertEquals(zoneOffsetClient, ZoneOffset.of("Australia/Sydney", ZoneOffset.SHORT_IDS), "zoneOffsetClient");
 
         LOG.info("configConnectionZone test success.");
 
     }
 
 
-    /**
-     * @see DefaultSessionResetter#configSessionCharset()
-     */
     @Test
     public void configSessionCharsets() {
         LOG.info("configSessionCharsets test start.");
         TaskAdjutant adjutant;
 
         final Map<String, String> propMap;
-        propMap = new HashMap<>();
+        propMap = MySQLCollections.hashMap();
 
-        propMap.put(MyKey.characterSetResults.getKey(), "GBK");
+        propMap.put(MySQLKey.CHARACTER_SET_RESULTS.name, "GBK");
         adjutant = doConnectionTest(propMap);
         assertEquals(adjutant.getCharsetResults(), Charset.forName("GBK"));
 
-        propMap.remove(MyKey.characterSetResults.getKey());
+        propMap.remove(MySQLKey.CHARACTER_SET_RESULTS.name);
         adjutant = doConnectionTest(propMap);
         assertNull(adjutant.getCharsetResults(), "charset results");
 
-        propMap.put(MyKey.characterEncoding.getKey(), StandardCharsets.UTF_8.name());
+        propMap.put(MySQLKey.CHARACTER_ENCODING.name, StandardCharsets.UTF_8.name());
         adjutant = doConnectionTest(propMap);
         assertNull(adjutant.getCharsetResults(), "charset results");
         assertEquals(adjutant.charsetClient(), StandardCharsets.UTF_8, "charset client");
 
 
-        propMap.put(MyKey.connectionCollation.getKey(), "utf8mb4");
-        propMap.remove(MyKey.characterSetResults.getKey());
+        propMap.put(MySQLKey.CONNECTION_COLLATION.name, "utf8mb4");
+        propMap.remove(MySQLKey.CHARACTER_SET_RESULTS.name);
         adjutant = doConnectionTest(propMap);
         assertNull(adjutant.getCharsetResults(), "charset results");
         assertEquals(adjutant.charsetClient(), StandardCharsets.UTF_8, "charset client");
         String sql = "SELECT @@character_set_connection as  characterSetConnection" +
                 ", @@character_set_results as characterSetResults," +
                 "@@character_set_client as characterSetClient";
-        ResultRow resultRow = ComQueryTask.query(MyStmts.stmt(sql), adjutant)
+        ResultRow resultRow = ComQueryTask.query(Stmts.stmt(sql), DatabaseProtocol.ROW_FUNC, adjutant)
                 .elementAt(0)
                 .block();
         assertNotNull(resultRow);
@@ -179,9 +180,9 @@ public class SessionInitializerSuiteTests extends AbstractTaskSuiteTests {
         TaskAdjutant adjutant;
 
         final Map<String, String> propMap;
-        propMap = new HashMap<>();
+        propMap = MySQLCollections.hashMap();
 
-        propMap.put(MyKey.timeTruncateFractional.getKey(), "true");
+        propMap.put(MySQLKey.APPEND_SQL_MODE.name, "TIME_TRUNCATE_FRACTIONAL");
         adjutant = doConnectionTest(propMap);
         SessionEnv server = adjutant.sessionEnv();
 
@@ -197,7 +198,20 @@ public class SessionInitializerSuiteTests extends AbstractTaskSuiteTests {
     /*################################## blow private method ##################################*/
 
     private TaskAdjutant doConnectionTest(Map<String, String> propMap) {
-        throw new UnsupportedOperationException();
+        Map<String, Object> map;
+        map = MySQLCollections.hashMap(ClientTestUtils.loadConfigMap());
+        map.putAll(propMap);
+
+        final List<MySQLHost> hostList;
+        hostList = MySQLUrlParser.parse((String) map.get("url"), map);
+
+        final ClientProtocol protocol;
+        protocol = ClientProtocolFactory.from(hostList.get(0))
+                .createProtocol()
+                .map(ClientProtocol.class::cast)
+                .block();
+        Assert.assertNotNull(protocol);
+        return protocol.adjutant;
     }
 
 
