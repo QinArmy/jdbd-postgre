@@ -486,7 +486,7 @@ final class MySQLConnectionTask extends CommunicationTask implements Authenticat
         final Charset clientCharset = this.handshakeCharset;
         final int clientFlag = this.capability;
 
-        final ByteBuf packet = this.adjutant.createPacketBuffer(1024);
+        final ByteBuf packet = Packets.createOnePacket(this.allocator, 1024);
 
         // 1. client_flag,Capabilities Flags, CLIENT_PROTOCOL_41 always set.
         Packets.writeInt4(packet, clientFlag);

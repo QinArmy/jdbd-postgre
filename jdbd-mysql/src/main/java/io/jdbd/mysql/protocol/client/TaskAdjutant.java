@@ -8,15 +8,9 @@ import java.util.Map;
 
 interface TaskAdjutant extends ITaskAdjutant, ClientProtocolAdjutant, MySQLParser {
 
-    @Deprecated
-    int getServerStatus();
-
-    Terminator terminator();
-
+    int serverStatus();
 
     boolean isAuthenticated();
-
-    MySQLParser sqlParser();
 
     Map<String, Charset> customCharsetMap();
 
@@ -28,10 +22,6 @@ interface TaskAdjutant extends ITaskAdjutant, ClientProtocolAdjutant, MySQLParse
 
     ClientProtocolFactory getFactory();
 
-    boolean isNoBackslashEscapes();
-
-
-    boolean inTransaction();
 
 
 }

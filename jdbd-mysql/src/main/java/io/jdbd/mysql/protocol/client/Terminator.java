@@ -191,4 +191,8 @@ abstract class Terminator implements MySQLPacket {
         return (statusFags & SERVER_STATUS_IN_TRANS_READONLY) != 0;
     }
 
+    public static boolean isNoBackslashEscapes(final int statusFags) {
+        return (statusFags & SERVER_STATUS_NO_BACKSLASH_ESCAPES) != 0;
+    }
+
 }

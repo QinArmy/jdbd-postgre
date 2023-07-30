@@ -1,5 +1,6 @@
 package io.jdbd.mysql.protocol.client;
 
+import io.jdbd.JdbdException;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.vendor.stmt.*;
@@ -286,7 +287,7 @@ abstract class Packets {
     public static int readLenEncAsInt(ByteBuf byteBuf) {
         long intEnc = readLenEnc(byteBuf);
         if (intEnc > Integer.MAX_VALUE) {
-            throw new MySQLJdbdException("length encode integer cant' convert to int.");
+            throw new JdbdException("length encode integer cant' convert to int.");
         }
         return (int) intEnc;
     }
@@ -647,7 +648,7 @@ abstract class Packets {
             throw new IllegalArgumentException("command error");
         }
         final byte[] commandArray = sql.getBytes(adjutant.charsetClient());
-        final int maxAllowedPayload = adjutant.host().maxAllowedPayload();
+        final int maxAllowedPayload = adjutant.getFactory().maxAllowedPacket;
         final int actualPayload = commandArray.length + 1;
 
         if (actualPayload < 0 || actualPayload > maxAllowedPayload) {
@@ -693,7 +694,7 @@ abstract class Packets {
         return publisher;
     }
 
-    public static ByteBuf createPacket(ByteBufAllocator allocator, Stmt stmt) {
+    public static ByteBuf createStmtPacket(ByteBufAllocator allocator, Stmt stmt) {
         int capacity = 0;
 
         if (stmt instanceof SingleStmt) {

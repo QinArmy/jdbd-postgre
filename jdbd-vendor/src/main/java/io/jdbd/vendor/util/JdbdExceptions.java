@@ -24,7 +24,6 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.charset.Charset;
 import java.nio.file.Path;
-import java.sql.SQLException;
 import java.util.List;
 import java.util.function.Function;
 
@@ -235,12 +234,12 @@ public abstract class JdbdExceptions {
 
     }
 
-    public static SQLException createMultiStatementError() {
+    public static JdbdException createMultiStatementError() {
         return createSyntaxError("You have an error in your SQL syntax,sql is multi statement; near ';' ");
     }
 
-    public static SQLException createSyntaxError(String reason) {
-        return new SQLException(reason, SQLStates.SYNTAX_ERROR);
+    public static JdbdException createSyntaxError(String reason) {
+        return new JdbdException(reason, SQLStates.SYNTAX_ERROR, 0);
     }
 
     public static JdbdException cannotReuseStatement(Class<? extends Statement> stmtClass) {

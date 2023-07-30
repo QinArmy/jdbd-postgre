@@ -1,11 +1,13 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdException;
+import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.SessionEnv;
 import io.jdbd.mysql.env.MySQLHost;
 import io.jdbd.mysql.syntax.DefaultMySQLParser;
 import io.jdbd.mysql.syntax.MySQLParser;
 import io.jdbd.mysql.syntax.MySQLStatement;
+import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.vendor.env.JdbdHost;
 import io.jdbd.vendor.task.CommunicationTask;
 import io.jdbd.vendor.task.CommunicationTaskExecutor;
@@ -20,10 +22,9 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.time.ZoneOffset;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
@@ -38,12 +39,9 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
     private static final Logger LOG = LoggerFactory.getLogger(MySQLTaskExecutor.class);
 
-    private static final AtomicReferenceFieldUpdater<MySQLTaskExecutor, Terminator> TERMINATOR =
-            AtomicReferenceFieldUpdater.newUpdater(MySQLTaskExecutor.class, Terminator.class, "terminator");
 
     private final ClientProtocolFactory factory;
 
-    private volatile Terminator terminator;
 
     private MySQLTaskExecutor(Connection connection, ClientProtocolFactory factory) {
         super(connection, factory.factoryTaskQueueSize);
@@ -57,12 +55,12 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
     @Override
     protected TaskAdjutant createTaskAdjutant() {
-        return new TaskAdjutantWrapper(this);
+        return new MySQLTaskAdjutant(this);
     }
 
 
     protected void updateServerStatus(Object serversStatus) {
-        TERMINATOR.set(this, (Terminator) serversStatus);
+        ((MySQLTaskAdjutant) this.taskAdjutant).updateServerStatus((Terminator) serversStatus);
     }
 
     @Override
@@ -78,7 +76,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
     void setAuthenticateResult(AuthenticateResult result) {
         synchronized (this.taskAdjutant) {
-            final TaskAdjutantWrapper adjutantWrapper = (TaskAdjutantWrapper) this.taskAdjutant;
+            final MySQLTaskAdjutant adjutantWrapper = (MySQLTaskAdjutant) this.taskAdjutant;
             if (adjutantWrapper.handshake10 != null || adjutantWrapper.negotiatedCapability != 0) {
                 throw new IllegalStateException("Duplicate update AuthenticateResult");
             }
@@ -105,17 +103,12 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
         }
     }
 
-    void resetTaskAdjutant(final SessionEnv server) {
-        LOG.debug("reset success,server:{}", server);
+    void resetTaskAdjutant(final SessionEnv sessionEnv) {
+        LOG.debug("reset success,server:{}", sessionEnv);
         synchronized (this.taskAdjutant) {
-            TaskAdjutantWrapper taskAdjutant = (TaskAdjutantWrapper) this.taskAdjutant;
+            MySQLTaskAdjutant taskAdjutant = (MySQLTaskAdjutant) this.taskAdjutant;
             // 1.
-            taskAdjutant.server = server;
-            //2.
-            taskAdjutant.mySQLParser = DefaultMySQLParser.create(server::containSqlMode);
-            //3.
-            double maxBytes = server.charsetClient().newEncoder().maxBytesPerChar();
-            taskAdjutant.maxBytesPerCharClient = (int) Math.ceil(maxBytes);
+            taskAdjutant.sessionEnv = sessionEnv;
         }
 
     }
@@ -128,7 +121,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
     Mono<Void> setCustomCollation(final Map<String, MyCharset> customCharsetMap
             , final Map<Integer, Collation> customCollationMap) {
         final Mono<Void> mono;
-        final TaskAdjutantWrapper adjutant = ((TaskAdjutantWrapper) this.taskAdjutant);
+        final MySQLTaskAdjutant adjutant = ((MySQLTaskAdjutant) this.taskAdjutant);
         if (this.eventLoop.inEventLoop()) {
             adjutant.setCustomCharsetMap(customCharsetMap);
             adjutant.setIdCollationMap(customCollationMap);
@@ -146,9 +139,15 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
     /*################################## blow private method ##################################*/
 
-    private static final class TaskAdjutantWrapper extends AbstractTaskAdjutant implements TaskAdjutant {
+    private static final class MySQLTaskAdjutant extends JdbdTaskAdjutant implements TaskAdjutant {
+
+        private static final AtomicIntegerFieldUpdater<MySQLTaskAdjutant> SERVER_STATUS =
+                AtomicIntegerFieldUpdater.newUpdater(MySQLTaskAdjutant.class, "serverStatus");
+
 
         private final MySQLTaskExecutor taskExecutor;
+
+        private final MySQLParser stmtParser;
 
         private Handshake10 handshake10;
 
@@ -156,11 +155,8 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
         private int negotiatedCapability = 0;
 
-        private MySQLParser mySQLParser = DefaultMySQLParser.getForInitialization();
 
-        private SessionEnv server;
-
-        private int maxBytesPerCharClient = 0;
+        private SessionEnv sessionEnv;
 
         private Map<String, MyCharset> customCharsetMap = Collections.emptyMap();
 
@@ -168,40 +164,24 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
         private Map<String, Collation> nameCollationMap = Collections.emptyMap();
 
-        private TaskAdjutantWrapper(MySQLTaskExecutor taskExecutor) {
+        private volatile int serverStatus = 0;
+
+        private MySQLTaskAdjutant(MySQLTaskExecutor taskExecutor) {
             super(taskExecutor);
             this.taskExecutor = taskExecutor;
+            this.stmtParser = DefaultMySQLParser.create(this::containSQLMode);
         }
 
 
         @Override
-        public ByteBuf createPacketBuffer(int initialPayloadCapacity) {
-            ByteBuf packetBuffer = this.allocator().buffer(Packets.HEADER_SIZE + initialPayloadCapacity, 1 << 30);
-            packetBuffer.writeZero(Packets.HEADER_SIZE);
-            return packetBuffer;
-
+        public ClientProtocolFactory getFactory() {
+            return this.taskExecutor.factory;
         }
 
-        @Override
-        public ByteBuf createPacketBuffer(int initialPayloadCapacity, int maxCapacity) {
-            ByteBuf packetBuffer = this.allocator().buffer(Packets.HEADER_SIZE + initialPayloadCapacity
-                    , maxCapacity);
-            packetBuffer.writeZero(Packets.HEADER_SIZE);
-            return packetBuffer;
-        }
-
-        @Override
-        public int obtainMaxBytesPerCharClient() {
-            int maxBytes = this.maxBytesPerCharClient;
-            if (maxBytes < 1) {
-                throw new IllegalStateException("Cannot access maxBytesPerCharClient now.");
-            }
-            return maxBytes;
-        }
 
         @Override
         public Charset charsetClient() {
-            SessionEnv server = this.server;
+            SessionEnv server = this.sessionEnv;
             return server == null ? StandardCharsets.UTF_8 : server.charsetClient();
         }
 
@@ -212,7 +192,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
         @Nullable
         @Override
         public Charset getCharsetResults() {
-            SessionEnv server = this.server;
+            SessionEnv server = this.sessionEnv;
             Charset charset;
             if (server == null) {
                 charset = StandardCharsets.UTF_8;
@@ -269,9 +249,9 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
         @Override
         public ZoneOffset serverZone() {
-            SessionEnv server = this.server;
+            SessionEnv server = this.sessionEnv;
             if (server == null) {
-                throw new IllegalStateException("Cannot access zoneOffsetDatabase now.");
+                throw new JdbdException("Cannot access zoneOffsetDatabase now.");
             }
             return server.connZone();
         }
@@ -293,7 +273,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
         @Override
         public ZoneOffset connZone() {
-            SessionEnv server = this.server;
+            SessionEnv server = this.sessionEnv;
             if (server == null) {
                 throw new IllegalStateException("Cannot access zoneOffsetClient now.");
             }
@@ -301,13 +281,8 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
         }
 
         @Override
-        public int getServerStatus() throws IllegalStateException {
-            return this.taskExecutor.terminator.statusFags;
-        }
-
-        @Override
-        public Terminator terminator() {
-            return this.taskExecutor.terminator;
+        public int serverStatus() {
+            return this.serverStatus;
         }
 
         @Override
@@ -315,18 +290,10 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
             return this.handshake10 != null;
         }
 
-        @Override
-        public MySQLParser sqlParser() {
-            final MySQLParser parser = this.mySQLParser;
-            if (parser == null) {
-                throw new IllegalStateException("Cannot access mySQLParser now.");
-            }
-            return parser;
-        }
 
         @Override
         public Map<String, Charset> customCharsetMap() {
-            return this.taskExecutor.sessionAdjutant.customCharsetMap();
+            return this.taskExecutor.factory.customCharsetMap;
         }
 
         @Override
@@ -356,19 +323,10 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
             return map;
         }
 
-        @Override
-        public boolean inTransaction() {
-            return false;
-        }
-
-        @Override
-        public boolean isAutoCommit() {
-            return false;
-        }
 
         @Override
         public SessionEnv sessionEnv() {
-            SessionEnv server = this.server;
+            SessionEnv server = this.sessionEnv;
             if (server == null) {
                 throw new IllegalStateException("Cannot access server now.");
             }
@@ -378,7 +336,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
         @Override
         public MySQLStatement parse(String singleSql) throws JdbdException {
-            MySQLParser parser = this.mySQLParser;
+            MySQLParser parser = this.stmtParser;
             if (parser == null) {
                 throw new IllegalStateException("Cannot access MySQLParser now.");
             }
@@ -387,7 +345,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
         @Override
         public boolean isSingleStmt(String sql) throws JdbdException {
-            MySQLParser parser = this.mySQLParser;
+            MySQLParser parser = this.stmtParser;
             if (parser == null) {
                 throw new IllegalStateException("Cannot access MySQLParser now.");
             }
@@ -396,7 +354,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
         @Override
         public boolean isMultiStmt(String sql) throws JdbdException {
-            MySQLParser parser = this.mySQLParser;
+            MySQLParser parser = this.stmtParser;
             if (parser == null) {
                 throw new IllegalStateException("Cannot access MySQLParser now.");
             }
@@ -409,7 +367,7 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
         }
 
         private void setIdCollationMap(final Map<Integer, Collation> idCollationMap) {
-            final Map<String, Collation> nameCollationMap = new HashMap<>((int) (idCollationMap.size() / 0.75F));
+            final Map<String, Collation> nameCollationMap = MySQLCollections.hashMap((int) (idCollationMap.size() / 0.75F));
             for (Collation collation : idCollationMap.values()) {
                 nameCollationMap.put(collation.name, collation);
             }
@@ -417,8 +375,29 @@ final class MySQLTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
             this.idCollationMap = idCollationMap;
         }
 
+        /**
+         * <p>
+         * Just for {@link #stmtParser}
+         * </p>
+         */
+        private boolean containSQLMode(final SQLMode mode) {
+            boolean match;
+            if (mode == SQLMode.NO_BACKSLASH_ESCAPES) {
+                match = Terminator.isNoBackslashEscapes(this.serverStatus); // always exactly, @see updateServerStatus(Terminator)
+            } else {
+                final SessionEnv sessionEnv = this.sessionEnv;
+                match = sessionEnv != null && sessionEnv.containSqlMode(mode);
+            }
+            return match;
+        }
 
-    }
+        private void updateServerStatus(final Terminator terminator) {
+            SERVER_STATUS.set(this, terminator.statusFags);
+            //TODO UPDATE session track
+        }
+
+
+    }// MySQLTaskAdjutant
 
 
 }

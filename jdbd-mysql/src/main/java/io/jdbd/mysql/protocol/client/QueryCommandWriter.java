@@ -51,7 +51,7 @@ final class QueryCommandWriter {
             throw new IllegalArgumentException("error stmt");
         }
         final ByteBuf packet;
-        packet = Packets.createPacket(adjutant.allocator(), stmt);
+        packet = Packets.createStmtPacket(adjutant.allocator(), stmt);
         packet.writeByte(Packets.COM_QUERY);
 
         try {
@@ -85,7 +85,7 @@ final class QueryCommandWriter {
             throw MySQLExceptions.notSupportClientCharset(charsetClient);
         }
         final ByteBuf packet;
-        packet = Packets.createPacket(adjutant.allocator(), stmt); // 1 representing SEMICOLON_BYTE
+        packet = Packets.createStmtPacket(adjutant.allocator(), stmt); // 1 representing SEMICOLON_BYTE
         packet.writeByte(Packets.COM_QUERY);
 
         try {
@@ -159,7 +159,7 @@ final class QueryCommandWriter {
     private QueryCommandWriter(final IntSupplier sequenceId, final TaskAdjutant adjutant) {
         this.sequenceId = sequenceId;
         this.adjutant = adjutant;
-        this.hexEscape = adjutant.isNoBackslashEscapes();
+        this.hexEscape = Terminator.isNoBackslashEscapes(adjutant.serverStatus());
         this.clientCharset = adjutant.charsetClient();
         this.supportZoneOffset = adjutant.handshake10().serverVersion.isSupportZoneOffset();
 
@@ -179,7 +179,7 @@ final class QueryCommandWriter {
         final int size = stmtGroup.size();
         final MySQLParser parser = this.adjutant.sqlParser();
         final ByteBuf packet;
-        packet = Packets.createPacket(this.adjutant.allocator(), multiStmt);
+        packet = Packets.createStmtPacket(this.adjutant.allocator(), multiStmt);
         packet.writeByte(Packets.COM_QUERY);
         try {
             if (Capabilities.supportQueryAttr(this.adjutant.capability())) {
@@ -210,7 +210,7 @@ final class QueryCommandWriter {
         final List<String> staticSqlList;
         staticSqlList = adjutant.parse(stmt.getSql()).getStaticSql();
         final ByteBuf packet;
-        packet = Packets.createPacket(adjutant.allocator(), stmt);
+        packet = Packets.createStmtPacket(adjutant.allocator(), stmt);
         packet.writeByte(Packets.COM_QUERY);
         try {
             if (Capabilities.supportQueryAttr(adjutant.capability())) {
@@ -238,7 +238,7 @@ final class QueryCommandWriter {
         final int stmtCount = parameterGroupList.size();
 
         final ByteBuf packet;
-        packet = Packets.createPacket(this.adjutant.allocator(), stmt);
+        packet = Packets.createStmtPacket(this.adjutant.allocator(), stmt);
         packet.writeByte(Packets.COM_QUERY);
         try {
             if (Capabilities.supportQueryAttr(this.adjutant.capability())) {

@@ -12,12 +12,12 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.function.Function;
+import java.util.function.Predicate;
 
 public final class DefaultMySQLParser implements MySQLParser {
 
 
-    public static MySQLParser create(Function<SQLMode, Boolean> sqlModeFunction) {
+    public static MySQLParser create(Predicate<SQLMode> sqlModeFunction) {
         return new DefaultMySQLParser(sqlModeFunction);
     }
 
@@ -72,9 +72,9 @@ public final class DefaultMySQLParser implements MySQLParser {
     private static final String LOCAL = "LOCAL";
 
 
-    private final Function<SQLMode, Boolean> sqlModeFunction;
+    private final Predicate<SQLMode> sqlModeFunction;
 
-    private DefaultMySQLParser(Function<SQLMode, Boolean> sqlModeFunction) {
+    private DefaultMySQLParser(Predicate<SQLMode> sqlModeFunction) {
         this.sqlModeFunction = sqlModeFunction;
     }
 

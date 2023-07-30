@@ -613,11 +613,11 @@ public abstract class CommunicationTaskExecutor<T extends ITaskAdjutant> impleme
         START_NULL
     }
 
-    protected static abstract class AbstractTaskAdjutant implements ITaskAdjutant {
+    protected static abstract class JdbdTaskAdjutant implements ITaskAdjutant {
 
         private final CommunicationTaskExecutor<?> taskExecutor;
 
-        protected AbstractTaskAdjutant(CommunicationTaskExecutor<?> taskExecutor) {
+        protected JdbdTaskAdjutant(CommunicationTaskExecutor<?> taskExecutor) {
             this.taskExecutor = taskExecutor;
         }
 

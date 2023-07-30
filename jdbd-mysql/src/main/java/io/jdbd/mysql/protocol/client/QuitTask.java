@@ -41,7 +41,7 @@ final class QuitTask extends MySQLTask {
 
     @Override
     protected Publisher<ByteBuf> start() {
-        ByteBuf packetBuf = adjutant.createPacketBuffer(1);
+        ByteBuf packetBuf = Packets.createOnePacket(this.adjutant.allocator(), 1);
         packetBuf.writeByte(Packets.COM_QUIT_HEADER);
         Packets.writeHeader(packetBuf, 0);
         return Mono.just(packetBuf);

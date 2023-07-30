@@ -206,7 +206,7 @@ final class ClientProtocol implements MySQLProtocol {
 
     @Override
     public boolean inTransaction() {
-        return Terminator.inTransaction(this.adjutant.getServerStatus());
+        return Terminator.inTransaction(this.adjutant.serverStatus());
     }
 
     @Override

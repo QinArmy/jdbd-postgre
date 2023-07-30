@@ -2,7 +2,6 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.SessionEnv;
 import io.jdbd.mysql.env.MySQLHost;
-import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import reactor.util.annotation.Nullable;
 
@@ -11,11 +10,6 @@ import java.util.Map;
 
 interface ClientProtocolAdjutant extends ResultRowAdjutant {
 
-    ByteBuf createPacketBuffer(int initialPayloadCapacity);
-
-    ByteBuf createPacketBuffer(int initialPayloadCapacity, int maxCapacity);
-
-    int obtainMaxBytesPerCharClient();
 
     Charset charsetClient();
 
