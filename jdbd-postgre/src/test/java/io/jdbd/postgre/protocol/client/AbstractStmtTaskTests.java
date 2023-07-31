@@ -2935,7 +2935,7 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
         paramGroup.add(BindValue.wrap(0, columnType, value));
         paramGroup.add(BindValue.wrap(1, PgType.BIGINT, id));
 
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 

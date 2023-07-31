@@ -35,7 +35,7 @@ import java.util.function.Function;
 /**
  * @see <a href="https://www.postgresql.org/docs/current/protocol-flow.html#PROTOCOL-FLOW-EXT-QUERY"> Extended Query</a>
  */
-final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask<PgType>, ExtendedStmtTask {
+final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask, ExtendedStmtTask {
 
 
     static Mono<ResultStates> update(BindStmt stmt, TaskAdjutant adjutant) {
@@ -164,6 +164,11 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask<Pg
     @Override
     public Flux<ResultStates> executeBatchUpdate(final ParamBatchStmt stmt) {
         return MultiResults.batchUpdate(sink -> executeAfterBinding(sink, stmt));
+    }
+
+    @Override
+    public BatchQuery executeBatchQuery(final ParamBatchStmt stmt) {
+        return MultiResults.batchQuery(this.adjutant, sink -> executeAfterBinding(sink, stmt));
     }
 
     @Override

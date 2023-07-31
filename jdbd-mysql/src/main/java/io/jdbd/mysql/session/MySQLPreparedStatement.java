@@ -5,7 +5,6 @@ import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
 import io.jdbd.meta.JdbdType;
 import io.jdbd.mysql.MySQLType;
-import io.jdbd.mysql.stmt.MyStmts;
 import io.jdbd.mysql.util.MySQLBinds;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
@@ -18,6 +17,7 @@ import io.jdbd.vendor.SubscribeException;
 import io.jdbd.vendor.result.MultiResults;
 import io.jdbd.vendor.stmt.JdbdValues;
 import io.jdbd.vendor.stmt.ParamValue;
+import io.jdbd.vendor.stmt.Stmts;
 import io.jdbd.vendor.task.PrepareTask;
 import io.jdbd.vendor.util.JdbdBinds;
 import org.reactivestreams.Publisher;
@@ -193,7 +193,7 @@ final class MySQLPreparedStatement extends MySQLStatement<PreparedStatement> imp
         final Mono<ResultStates> mono;
         if (error == null) {
             this.fetchSize = 0;
-            mono = this.stmtTask.executeUpdate(MyStmts.paramStmt(this.sql, paramGroup, this));
+            mono = this.stmtTask.executeUpdate(Stmts.paramStmt(this.sql, paramGroup, this));
         } else {
             this.stmtTask.closeOnBindError(error); // close prepare statement.
             mono = Mono.error(MySQLExceptions.wrap(error));
@@ -204,12 +204,12 @@ final class MySQLPreparedStatement extends MySQLStatement<PreparedStatement> imp
 
     @Override
     public Publisher<ResultRow> executeQuery() {
-        return this.executeQuery(CurrentRow::asResultRow, MyStmts.IGNORE_RESULT_STATES);
+        return this.executeQuery(CurrentRow::asResultRow, Stmts.IGNORE_RESULT_STATES);
     }
 
     @Override
     public <R> Publisher<R> executeQuery(Function<CurrentRow, R> function) {
-        return this.executeQuery(function, MyStmts.IGNORE_RESULT_STATES);
+        return this.executeQuery(function, Stmts.IGNORE_RESULT_STATES);
     }
 
     @Override
@@ -242,7 +242,7 @@ final class MySQLPreparedStatement extends MySQLStatement<PreparedStatement> imp
 
         final Flux<R> flux;
         if (error == null) {
-            flux = this.stmtTask.executeQuery(MyStmts.paramStmt(this.sql, paramGroup, consumer, this), function);
+            flux = this.stmtTask.executeQuery(Stmts.paramStmt(this.sql, paramGroup, consumer, this), function);
         } else {
             this.stmtTask.closeOnBindError(error); // close prepare statement.
             flux = Flux.error(MySQLExceptions.wrap(error));
@@ -274,7 +274,7 @@ final class MySQLPreparedStatement extends MySQLStatement<PreparedStatement> imp
 
         final BatchQuery batchQuery;
         if (error == null) {
-            batchQuery = this.stmtTask.executeBatchQuery(MyStmts.paramBatch(this.sql, paramGroupList, this));
+            batchQuery = this.stmtTask.executeBatchQuery(Stmts.paramBatch(this.sql, paramGroupList, this));
         } else {
             this.stmtTask.closeOnBindError(error); // close prepare statement.
             batchQuery = MultiResults.batchQueryError(MySQLExceptions.wrap(error));
@@ -306,7 +306,7 @@ final class MySQLPreparedStatement extends MySQLStatement<PreparedStatement> imp
 
         final Flux<ResultStates> flux;
         if (error == null) {
-            flux = this.stmtTask.executeBatchUpdate(MyStmts.paramBatch(this.sql, paramGroupList, this));
+            flux = this.stmtTask.executeBatchUpdate(Stmts.paramBatch(this.sql, paramGroupList, this));
         } else {
             this.stmtTask.closeOnBindError(error); // close prepare statement.
             flux = Flux.error(MySQLExceptions.wrap(error));
@@ -335,7 +335,7 @@ final class MySQLPreparedStatement extends MySQLStatement<PreparedStatement> imp
 
         final MultiResult multiResult;
         if (error == null) {
-            multiResult = this.stmtTask.executeBatchAsMulti(MyStmts.paramBatch(this.sql, paramGroupList, this));
+            multiResult = this.stmtTask.executeBatchAsMulti(Stmts.paramBatch(this.sql, paramGroupList, this));
         } else {
             this.stmtTask.closeOnBindError(error); // close prepare statement.
             multiResult = MultiResults.error(MySQLExceptions.wrap(error));
@@ -365,7 +365,7 @@ final class MySQLPreparedStatement extends MySQLStatement<PreparedStatement> imp
 
         final OrderedFlux flux;
         if (error == null) {
-            flux = this.stmtTask.executeBatchAsFlux(MyStmts.paramBatch(this.sql, paramGroupList, this));
+            flux = this.stmtTask.executeBatchAsFlux(Stmts.paramBatch(this.sql, paramGroupList, this));
         } else {
             this.stmtTask.closeOnBindError(error); // close prepare statement.
             flux = MultiResults.fluxError(MySQLExceptions.wrap(error));

@@ -1,6 +1,7 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.netty.buffer.ByteBuf;
+import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
 import java.util.Map;
@@ -27,5 +28,10 @@ final class NoticeMessage extends MultiFieldMessage {
         super(Messages.N, fieldMap);
     }
 
+
+    @Nullable
+    public String getMessage() {
+        return this.fieldMap.get(MultiFieldMessage.MESSAGE);
+    }
 
 }

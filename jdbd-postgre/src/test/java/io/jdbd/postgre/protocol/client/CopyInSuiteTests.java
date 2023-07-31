@@ -52,7 +52,7 @@ public class CopyInSuiteTests extends AbstractTaskTests {
 
     @Test
     public void simpleQueryCopyInFromLocalFileWithStatic() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
@@ -81,7 +81,7 @@ public class CopyInSuiteTests extends AbstractTaskTests {
 
     @Test
     public void simpleQueryCopyInFromLocalFileWithGroup() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
@@ -130,7 +130,7 @@ public class CopyInSuiteTests extends AbstractTaskTests {
 
     @Test
     public void simpleQueryCopyInFromLocalFileWithBindable() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
@@ -159,7 +159,7 @@ public class CopyInSuiteTests extends AbstractTaskTests {
 
     @Test
     public void simpleQueryCopyInFromLocalFileWithBatchBindable() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
@@ -206,7 +206,7 @@ public class CopyInSuiteTests extends AbstractTaskTests {
 
     @Test
     public void simpleQueryCopyInFromLocalFileWithMultiBindStmt() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
@@ -256,7 +256,7 @@ public class CopyInSuiteTests extends AbstractTaskTests {
 
     @Test(expectedExceptions = JdbdSQLException.class)
     public void simpleQueryCopyInFromProgramMode() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
         final String sql = String.format(
@@ -275,7 +275,7 @@ public class CopyInSuiteTests extends AbstractTaskTests {
 
     @Test(expectedExceptions = JdbdSQLException.class)
     public void simpleQueryCopyInFromStdin() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
         final String sql = String.format(

@@ -18,7 +18,7 @@ public class PgConnectionTaskSuiteTests extends AbstractTaskTests {
     public void authentication() {
         LOG.info("passwordAuthentication test start.");
         ClientProtocolFactory.single(DEFAULT_SESSION_ADJUTANT, 0)
-                .flatMap(ClientProtocol::close)
+                .flatMap(PgProtocol::close)
                 .block();
         LOG.info("passwordAuthentication test end.");
     }

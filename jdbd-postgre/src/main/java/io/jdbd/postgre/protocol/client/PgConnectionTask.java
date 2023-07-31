@@ -597,7 +597,7 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
     private String getApplicationName() {
         String applicationName = this.properties.get(PgKey.ApplicationName);
         if (applicationName == null) {
-            applicationName = ClientProtocol.class.getPackage().getImplementationVersion();
+            applicationName = PgProtocol.class.getPackage().getImplementationVersion();
             if (applicationName == null) {
                 applicationName = "jdbd-postgre-test";
             }

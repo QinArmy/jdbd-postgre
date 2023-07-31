@@ -2,12 +2,12 @@ package io.jdbd.mysql.protocol.client;
 
 
 import io.jdbd.mysql.Groups;
-import io.jdbd.mysql.stmt.MyStmts;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
 import io.jdbd.vendor.stmt.JdbdParamValue;
 import io.jdbd.vendor.stmt.ParamStmt;
 import io.jdbd.vendor.stmt.ParamValue;
+import io.jdbd.vendor.stmt.Stmts;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
@@ -67,7 +67,7 @@ public class ComPreparedTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         bindValueList.add(JdbdParamValue.wrap(0, "prepare update 1"));
         bindValueList.add(JdbdParamValue.wrap(1, 80L));
 
-        states = ComPreparedTask.update(MyStmts.multiPrepare(sql, bindValueList), adjutant)
+        states = ComPreparedTask.update(Stmts.multiPrepare(sql, bindValueList), adjutant)
                 .block();
 
         assertNotNull(states, "states");

@@ -26,7 +26,7 @@ public abstract class ClientProtocolFactory {
         throw new UnsupportedOperationException();
     }
 
-    public static Mono<ClientProtocol> single(final SessionAdjutant sessionAdjutant, final int hostIndex) {
+    public static Mono<PgProtocol> single(final SessionAdjutant sessionAdjutant, final int hostIndex) {
         return PgTaskExecutor.create(sessionAdjutant, hostIndex)// 1. create TCP connection.
                 .flatMap(executor -> connect(executor, hostIndex)) // 2. authentication and initializing
                 .map(ClientProtocolImpl::create); // 3. create ClientProtocol instance.

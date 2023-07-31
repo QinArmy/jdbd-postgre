@@ -24,11 +24,6 @@ final class DefaultMySQLStatement implements MySQLStatement {
     }
 
     @Override
-    public int getParamCount() {
-        return this.staticSqlList.size() - 1;
-    }
-
-    @Override
     public String getSql() {
         return this.sql;
     }

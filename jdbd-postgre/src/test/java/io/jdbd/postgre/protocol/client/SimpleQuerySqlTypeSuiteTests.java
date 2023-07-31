@@ -612,7 +612,7 @@ public class SimpleQuerySqlTypeSuiteTests extends AbstractStmtTaskTests {
      */
     @Test
     public void validateMoneyFormat() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
         Locale currentLocale = null;

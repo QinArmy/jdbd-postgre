@@ -40,7 +40,7 @@ public class TaskTestAdvice extends AbstractTaskTests {
         sqlList.add("DROP TABLE IF EXISTS my_copies");
         sqlList.add(PgStreams.readAsString(Paths.get(sqlDir, "data/sql/my_copies.sql")));
 
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
@@ -70,7 +70,7 @@ public class TaskTestAdvice extends AbstractTaskTests {
                     .append(row);
         }
 
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
@@ -89,7 +89,7 @@ public class TaskTestAdvice extends AbstractTaskTests {
     public void rowMetaValidate() {
         final String sql = "SELECT t.* FROM my_types as t LIMIT 10";
 
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 

@@ -3,13 +3,12 @@ package io.jdbd.mysql.syntax;
 import io.jdbd.JdbdException;
 import io.jdbd.mysql.SQLMode;
 import io.jdbd.mysql.protocol.Constants;
+import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.vendor.util.JdbdStrings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Predicate;
@@ -114,16 +113,22 @@ public final class DefaultMySQLParser implements MySQLParser {
         if (!JdbdStrings.hasText(sql)) {
             throw MySQLExceptions.sqlIsEmpty();
         }
-        final boolean ansiQuotes = this.sqlModeFunction.apply(SQLMode.ANSI_QUOTES);
-        final boolean backslashEscapes = !this.sqlModeFunction.apply(SQLMode.NO_BACKSLASH_ESCAPES);
+        final boolean ansiQuotes, backslashEscapes;
+        ansiQuotes = this.sqlModeFunction.test(SQLMode.ANSI_QUOTES);
+        backslashEscapes = !this.sqlModeFunction.test(SQLMode.NO_BACKSLASH_ESCAPES);
 
         boolean inQuotes = false, inDoubleQuotes = false, inQuoteId = false, inDoubleId = false, localInfile = false;
         final int sqlLength = sql.length();
         int lastParmEnd = 0, stmtCount = 0;
-        final List<String> endpointList = mode == Mode.PARSE ? new ArrayList<>() : Collections.emptyList();
+        final List<String> endpointList;
+        if (mode == Mode.PARSE) {
+            endpointList = MySQLCollections.arrayList();
+        } else {
+            endpointList = Collections.emptyList();
+        }
 
         char ch, firstStmtChar = Constants.EMPTY_CHAR, firstEachStmt = Constants.EMPTY_CHAR;
-        for (int i = 0, line = 1; i < sqlLength; i++) {
+        for (int i = 0; i < sqlLength; i++) {
             ch = sql.charAt(i);
 
             if (inQuoteId) {
@@ -163,10 +168,8 @@ public final class DefaultMySQLParser implements MySQLParser {
                 if (i + 1 < sqlLength && sql.charAt(i + 1) == '\n') {
                     i++;
                 }
-                line++;
                 continue;
             } else if (ch == '\n') {
-                line++;
                 continue;
             } else if (Character.isWhitespace(ch)) {
                 continue;
@@ -207,7 +210,7 @@ public final class DefaultMySQLParser implements MySQLParser {
                     }
                     break;
                     default:
-                        throw MySQLExceptions.createUnexpectedEnumException(mode);
+                        throw MySQLExceptions.unexpectedEnum(mode);
                 }
             } else if (ch == '?') {
                 if (mode == Mode.PARSE) {
@@ -264,7 +267,7 @@ public final class DefaultMySQLParser implements MySQLParser {
             }
             break;
             default:
-                throw MySQLExceptions.createUnexpectedEnumException(mode);
+                throw MySQLExceptions.unexpectedEnum(mode);
         }
 
         return returnValue;
@@ -322,8 +325,7 @@ public final class DefaultMySQLParser implements MySQLParser {
     /**
      * @return {@link #BLOCK_COMMENT_END_MARKER}'s last char index.
      */
-    private static int skipBlockCommentEndMarker(String sql, int i)
-            throws SQLException {
+    private static int skipBlockCommentEndMarker(String sql, int i) {
         i += BLOCK_COMMENT_START_MARKER.length();
         if (i >= sql.length()) {
             throw MySQLExceptions.createSyntaxError("Block comment marker quote(/*) not close.");
@@ -340,7 +342,7 @@ public final class DefaultMySQLParser implements MySQLParser {
      * @return the index of line end char.
      */
     private static int skipCommentLineEnd(final String sql, final String lineCommentMarker, int i)
-            throws JdbdSQLException {
+            throws JdbdException {
         i += lineCommentMarker.length();
         if (i >= sql.length()) {
             i = sql.length();

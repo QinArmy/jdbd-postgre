@@ -21,7 +21,7 @@ import static org.testng.Assert.assertNotNull;
 abstract class AbstractTaskTests {
 
 
-    static final Queue<ClientProtocol> PROTOCOL_QUEUE = new LinkedBlockingQueue<>();
+    static final Queue<PgProtocol> PROTOCOL_QUEUE = new LinkedBlockingQueue<>();
 
     private final static EventLoopGroup EVENT_LOOP_GROUP = LoopResources.create("jdbd-postgre", 20, true)
             .onClient(true);
@@ -39,9 +39,9 @@ abstract class AbstractTaskTests {
     }
 
 
-    static Mono<ClientProtocol> obtainProtocol() {
-        final ClientProtocol protocol = PROTOCOL_QUEUE.poll();
-        final Mono<ClientProtocol> mono;
+    static Mono<PgProtocol> obtainProtocol() {
+        final PgProtocol protocol = PROTOCOL_QUEUE.poll();
+        final Mono<PgProtocol> mono;
         if (protocol == null) {
             mono = ClientProtocolFactory.single(DEFAULT_SESSION_ADJUTANT, 0);
         } else {
@@ -50,25 +50,25 @@ abstract class AbstractTaskTests {
         return mono;
     }
 
-    static ClientProtocol obtainProtocolWithSync() {
-        ClientProtocol protocol;
+    static PgProtocol obtainProtocolWithSync() {
+        PgProtocol protocol;
         protocol = obtainProtocol()
                 .block();
         assertNotNull(protocol, "protocol");
         return protocol;
     }
 
-    static TaskAdjutant mapToTaskAdjutant(ClientProtocol protocol) {
+    static TaskAdjutant mapToTaskAdjutant(PgProtocol protocol) {
         return ((ClientProtocolImpl) protocol).adjutant;
     }
 
-    static <T> Mono<T> releaseConnection(ClientProtocol protocol) {
+    static <T> Mono<T> releaseConnection(PgProtocol protocol) {
         return protocol.reset()
                 .doOnSuccess(v -> PROTOCOL_QUEUE.offer(protocol))
                 .then(Mono.empty());
     }
 
-    static <T> Function<? super Throwable, ? extends Mono<T>> releaseConnectionOnError(ClientProtocol protocol) {
+    static <T> Function<? super Throwable, ? extends Mono<T>> releaseConnectionOnError(PgProtocol protocol) {
         return error -> protocol.reset()
                 .onErrorMap(resetError -> {
                     List<Throwable> list = new ArrayList<>(2);

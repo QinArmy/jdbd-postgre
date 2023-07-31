@@ -5,7 +5,6 @@ import io.jdbd.lang.Nullable;
 import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.MySQLProtocol;
 import io.jdbd.mysql.protocol.MySQLServerVersion;
-import io.jdbd.mysql.stmt.MyStmts;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.result.*;
 import io.jdbd.session.*;
@@ -225,7 +224,7 @@ final class ClientProtocol implements MySQLProtocol {
         final ResultStates[] statesHolder = new ResultStates[1];
 
         final StaticStmt stmt;
-        stmt = MyStmts.stmt(builder.toString(), states -> statesHolder[0] = states);
+        stmt = Stmts.stmt(builder.toString(), states -> statesHolder[0] = states);
         return ComQueryTask.query(stmt, CurrentRow::asResultRow, this.adjutant)
                 .last() // must wait for last ,because statesHolder
                 .map(row -> mapTxStatus(row, statesHolder[0]));
@@ -265,7 +264,7 @@ final class ClientProtocol implements MySQLProtocol {
             builder.append(Constants.SPACE_COMMA_SPACE)
                     .append(WITH_CONSISTENT_SNAPSHOT.name());
         }
-        return Flux.from(ComQueryTask.executeAsFlux(MyStmts.multiStmt(builder.toString()), this.adjutant))
+        return Flux.from(ComQueryTask.executeAsFlux(Stmts.multiStmt(builder.toString()), this.adjutant))
                 .last()
                 .map(ResultStates.class::cast);
     }
@@ -298,21 +297,21 @@ final class ClientProtocol implements MySQLProtocol {
         } else {
             builder.append("READ WRITE");
         }
-        return Flux.from(ComQueryTask.executeAsFlux(MyStmts.multiStmt(builder.toString()), this.adjutant))
+        return Flux.from(ComQueryTask.executeAsFlux(Stmts.multiStmt(builder.toString()), this.adjutant))
                 .then();
     }
 
 
     @Override
     public Mono<ResultStates> commit() {
-        return Flux.from(ComQueryTask.executeAsFlux(MyStmts.multiStmt(COMMIT_MULTI_SQL), this.adjutant))
+        return Flux.from(ComQueryTask.executeAsFlux(Stmts.multiStmt(COMMIT_MULTI_SQL), this.adjutant))
                 .last()
                 .map(ResultStates.class::cast);
     }
 
     @Override
     public Mono<ResultStates> rollback() {
-        return Flux.from(ComQueryTask.executeAsFlux(MyStmts.multiStmt(ROLLBACK_MULTI_SQL), this.adjutant))
+        return Flux.from(ComQueryTask.executeAsFlux(Stmts.multiStmt(ROLLBACK_MULTI_SQL), this.adjutant))
                 .last()
                 .map(ResultStates.class::cast);
     }

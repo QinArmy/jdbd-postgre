@@ -2,7 +2,7 @@ package io.jdbd.postgre.session;
 
 import io.jdbd.meta.DatabaseMetaData;
 import io.jdbd.postgre.PgType;
-import io.jdbd.postgre.protocol.client.ClientProtocol;
+import io.jdbd.postgre.protocol.client.PgProtocol;
 import io.jdbd.result.CurrentRow;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.OrderedFlux;
@@ -35,9 +35,9 @@ abstract class PgDatabaseSession implements DatabaseSession {
 
     final SessionAdjutant adjutant;
 
-    final ClientProtocol protocol;
+    final PgProtocol protocol;
 
-    PgDatabaseSession(SessionAdjutant adjutant, ClientProtocol protocol) {
+    PgDatabaseSession(SessionAdjutant adjutant, PgProtocol protocol) {
         this.adjutant = adjutant;
         this.protocol = protocol;
     }

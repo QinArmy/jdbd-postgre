@@ -4,7 +4,6 @@ import io.jdbd.JdbdException;
 import io.jdbd.meta.DatabaseMetaData;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.MySQLProtocol;
-import io.jdbd.mysql.stmt.MyStmts;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLStrings;
@@ -99,7 +98,7 @@ abstract class MySQLDatabaseSession<S extends DatabaseSession> implements Databa
         if (MySQLCollections.isEmpty(sqlGroup)) {
             return MultiResults.batchQueryError(MySQLExceptions.sqlIsEmpty());
         }
-        return this.protocol.batchQuery(MyStmts.batch(sqlGroup));
+        return this.protocol.batchQuery(Stmts.batch(sqlGroup));
     }
 
     @Override
@@ -224,7 +223,7 @@ abstract class MySQLDatabaseSession<S extends DatabaseSession> implements Databa
             return Mono.error(MySQLExceptions.savePointNameIsEmpty());
         }
         final ParamStmt stmt;
-        stmt = MyStmts.single("SAVEPOINT ? ", MySQLType.VARCHAR, name);
+        stmt = Stmts.single("SAVEPOINT ? ", MySQLType.VARCHAR, name);
         return this.protocol.bindUpdate(stmt, false)
                 .thenReturn(NamedSavePoint.fromName(name));
     }
@@ -237,7 +236,7 @@ abstract class MySQLDatabaseSession<S extends DatabaseSession> implements Databa
         }
 
         final ParamStmt stmt;
-        stmt = MyStmts.single("RELEASE SAVEPOINT ? ", MySQLType.VARCHAR, savepoint.name());
+        stmt = Stmts.single("RELEASE SAVEPOINT ? ", MySQLType.VARCHAR, savepoint.name());
         return this.protocol.bindUpdate(stmt, false)
                 .thenReturn((S) this);
     }
@@ -250,7 +249,7 @@ abstract class MySQLDatabaseSession<S extends DatabaseSession> implements Databa
         }
 
         final ParamStmt stmt;
-        stmt = MyStmts.single("ROLLBACK TO SAVEPOINT ? ", MySQLType.VARCHAR, savepoint.name());
+        stmt = Stmts.single("ROLLBACK TO SAVEPOINT ? ", MySQLType.VARCHAR, savepoint.name());
         return this.protocol.bindUpdate(stmt, false)
                 .thenReturn((S) this);
     }

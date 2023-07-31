@@ -1,7 +1,7 @@
 package io.jdbd.postgre.session;
 
 import io.jdbd.pool.PoolRmDatabaseSession;
-import io.jdbd.postgre.protocol.client.ClientProtocol;
+import io.jdbd.postgre.protocol.client.PgProtocol;
 import io.jdbd.session.RmDatabaseSession;
 import io.jdbd.session.Xid;
 import reactor.core.publisher.Flux;
@@ -15,16 +15,16 @@ import reactor.core.publisher.Mono;
 class PgXaDatabaseSession extends PgDatabaseSession implements RmDatabaseSession {
 
 
-    static PgXaDatabaseSession create(SessionAdjutant adjutant, ClientProtocol protocol) {
+    static PgXaDatabaseSession create(SessionAdjutant adjutant, PgProtocol protocol) {
         return new PgXaDatabaseSession(adjutant, protocol);
     }
 
-    static PgPoolXaDatabaseSession forPoolVendor(SessionAdjutant adjutant, ClientProtocol protocol) {
+    static PgPoolXaDatabaseSession forPoolVendor(SessionAdjutant adjutant, PgProtocol protocol) {
         return new PgPoolXaDatabaseSession(adjutant, protocol);
     }
 
 
-    private PgXaDatabaseSession(SessionAdjutant adjutant, ClientProtocol protocol) {
+    private PgXaDatabaseSession(SessionAdjutant adjutant, PgProtocol protocol) {
         super(adjutant, protocol);
     }
 
@@ -67,7 +67,7 @@ class PgXaDatabaseSession extends PgDatabaseSession implements RmDatabaseSession
 
     private static final class PgPoolXaDatabaseSession extends PgXaDatabaseSession implements PoolRmDatabaseSession {
 
-        private PgPoolXaDatabaseSession(SessionAdjutant adjutant, ClientProtocol protocol) {
+        private PgPoolXaDatabaseSession(SessionAdjutant adjutant, PgProtocol protocol) {
             super(adjutant, protocol);
         }
 

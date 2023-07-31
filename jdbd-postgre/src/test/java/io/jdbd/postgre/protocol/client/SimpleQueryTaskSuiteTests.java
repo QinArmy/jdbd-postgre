@@ -46,7 +46,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
      */
     @Test
     public void update() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
         final long bindId = (START_ID + 1);
@@ -76,7 +76,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
      */
     @Test
     public void query() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
         final long bindId = (START_ID + 10);
@@ -113,7 +113,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
      */
     @Test
     public void batchUpdate() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
         List<String> sqlList = new ArrayList<>(2);
@@ -158,7 +158,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
      */
     @Test
     public void asMulti() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
@@ -202,7 +202,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
      */
     @Test
     public void asFlux() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
         final long bindStartId = START_ID + 40;
@@ -309,7 +309,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
      */
     @Test
     public void bindableUpdate() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
@@ -346,7 +346,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
      */
     @Test
     public void bindableQuery() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
@@ -386,7 +386,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
      */
     @Test
     public void bindableBatchUpdate() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
         long bindId = START_ID + 70;
@@ -437,7 +437,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
      */
     @Test
     public void bindableAsMultiForUpdate() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
@@ -500,7 +500,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
      */
     @Test
     public void bindableAsMultiForQuery() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
@@ -584,7 +584,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
      */
     @Test
     public void bindableAsFluxForUpdate() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
@@ -641,7 +641,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
      */
     @Test
     public void bindableAsFluxForQuery() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
@@ -716,7 +716,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
      */
     @Test
     public void multiStmtAsMulti() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
@@ -784,7 +784,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
      */
     @Test
     public void multiStmtAsFlux() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
@@ -862,7 +862,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
      */
     @Test(expectedExceptions = SubscribeException.class)
     public void updateIncorrectUserCase1() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
@@ -887,7 +887,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
      */
     @Test(expectedExceptions = SubscribeException.class)
     public void updateIncorrectUserCase2() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
@@ -909,7 +909,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
      */
     @Test(expectedExceptions = JdbdSQLException.class)
     public void updateIncorrectUserCase3() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
@@ -931,7 +931,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
      */
     @Test(expectedExceptions = SubscribeException.class)
     public void queryIncorrectUserCase1() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
@@ -953,7 +953,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
      */
     @Test(expectedExceptions = JdbdSQLException.class)
     public void queryIncorrectUserCase2() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
@@ -976,7 +976,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
      */
     @Test(expectedExceptions = SubscribeException.class)
     public void queryIncorrectUserCase3() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
@@ -998,7 +998,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
      */
     @Test(expectedExceptions = JdbdSQLException.class)
     public void batchUpdateInCorrectUserCase1() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
@@ -1027,7 +1027,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
      */
     @Test(expectedExceptions = SubscribeException.class)
     public void batchUpdateInCorrectUserCase2() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
@@ -1057,7 +1057,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
      */
     @Test(expectedExceptions = JdbdSQLException.class)
     public void batchUpdateInCorrectUserCase3() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
@@ -1087,7 +1087,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
      */
     @Test(expectedExceptions = JdbdSQLException.class)
     public void bindableUpdateInCorrectUserCase1() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
@@ -1114,7 +1114,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
      */
     @Test(expectedExceptions = JdbdSQLException.class)
     public void bindableUpdateInCorrectUserCase2() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
@@ -1144,7 +1144,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
      */
     @Test(expectedExceptions = SubscribeException.class)
     public void bindableUpdateInCorrectUserCase3() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
@@ -1170,7 +1170,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
      */
     @Test(expectedExceptions = JdbdSQLException.class)
     public void bindableQueryIncorrectUserCase1() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
@@ -1195,7 +1195,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
      */
     @Test(expectedExceptions = SubscribeException.class)
     public void bindableQueryIncorrectUserCase2() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
@@ -1223,7 +1223,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
      */
     @Test(expectedExceptions = JdbdSQLException.class)
     public void bindableQueryIncorrectUserCase3() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
@@ -1251,7 +1251,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
      */
     @Test(expectedExceptions = JdbdSQLException.class)
     public void bindableBatchUpdateIncorrectUserCase1() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
@@ -1287,7 +1287,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
      */
     @Test(expectedExceptions = JdbdSQLException.class)
     public void bindableBatchUpdateIncorrectUserCase2() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
@@ -1323,7 +1323,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
      */
     @Test(expectedExceptions = SubscribeException.class)
     public void bindableBatchUpdateIncorrectUserCase3() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
@@ -1354,7 +1354,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
      */
     @Test(expectedExceptions = JdbdSQLException.class)
     public void bindableAsMultiIncorrectUserCase1() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 

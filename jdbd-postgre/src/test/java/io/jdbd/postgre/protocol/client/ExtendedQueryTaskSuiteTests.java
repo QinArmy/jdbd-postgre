@@ -29,7 +29,7 @@ public class ExtendedQueryTaskSuiteTests extends AbstractTaskTests {
      */
     @Test
     public void updateForOneShot() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 

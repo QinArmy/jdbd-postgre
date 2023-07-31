@@ -2,7 +2,6 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.MySQLProtocol;
-import io.jdbd.mysql.stmt.MyStmts;
 import io.jdbd.mysql.type.City;
 import io.jdbd.mysql.type.TrueOrFalse;
 import io.jdbd.mysql.util.*;
@@ -833,7 +832,7 @@ abstract class AbstractDataTypeSuiteTests extends AbstractTaskSuiteTests {
         final ParamStmt updateStmt, queryStmt;
         updateStmt = Stmts.paramStmt(sql, bindGroup);
         sql = String.format("SELECT t.id,t.%s FROM mysql_types AS t WHERE t.id = ?", column);
-        queryStmt = MyStmts.single(sql, MySQLType.BIGINT, id);
+        queryStmt = Stmts.single(sql, MySQLType.BIGINT, id);
 
         final ResultRow row;
         row = getClientProtocol()

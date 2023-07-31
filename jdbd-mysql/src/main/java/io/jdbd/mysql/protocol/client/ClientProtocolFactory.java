@@ -12,14 +12,14 @@ import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.MySQLProtocol;
 import io.jdbd.mysql.protocol.MySQLProtocolFactory;
 import io.jdbd.mysql.protocol.MySQLServerVersion;
-import io.jdbd.mysql.stmt.MyStmts;
-import io.jdbd.mysql.stmt.MyValues;
 import io.jdbd.mysql.util.*;
 import io.jdbd.result.CurrentRow;
 import io.jdbd.result.ResultRow;
 import io.jdbd.vendor.env.Environment;
+import io.jdbd.vendor.stmt.JdbdValues;
 import io.jdbd.vendor.stmt.ParamStmt;
 import io.jdbd.vendor.stmt.ParamValue;
+import io.jdbd.vendor.stmt.Stmts;
 import io.jdbd.vendor.util.SQLStates;
 import io.netty.channel.EventLoopGroup;
 import reactor.core.publisher.Flux;
@@ -200,7 +200,7 @@ public final class ClientProtocolFactory extends FixedEnv implements MySQLProtoc
             sqlGroup.add(keyVariablesQuerySql); // 5.
             final int sqlSize = sqlGroup.size();
 
-            return Flux.from(ComQueryTask.batchAsFlux(MyStmts.batch(sqlGroup), this.adjutant))
+            return Flux.from(ComQueryTask.batchAsFlux(Stmts.batch(sqlGroup), this.adjutant))
                     .filter(r -> r instanceof ResultRow && r.getResultNo() == sqlSize)
                     .last()
                     .map(ResultRow.class::cast)
@@ -219,7 +219,7 @@ public final class ClientProtocolFactory extends FixedEnv implements MySQLProtoc
                     || this.factory.customCharsetMap.size() == 0) {
                 return Mono.empty();
             }
-            return ComQueryTask.query(MyStmts.stmt("SHOW CHARACTER SET"), this::mapMyCharset, this.adjutant)// SHOW CHARACTER SET result
+            return ComQueryTask.query(Stmts.stmt("SHOW CHARACTER SET"), this::mapMyCharset, this.adjutant)// SHOW CHARACTER SET result
                     .filter(Optional::isPresent)
                     .map(Optional::get)
                     .collectMap(MyCharset::charsetName, MyCharset::self, MySQLCollections::hashMap)
@@ -296,11 +296,11 @@ public final class ClientProtocolFactory extends FixedEnv implements MySQLProtoc
                     builder.append(" ,");
                 }
                 builder.append(" ?");
-                paramList.add(MyValues.paramValue(index, MySQLType.VARCHAR, name));
+                paramList.add(JdbdValues.paramValue(index, MySQLType.VARCHAR, name));
                 index++;
             }
             builder.append(" )");
-            return MyStmts.paramStmt(builder.toString(), paramList);
+            return Stmts.paramStmt(builder.toString(), paramList);
         }
 
 

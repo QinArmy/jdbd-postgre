@@ -4,8 +4,8 @@ import io.jdbd.DriverVersion;
 import io.jdbd.postgre.PgDriver;
 import io.jdbd.postgre.config.PgKey;
 import io.jdbd.postgre.config.PgUrl;
-import io.jdbd.postgre.protocol.client.ClientProtocol;
 import io.jdbd.postgre.protocol.client.ClientProtocolFactory;
+import io.jdbd.postgre.protocol.client.PgProtocol;
 import io.jdbd.session.DatabaseSessionFactory;
 import io.jdbd.session.LocalDatabaseSession;
 import io.jdbd.session.RmDatabaseSession;
@@ -91,7 +91,7 @@ public class PgDatabaseSessionFactory implements DatabaseSessionFactory {
     /**
      * @see #localSession()
      */
-    private LocalDatabaseSession createTxSession(final ClientProtocol protocol) {
+    private LocalDatabaseSession createTxSession(final PgProtocol protocol) {
         final LocalDatabaseSession session;
         if (this.forPoolVendor) {
             session = PgLocalDatabaseSession.forPoolVendor(this.sessionAdjutant, protocol);
@@ -104,7 +104,7 @@ public class PgDatabaseSessionFactory implements DatabaseSessionFactory {
     /**
      * @see #rmSession()
      */
-    private RmDatabaseSession createXaSession(ClientProtocol protocol) {
+    private RmDatabaseSession createXaSession(PgProtocol protocol) {
         final RmDatabaseSession session;
         if (this.forPoolVendor) {
             session = PgXaDatabaseSession.forPoolVendor(this.sessionAdjutant, protocol);

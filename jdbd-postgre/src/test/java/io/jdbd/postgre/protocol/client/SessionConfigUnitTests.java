@@ -30,7 +30,7 @@ public class SessionConfigUnitTests extends AbstractTaskTests {
      */
     @Test
     public void printMoneyFormat() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 

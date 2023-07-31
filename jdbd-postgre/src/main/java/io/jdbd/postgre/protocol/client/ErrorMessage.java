@@ -19,7 +19,7 @@ public final class ErrorMessage extends MultiFieldMessage {
             String msg = String.format("Message type[%s] isn't ErrorResponse.", type);
             throw new IllegalArgumentException(msg);
         }
-        final int readIndex = message.readerIndex();
+        int readIndex = message.readerIndex();
         return readBody(message, readIndex + message.readInt(), charset);
     }
 
@@ -34,24 +34,34 @@ public final class ErrorMessage extends MultiFieldMessage {
     }
 
 
+    public String getMessage() {
+        String message;
+        message = this.fieldMap.get(MultiFieldMessage.MESSAGE);
+        if (message == null) {
+            message = "";
+        }
+        return message;
+    }
+
+
     @Nullable
-    public final String getSQLState() {
+    public String getSQLState() {
         return this.fieldMap.get(MultiFieldMessage.SQLSTATE);
     }
 
 
     @Nullable
-    final String getSeverity() {
+    String getSeverity() {
         return this.fieldMap.get(MultiFieldMessage.SEVERITY);
     }
 
     @Nullable
-    final String getDetail() {
+    String getDetail() {
         return this.fieldMap.get(MultiFieldMessage.DETAIL);
     }
 
     @Nullable
-    final String getHint() {
+    String getHint() {
         return this.fieldMap.get(MultiFieldMessage.HINT);
     }
 
@@ -61,55 +71,55 @@ public final class ErrorMessage extends MultiFieldMessage {
     }
 
     @Nullable
-    final String getWhere() {
+    String getWhere() {
         return this.fieldMap.get(MultiFieldMessage.WHERE);
     }
 
     @Nullable
-    final String getSchema() {
+    String getSchema() {
         return this.fieldMap.get(MultiFieldMessage.SCHEMA);
     }
 
     @Nullable
-    final String getTable() {
+    String getTable() {
         return this.fieldMap.get(MultiFieldMessage.TABLE);
     }
 
     @Nullable
-    final String getColumn() {
+    String getColumn() {
         return this.fieldMap.get(MultiFieldMessage.COLUMN);
     }
 
     @Nullable
-    final String getDatatype() {
+    String getDatatype() {
         return this.fieldMap.get(MultiFieldMessage.DATATYPE);
     }
 
     @Nullable
-    final String getConstraint() {
+    String getConstraint() {
         return this.fieldMap.get(MultiFieldMessage.CONSTRAINT);
     }
 
     @Nullable
-    final String getFile() {
+    String getFile() {
         return this.fieldMap.get(MultiFieldMessage.FILE);
     }
 
-    final int getLine() {
+    int getLine() {
         return getIntegerPart(MultiFieldMessage.LINE);
     }
 
     @Nullable
-    final String getRoutine() {
+    String getRoutine() {
         return this.fieldMap.get(MultiFieldMessage.ROUTINE);
     }
 
     @Nullable
-    final String getInternalQuery() {
+    String getInternalQuery() {
         return this.fieldMap.get(MultiFieldMessage.INTERNAL_QUERY);
     }
 
-    final String getNonSensitiveErrorMessage() {
+    String getNonSensitiveErrorMessage() {
         StringBuilder builder = new StringBuilder();
         String message = this.fieldMap.get(MultiFieldMessage.SEVERITY);
         if (message != null) {
@@ -124,8 +134,8 @@ public final class ErrorMessage extends MultiFieldMessage {
 
 
     private int getIntegerPart(byte type) {
-        final String s = this.fieldMap.get(type);
-        final int integer;
+        String s = this.fieldMap.get(type);
+        int integer;
         if (s == null) {
             integer = 0;
         } else {
@@ -159,8 +169,7 @@ public final class ErrorMessage extends MultiFieldMessage {
 
         LINE(MultiFieldMessage.LINE),
         ROUTINE(MultiFieldMessage.ROUTINE);
-
-        final byte type;
+        byte type;
 
         ErrorField(byte type) {
             this.type = type;

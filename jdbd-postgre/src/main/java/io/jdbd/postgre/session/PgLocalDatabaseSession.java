@@ -2,7 +2,7 @@ package io.jdbd.postgre.session;
 
 import io.jdbd.JdbdException;
 import io.jdbd.pool.PoolLocalDatabaseSession;
-import io.jdbd.postgre.protocol.client.ClientProtocol;
+import io.jdbd.postgre.protocol.client.PgProtocol;
 import io.jdbd.result.BatchQuery;
 import io.jdbd.result.ResultRow;
 import io.jdbd.session.HandleMode;
@@ -17,16 +17,16 @@ import java.util.List;
 class PgLocalDatabaseSession extends PgDatabaseSession implements LocalDatabaseSession {
 
 
-    static PgLocalDatabaseSession create(SessionAdjutant adjutant, ClientProtocol protocol) {
+    static PgLocalDatabaseSession create(SessionAdjutant adjutant, PgProtocol protocol) {
         return new PgLocalDatabaseSession(adjutant, protocol);
     }
 
-    static PgLocalDatabaseSession forPoolVendor(SessionAdjutant adjutant, ClientProtocol protocol) {
+    static PgLocalDatabaseSession forPoolVendor(SessionAdjutant adjutant, PgProtocol protocol) {
         return new PgPoolLocalDatabaseSession(adjutant, protocol);
     }
 
 
-    private PgLocalDatabaseSession(SessionAdjutant adjutant, ClientProtocol protocol) {
+    private PgLocalDatabaseSession(SessionAdjutant adjutant, PgProtocol protocol) {
         super(adjutant, protocol);
     }
 
@@ -86,7 +86,7 @@ class PgLocalDatabaseSession extends PgDatabaseSession implements LocalDatabaseS
     private static final class PgPoolLocalDatabaseSession extends PgLocalDatabaseSession
             implements PoolLocalDatabaseSession {
 
-        private PgPoolLocalDatabaseSession(SessionAdjutant adjutant, ClientProtocol protocol) {
+        private PgPoolLocalDatabaseSession(SessionAdjutant adjutant, PgProtocol protocol) {
             super(adjutant, protocol);
         }
 

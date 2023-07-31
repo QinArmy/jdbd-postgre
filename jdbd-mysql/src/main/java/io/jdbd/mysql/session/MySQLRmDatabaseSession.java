@@ -3,7 +3,6 @@ package io.jdbd.mysql.session;
 
 import io.jdbd.JdbdException;
 import io.jdbd.mysql.protocol.MySQLProtocol;
-import io.jdbd.mysql.stmt.MyStmts;
 import io.jdbd.mysql.util.MySQLBuffers;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLStrings;
@@ -13,6 +12,7 @@ import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
 import io.jdbd.session.*;
 import io.jdbd.vendor.session.XidImpl;
+import io.jdbd.vendor.stmt.Stmts;
 import io.jdbd.vendor.util.JdbdExceptions;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
@@ -78,7 +78,7 @@ class MySQLRmDatabaseSession extends MySQLDatabaseSession<RmDatabaseSession> imp
         } catch (Throwable e) {
             return Mono.error(MySQLExceptions.wrap(e));
         }
-        return this.protocol.update(MyStmts.stmt(builder.toString()))
+        return this.protocol.update(Stmts.stmt(builder.toString()))
                 .map(this::mapStartResult)
                 .thenReturn(this);
     }
@@ -104,7 +104,7 @@ class MySQLRmDatabaseSession extends MySQLDatabaseSession<RmDatabaseSession> imp
         } catch (Throwable e) {
             return Mono.error(MySQLExceptions.wrap(e));
         }
-        return this.protocol.update(MyStmts.stmt(builder.toString()))
+        return this.protocol.update(Stmts.stmt(builder.toString()))
                 .thenReturn(this);
     }
 
@@ -117,7 +117,7 @@ class MySQLRmDatabaseSession extends MySQLDatabaseSession<RmDatabaseSession> imp
         } catch (Throwable e) {
             return Mono.error(e);
         }
-        return this.protocol.update(MyStmts.stmt(builder.toString()))
+        return this.protocol.update(Stmts.stmt(builder.toString()))
                 .map(this::mapPrepareResultCode);
 
     }
@@ -135,7 +135,7 @@ class MySQLRmDatabaseSession extends MySQLDatabaseSession<RmDatabaseSession> imp
         if (onePhase) {
             builder.append(" ONE PHASE");
         }
-        return this.protocol.update(MyStmts.stmt(builder.toString()))
+        return this.protocol.update(Stmts.stmt(builder.toString()))
                 .map(this::mapCommitResult)
                 .thenReturn(this);
     }
@@ -149,7 +149,7 @@ class MySQLRmDatabaseSession extends MySQLDatabaseSession<RmDatabaseSession> imp
         } catch (Throwable e) {
             return Mono.error(e);
         }
-        return this.protocol.update(MyStmts.stmt(builder.toString()))
+        return this.protocol.update(Stmts.stmt(builder.toString()))
                 .map(this::mapRollbackResult)
                 .thenReturn(this);
     }
@@ -168,7 +168,7 @@ class MySQLRmDatabaseSession extends MySQLDatabaseSession<RmDatabaseSession> imp
         } else if ((flags & TMSTARTRSCAN) == 0) {
             flux = Flux.empty();
         } else {
-            flux = this.protocol.query(MyStmts.stmt("XA RECOVER"), CurrentRow::asResultRow)
+            flux = this.protocol.query(Stmts.stmt("XA RECOVER"), CurrentRow::asResultRow)
                     .map(this::mapRecoverResult);
         }
         return flux;

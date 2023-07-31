@@ -46,7 +46,7 @@ public class CopyOutSuiteTests extends AbstractTaskTests {
     @Test(enabled = false)
     public void copyOutToFileWithStatic() throws IOException {
         // TODO config Permission test
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 
@@ -76,7 +76,7 @@ public class CopyOutSuiteTests extends AbstractTaskTests {
 
     @Test
     public void copyOutToStdoutWithStatic() {
-        final ClientProtocol protocol;
+        final PgProtocol protocol;
         protocol = obtainProtocolWithSync();
         final TaskAdjutant adjutant = mapToTaskAdjutant(protocol);
 

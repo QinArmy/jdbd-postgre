@@ -21,7 +21,7 @@ import reactor.core.publisher.Mono;
 import java.util.Map;
 import java.util.function.Function;
 
-final class ClientProtocolImpl implements ClientProtocol {
+final class ClientProtocolImpl implements PgProtocol {
 
     static ClientProtocolImpl create(final ConnectionWrapper wrapper) {
         validateParamMap(wrapper.initializedParamMap);
@@ -173,14 +173,14 @@ final class ClientProtocolImpl implements ClientProtocol {
     }
 
     @Override
-    public Mono<ClientProtocol> ping(final int timeSeconds) {
+    public Mono<PgProtocol> ping(final int timeSeconds) {
         // postgre no ping message.
         return SimpleQueryTask.query(PgStmts.stmt("SELECT 1 AS result ", timeSeconds), this.adjutant)
                 .then(Mono.just(this));
     }
 
     @Override
-    public Mono<ClientProtocol> reset() {
+    public Mono<PgProtocol> reset() {
         return this.connManager.reset(this.initializedParamMap)
                 .thenReturn(this);
     }

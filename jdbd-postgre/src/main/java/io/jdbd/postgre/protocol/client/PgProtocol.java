@@ -8,11 +8,11 @@ import io.jdbd.result.MultiResult;
 import io.jdbd.result.OrderedFlux;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
-import io.jdbd.session.ServerVersion;
 import io.jdbd.statement.BindStatement;
 import io.jdbd.statement.MultiStatement;
 import io.jdbd.statement.PreparedStatement;
 import io.jdbd.statement.StaticStatement;
+import io.jdbd.vendor.protocol.DatabaseProtocol;
 import io.jdbd.vendor.stmt.StaticBatchStmt;
 import io.jdbd.vendor.stmt.StaticStmt;
 import io.jdbd.vendor.task.PrepareTask;
@@ -23,19 +23,10 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-public interface ClientProtocol {
+public interface PgProtocol extends DatabaseProtocol {
 
     long getId();
 
-    ServerVersion getServerVersion();
-
-
-    /**
-     * <p>
-     * This method is underlying api of {@link StaticStatement#executeUpdate(String)} method.
-     * </p>
-     */
-    Mono<ResultStates> update(StaticStmt stmt);
 
     /**
      * <p>
@@ -135,15 +126,6 @@ public interface ClientProtocol {
 
     /*################################## blow for session ##################################*/
 
-    boolean isClosed();
-
-    Mono<ClientProtocol> ping(int timeSeconds);
-
-
-    Mono<ClientProtocol> reset();
-
-
-    Mono<Void> close();
 
 
 }

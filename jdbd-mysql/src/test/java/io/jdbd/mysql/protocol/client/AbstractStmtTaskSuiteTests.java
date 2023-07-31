@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.SQLMode;
-import io.jdbd.mysql.stmt.MyStmts;
 import io.jdbd.mysql.type.City;
 import io.jdbd.mysql.type.TrueOrFalse;
 import io.jdbd.mysql.util.*;
@@ -66,7 +65,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractTaskSuiteTests 
 
         // string bigint
         bindValue = JdbdValues.paramValue(0, MySQLType.BIGINT, Long.toString(id));
-        resultRowList = ComQueryTask.paramQuery(MyStmts.single(sql, bindValue), DatabaseProtocol.ROW_FUNC, taskAdjutant)
+        resultRowList = ComQueryTask.paramQuery(Stmts.single(sql, bindValue), DatabaseProtocol.ROW_FUNC, taskAdjutant)
                 .collectList()
                 .block();
 
@@ -1772,7 +1771,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractTaskSuiteTests 
         ParamValue bindValue = JdbdValues.paramValue(0, MySQLType.BIGINT, id);
 
         List<ResultRow> resultRowList;
-        resultRowList = executeQuery(MyStmts.single(sql, bindValue), taskAdjutant)
+        resultRowList = executeQuery(Stmts.single(sql, bindValue), taskAdjutant)
                 .collectList()
                 .block();
         assertNotNull(resultRowList, "resultRowList");
