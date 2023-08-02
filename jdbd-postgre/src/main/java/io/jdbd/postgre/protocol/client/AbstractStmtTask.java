@@ -1,6 +1,5 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.stmt.BindMultiStmt;
 import io.jdbd.postgre.stmt.BindStmt;
@@ -463,7 +462,7 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
             String m;
             m = String.format("Postgre server CommandComplete message error,can't read command from command tag[%s]."
                     , commandTag);
-            addError(new PgJdbdException(m));
+            addError(new JdbdException(m));
         }
         log.trace("Read CommandComplete message command tag[{}],command[{}]", commandTag, command);
 

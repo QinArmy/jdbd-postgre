@@ -1,6 +1,9 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.postgre.*;
+import io.jdbd.postgre.Encoding;
+import io.jdbd.postgre.PgServerVersion;
+import io.jdbd.postgre.Server;
+import io.jdbd.postgre.ServerParameter;
 import io.jdbd.postgre.config.PgHost;
 import io.jdbd.postgre.session.SessionAdjutant;
 import io.jdbd.postgre.stmt.PgStmts;
@@ -44,7 +47,7 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
         } else {
             IllegalArgumentException e = new IllegalArgumentException(
                     String.format("hostIndex[%s] not in [0,%s)", hostIndex, hostList.size()));
-            mono = Mono.error(new PgJdbdException("Not found HostInfo in url.", e));
+            mono = Mono.error(new JdbdException("Not found HostInfo in url.", e));
         }
         return mono;
     }

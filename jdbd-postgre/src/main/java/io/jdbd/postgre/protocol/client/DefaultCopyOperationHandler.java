@@ -1,6 +1,5 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.stmt.BindBatchStmt;
 import io.jdbd.postgre.stmt.BindMultiStmt;
 import io.jdbd.postgre.stmt.BindStmt;
@@ -148,7 +147,7 @@ final class DefaultCopyOperationHandler implements CopyOperationHandler {
             } else {
                 String msg = String.format("Handle statement[index:%s] copy-out failure,message:%s"
                         , resultIndex, e.getMessage());
-                error = new PgJdbdException(msg, e);
+                error = new JdbdException(msg, e);
             }
             this.task.addErrorToTask(error);
             this.copyOutHandler = new SubscriberCopyOutHandler(this.task); // skip all copy data.
@@ -469,7 +468,7 @@ final class DefaultCopyOperationHandler implements CopyOperationHandler {
                 // here  postgre CALL command add new feature that CALL command can return multi CommendComplete message.
                 String m;
                 m = String.format("Postgre response %s CommendComplete message,but expect one.", resultIndex + 1);
-                throw new PgJdbdException(m);
+                throw new JdbdException(m);
             }
             copyOperation = function.apply(((BindStmt) stmt).getSql());
         } else if (stmt instanceof BindMultiStmt) {

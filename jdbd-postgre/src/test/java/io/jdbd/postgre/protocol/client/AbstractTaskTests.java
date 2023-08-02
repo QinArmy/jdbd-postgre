@@ -59,7 +59,7 @@ abstract class AbstractTaskTests {
     }
 
     static TaskAdjutant mapToTaskAdjutant(PgProtocol protocol) {
-        return ((ClientProtocolImpl) protocol).adjutant;
+        return ((ClientProtocol) protocol).adjutant;
     }
 
     static <T> Mono<T> releaseConnection(PgProtocol protocol) {

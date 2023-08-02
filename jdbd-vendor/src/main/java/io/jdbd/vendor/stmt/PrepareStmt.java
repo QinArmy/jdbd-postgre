@@ -1,6 +1,7 @@
 package io.jdbd.vendor.stmt;
 
 
+import io.jdbd.session.ChunkOption;
 import io.jdbd.session.DatabaseSession;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
@@ -44,14 +45,14 @@ public interface PrepareStmt extends ParamSingleStmt {
      * @see ParamBatchStmt#getImportFunction()
      */
     @Override
-    Function<Object, Publisher<byte[]>> getImportFunction();
+    Function<ChunkOption, Publisher<byte[]>> getImportFunction();
 
     /**
      * @throws IllegalStateException throw when {@link #getStmt()} throw {@link IllegalStateException}.
      * @see ParamBatchStmt#getExportFunction()
      */
     @Override
-    Function<Object, Subscriber<byte[]>> getExportFunction();
+    Function<ChunkOption, Subscriber<byte[]>> getExportFunction();
 
 
 }

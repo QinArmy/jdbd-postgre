@@ -1,6 +1,5 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.util.PgExceptions;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
@@ -56,7 +55,7 @@ final class TerminateTask extends PgTask {
             length = 0;
         }
         String m = String.format("Receive message[type:%s,length:%s] after terminate message.", (char) msgType, length);
-        addError(new PgJdbdException(m));
+        addError(new JdbdException(m));
         publishError(sink::error);
         return true;
     }

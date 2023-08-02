@@ -2,7 +2,6 @@ package io.jdbd.postgre.session;
 
 import io.jdbd.JdbdException;
 import io.jdbd.meta.DataType;
-import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.stmt.BindBatchStmt;
 import io.jdbd.postgre.stmt.BindStmt;
@@ -87,7 +86,7 @@ final class PgBindStatement extends PgStatement implements BindStatement {
 
         if (!(dataType instanceof PgType)) {
             String m = String.format("sqlType isn't a instance of %s", PgType.class.getName());
-            throw new PgJdbdException(m);
+            throw new JdbdException(m);
         }
         this.paramGroup.add(BindValue.wrap(checkIndex(indexBasedZero), (PgType) dataType, value));
         return this;

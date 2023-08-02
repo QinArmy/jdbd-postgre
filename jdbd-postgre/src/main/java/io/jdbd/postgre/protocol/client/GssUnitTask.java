@@ -352,7 +352,7 @@ final class GssUnitTask extends PostgreUnitTask {
             this.loginContext = lc;
             return lc.getSubject();
         } catch (Throwable cause) {
-            throw new PgJdbdException("JAAS Authentication failed", cause);
+            throw new JdbdException("JAAS Authentication failed", cause);
         }
 
     }

@@ -1,6 +1,5 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.PgServerVersion;
 import io.jdbd.postgre.Server;
 import io.jdbd.postgre.ServerParameter;
@@ -29,7 +28,7 @@ public abstract class ClientProtocolFactory {
     public static Mono<PgProtocol> single(final SessionAdjutant sessionAdjutant, final int hostIndex) {
         return PgTaskExecutor.create(sessionAdjutant, hostIndex)// 1. create TCP connection.
                 .flatMap(executor -> connect(executor, hostIndex)) // 2. authentication and initializing
-                .map(ClientProtocolImpl::create); // 3. create ClientProtocol instance.
+                .map(ClientProtocol::create); // 3. create ClientProtocol instance.
     }
 
     private static Mono<ConnectionWrapper> connect(PgTaskExecutor executor, int hostIndex) {
@@ -128,7 +127,7 @@ public abstract class ClientProtocolFactory {
             final String lcMonetary = properties.get(PgKey.lc_monetary);
             if (PgStrings.hasText(lcMonetary)) {
                 if (!PgStrings.isSafeParameterValue(lcMonetary)) {
-                    return Mono.error(new PgJdbdException(String.format("lc_monetary[%s] error.", lcMonetary)));
+                    return Mono.error(new JdbdException(String.format("lc_monetary[%s] error.", lcMonetary)));
                 }
                 sqlGroup.add(String.format("SET lc_monetary = '%s'", lcMonetary));
             }
@@ -183,7 +182,7 @@ public abstract class ClientProtocolFactory {
                 }
             }
             if (map.isEmpty()) {
-                throw new PgJdbdException("Session initializing failure,'SHOW xxx' execute failure.");
+                throw new JdbdException("Session initializing failure,'SHOW xxx' execute failure.");
             }
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Initialized server parameter count {} .", map.size());
@@ -192,7 +191,7 @@ public abstract class ClientProtocolFactory {
         }
 
         private static <T> Mono<T> initializingFailure() {
-            return Mono.error(new PgJdbdException("Session initializing failure,SimpleQueryTask response error."));
+            return Mono.error(new JdbdException("Session initializing failure,SimpleQueryTask response error."));
         }
 
 

@@ -1,6 +1,5 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.stmt.BindBatchStmt;
 import io.jdbd.postgre.stmt.BindMultiStmt;
@@ -354,7 +353,7 @@ final class SimpleQueryTask extends AbstractStmtTask implements SimpleStmtTask {
         final Publisher<ByteBuf> publisher = this.packetPublisher;
         if (publisher == null) {
             this.phase = Phase.END;
-            this.sink.error(new PgJdbdException("No found command message publisher."));
+            this.sink.error(new JdbdException("No found command message publisher."));
         } else {
             this.phase = Phase.READ_COMMAND_RESPONSE;
             this.packetPublisher = null;

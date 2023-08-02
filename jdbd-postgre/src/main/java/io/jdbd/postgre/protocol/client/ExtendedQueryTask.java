@@ -1,21 +1,17 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.JdbdException;
-import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.stmt.BindBatchStmt;
-import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.postgre.util.PgCollections;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.result.*;
+import io.jdbd.session.ChunkOption;
 import io.jdbd.session.SessionCloseException;
 import io.jdbd.statement.PreparedStatement;
 import io.jdbd.vendor.result.MultiResults;
 import io.jdbd.vendor.result.ResultSink;
-import io.jdbd.vendor.stmt.ParamBatchStmt;
-import io.jdbd.vendor.stmt.ParamSingleStmt;
-import io.jdbd.vendor.stmt.ParamStmt;
-import io.jdbd.vendor.stmt.PrepareStmt;
+import io.jdbd.vendor.stmt.*;
 import io.jdbd.vendor.task.PrepareTask;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
@@ -38,7 +34,7 @@ import java.util.function.Function;
 final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask, ExtendedStmtTask {
 
 
-    static Mono<ResultStates> update(BindStmt stmt, TaskAdjutant adjutant) {
+    static Mono<ResultStates> update(ParamStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.update(sink -> {
             try {
                 ExtendedQueryTask task = new ExtendedQueryTask(stmt, sink, adjutant);
@@ -49,8 +45,8 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask, E
         });
     }
 
-    static Flux<ResultRow> query(BindStmt stmt, TaskAdjutant adjutant) {
-        return MultiResults.query(stmt.getStatusConsumer(), sink -> {
+    static Flux<ResultRow> query(final ParamStmt stmt, Function<CurrentRow, ResultRow> func, final TaskAdjutant adjutant) {
+        return MultiResults.query(func, stmt.getStatusConsumer(), sink -> {
             try {
                 ExtendedQueryTask task = new ExtendedQueryTask(stmt, sink, adjutant);
                 task.submit(sink::error);
@@ -60,10 +56,21 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask, E
         });
     }
 
-    static Flux<ResultStates> batchUpdate(BindBatchStmt stmt, TaskAdjutant adjutant) {
+    static Flux<ResultStates> batchUpdate(final ParamBatchStmt stmt, final TaskAdjutant adjutant) {
         return MultiResults.batchUpdate(sink -> {
             try {
-                ExtendedQueryTask task = new ExtendedQueryTask(sink, stmt, adjutant);
+                ExtendedQueryTask task = new ExtendedQueryTask(stmt, sink, adjutant);
+                task.submit(sink::error);
+            } catch (Throwable e) {
+                sink.error(PgExceptions.wrapIfNonJvmFatal(e));
+            }
+        });
+    }
+
+    static BatchQuery batchQuery(final ParamBatchStmt stmt, final TaskAdjutant adjutant) {
+        return MultiResults.batchQuery(adjutant, sink -> {
+            try {
+                ExtendedQueryTask task = new ExtendedQueryTask(stmt, sink, adjutant);
                 task.submit(sink::error);
             } catch (Throwable e) {
                 sink.error(PgExceptions.wrapIfNonJvmFatal(e));
@@ -74,7 +81,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask, E
     static MultiResult batchAsMulti(BindBatchStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.asMulti(adjutant, sink -> {
             try {
-                ExtendedQueryTask task = new ExtendedQueryTask(sink, stmt, adjutant);
+                ExtendedQueryTask task = new ExtendedQueryTask(stmt, sink, adjutant);
                 task.submit(sink::error);
             } catch (Throwable e) {
                 sink.error(PgExceptions.wrapIfNonJvmFatal(e));
@@ -82,10 +89,10 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask, E
         });
     }
 
-    static OrderedFlux batchAsFlux(BindBatchStmt stmt, TaskAdjutant adjutant) {
+    static OrderedFlux batchAsFlux(final BindBatchStmt stmt, final TaskAdjutant adjutant) {
         return MultiResults.asFlux(sink -> {
             try {
-                ExtendedQueryTask task = new ExtendedQueryTask(sink, stmt, adjutant);
+                ExtendedQueryTask task = new ExtendedQueryTask(stmt, sink, adjutant);
                 task.submit(sink::error);
             } catch (Throwable e) {
                 sink.error(PgExceptions.wrapIfNonJvmFatal(e));
@@ -94,12 +101,12 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask, E
 
     }
 
-    static Mono<PreparedStatement> prepare(final String sql, final Function<PrepareTask<PgType>, PreparedStatement> function
-            , final TaskAdjutant adjutant) {
+    static Mono<PrepareTask> prepare(final String sql, final TaskAdjutant adjutant) {
         return Mono.create(sink -> {
             try {
-                PrepareResultSink resultSink = new PrepareResultSink(function, sink);
-                ExtendedQueryTask task = new ExtendedQueryTask(adjutant, PgPrepareStmt.prepare(sql), resultSink);
+                PgPrepareStmt stmt = new PgPrepareStmt(sql);
+                PrepareResultSink resultSink = new PrepareResultSink(sink);
+                ExtendedQueryTask task = new ExtendedQueryTask(stmt, resultSink, adjutant);
                 task.submit(sink::error);
             } catch (Throwable e) {
                 sink.error(PgExceptions.wrapIfNonJvmFatal(e));
@@ -122,32 +129,12 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask, E
 
     private ResultRowMeta resultRowMeta;
 
-    /**
-     * @see #update(BindStmt, TaskAdjutant)
-     * @see #query(BindStmt, TaskAdjutant)
-     */
-    private ExtendedQueryTask(BindStmt stmt, ResultSink sink, TaskAdjutant adjutant) throws SQLException {
+
+    private ExtendedQueryTask(Stmt stmt, ResultSink sink, TaskAdjutant adjutant) throws SQLException {
         super(adjutant, sink, stmt);
         this.commandWriter = PgExtendedCommandWriter.create(this);
     }
 
-    /**
-     * @see #batchUpdate(BindBatchStmt, TaskAdjutant)
-     * @see #batchAsMulti(BindBatchStmt, TaskAdjutant)
-     * @see #batchAsFlux(BindBatchStmt, TaskAdjutant)
-     */
-    private ExtendedQueryTask(ResultSink sink, BindBatchStmt stmt, TaskAdjutant adjutant) throws SQLException {
-        super(adjutant, sink, stmt);
-        this.commandWriter = PgExtendedCommandWriter.create(this);
-    }
-
-    /**
-     * @see #prepare(String, Function, TaskAdjutant)
-     */
-    private ExtendedQueryTask(TaskAdjutant adjutant, PrepareStmt stmt, PrepareResultSink sink) throws SQLException {
-        super(adjutant, sink, stmt);
-        this.commandWriter = PgExtendedCommandWriter.create(this);
-    }
 
     /*################################## blow PrepareStmtTask method ##################################*/
 
@@ -433,7 +420,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask, E
             if (sink instanceof PrepareResultSink && !hasError()) {
                 final PrepareResultSink prepareSink = (PrepareResultSink) this.sink;
                 prepareSink.setCachePrepare((CachePrepareImpl) cache);
-                prepareSink.stmtSink.success(prepareSink.function.apply(this));
+                prepareSink.stmtSink.success(this);
             } else {
                 String msg = String.format("Unknown %s implementation.", sink.getClass().getName());
                 addError(new IllegalArgumentException(msg));
@@ -448,7 +435,7 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask, E
 
     /**
      * @see #executeUpdate(ParamStmt)
-     * @see #executeQuery(ParamStmt)
+     * @see #executeQuery(ParamStmt, Function)
      * @see #executeBatchUpdate(ParamBatchStmt)
      * @see #executeBatchAsMulti(ParamBatchStmt)
      * @see #executeBatchAsFlux(ParamBatchStmt)
@@ -478,11 +465,11 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask, E
             }
             break;
             case END: {
-                sink.error(new PgJdbdException(String.format("%s have ended.", PreparedStatement.class.getName())));
+                sink.error(new JdbdException(String.format("%s have ended.", PreparedStatement.class.getName())));
             }
             break;
             default: {
-                sink.error(new PgJdbdException(String.format("%s is executing.", PreparedStatement.class.getName())));
+                sink.error(new JdbdException(String.format("%s is executing.", PreparedStatement.class.getName())));
             }
 
         }
@@ -590,18 +577,15 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask, E
 
     private static final class PrepareResultSink implements ResultSink {
 
-        private final Function<PrepareTask<PgType>, PreparedStatement> function;
 
-        private final MonoSink<PreparedStatement> stmtSink;
+        private final MonoSink<PrepareTask> stmtSink;
 
         private CachePrepareImpl cachePrepare;
 
         private ResultSink resultSink;
 
 
-        private PrepareResultSink(Function<PrepareTask<PgType>, PreparedStatement> function
-                , MonoSink<PreparedStatement> stmtSink) {
-            this.function = function;
+        private PrepareResultSink(MonoSink<PrepareTask> stmtSink) {
             this.stmtSink = stmtSink;
         }
 
@@ -702,6 +686,11 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask, E
         }
 
         @Override
+        public List<NamedValue> getStmtVarList() {
+            return this.getStmt().getStmtVarList();
+        }
+
+        @Override
         public int getTimeout() {
             return getStmt().getTimeout();
         }
@@ -712,12 +701,12 @@ final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask, E
         }
 
         @Override
-        public Function<Object, Publisher<byte[]>> getImportFunction() {
+        public Function<ChunkOption, Publisher<byte[]>> getImportFunction() {
             return getStmt().getImportFunction();
         }
 
         @Override
-        public Function<Object, Subscriber<byte[]>> getExportFunction() {
+        public Function<ChunkOption, Subscriber<byte[]>> getExportFunction() {
             return getStmt().getExportFunction();
         }
 

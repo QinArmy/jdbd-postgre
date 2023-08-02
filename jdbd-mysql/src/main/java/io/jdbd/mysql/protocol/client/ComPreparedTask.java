@@ -4,6 +4,7 @@ import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.result.*;
+import io.jdbd.session.ChunkOption;
 import io.jdbd.session.DatabaseSession;
 import io.jdbd.session.SessionCloseException;
 import io.jdbd.statement.BindSingleStatement;
@@ -1134,12 +1135,12 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
         }
 
         @Override
-        public Function<Object, Publisher<byte[]>> getImportFunction() {
+        public Function<ChunkOption, Publisher<byte[]>> getImportFunction() {
             return getStmt().getImportFunction();
         }
 
         @Override
-        public Function<Object, Subscriber<byte[]>> getExportFunction() {
+        public Function<ChunkOption, Subscriber<byte[]>> getExportFunction() {
             return getStmt().getExportFunction();
         }
 

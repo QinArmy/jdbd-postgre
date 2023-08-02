@@ -1,6 +1,5 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.PgReConnectableException;
 import io.jdbd.postgre.PgServerVersion;
 import io.jdbd.postgre.config.Enums;
@@ -270,7 +269,7 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
             case Messages.AUTH_KRB5:
             case Messages.AUTH_CLEAR_TEXT:
                 taskEnd = true;
-                addError(new PgJdbdException("Not support authentication method. "));
+                addError(new JdbdException("Not support authentication method. "));
                 break;
             case Messages.AUTH_MD5: {
                 taskEnd = handleMd5PasswordAuthentication(cumulateBuffer);
@@ -286,7 +285,7 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
             default: {
                 taskEnd = true;
                 String m = String.format("Client not support authentication method(%s).", authenticateMethod);
-                addError(new PgJdbdException(m));
+                addError(new JdbdException(m));
             }
         }
         return taskEnd;
@@ -327,7 +326,7 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
             String m;
             m = "The server requested password-based authentication, but no password was provided.";
             taskEnd = true;
-            addError(new PgJdbdException(m));
+            addError(new JdbdException(m));
         }
         cumulateBuffer.readerIndex(nextMsgIndex);
         return taskEnd;
@@ -386,7 +385,7 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
                 break;
                 default: { // Unknown message
                     String msg = String.format("Unknown message type [%s] after authentication ok.", (char) msgType);
-                    addError(new PgJdbdException(msg));
+                    addError(new JdbdException(msg));
                 }
             }// switch
             cumulateBuffer.readerIndex(nextMsgIndex); // avoid tail filler.

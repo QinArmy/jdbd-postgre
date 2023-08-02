@@ -2,7 +2,6 @@ package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.JdbdException;
 import io.jdbd.postgre.PgConstant;
-import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PgTimes;
@@ -144,7 +143,7 @@ final class PgResultSetReader implements ResultSetReader {
             if (cumulateBuffer.readShort() != columnMetaArray.length) {
                 String m = String.format("Server RowData message column count[%s] and RowDescription[%s] not match."
                         , cumulateBuffer.getShort(cumulateBuffer.readerIndex() - 2), columnMetaArray.length);
-                throw new PgJdbdException(m);
+                throw new JdbdException(m);
             }
 
             columnValueArray = new Object[columnMetaArray.length];

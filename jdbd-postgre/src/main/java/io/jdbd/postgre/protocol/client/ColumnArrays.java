@@ -1339,7 +1339,7 @@ abstract class ColumnArrays {
 
 
     private static PgJdbdException arrayFormatError(final PgColumnMeta meta) {
-        throw new PgJdbdException(String.format("Postgre server response %s value error,couldn't parse,ColumnMeta[%s]"
+        throw new JdbdException(String.format("Postgre server response %s value error,couldn't parse,ColumnMeta[%s]"
                 , meta.sqlType, meta));
     }
 
