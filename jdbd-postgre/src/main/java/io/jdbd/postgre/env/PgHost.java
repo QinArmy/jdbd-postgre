@@ -1,4 +1,4 @@
-package io.jdbd.postgre.config;
+package io.jdbd.postgre.env;
 
 import io.jdbd.vendor.env.AbstractHostInfo;
 import io.jdbd.vendor.env.JdbcUrlParser;

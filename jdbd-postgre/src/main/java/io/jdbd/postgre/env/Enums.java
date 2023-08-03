@@ -1,4 +1,4 @@
-package io.jdbd.postgre.config;
+package io.jdbd.postgre.env;
 
 import io.qinarmy.env.convert.NonNameEnum;
 

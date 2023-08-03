@@ -353,7 +353,7 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
                 value = Float.parseFloat(textValue);
             }
             break;
-            case DOUBLE: {
+            case FLOAT8: {
                 value = Double.parseDouble(textValue);
             }
             break;
@@ -445,7 +445,7 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
                 value = PgGeometries.line(textValue);
             }
             break;
-            case LINE_SEGMENT: {
+            case LSEG: {
                 value = PgGeometries.lineSegment(textValue);
             }
             break;
@@ -457,7 +457,7 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
                 value = PgGeometries.box(textValue);
             }
             break;
-            case CIRCLES: {
+            case CIRCLE: {
                 value = PgGeometries.circle(textValue);
             }
             break;

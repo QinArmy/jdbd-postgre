@@ -19,7 +19,7 @@ final class DefaultMySQLStatement implements MySQLStatement {
     }
 
     @Override
-    public List<String> getStaticSql() {
+    public List<String> sqlPartList() {
         return this.staticSqlList;
     }
 

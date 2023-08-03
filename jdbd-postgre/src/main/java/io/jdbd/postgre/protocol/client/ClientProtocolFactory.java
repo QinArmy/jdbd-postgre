@@ -3,8 +3,10 @@ package io.jdbd.postgre.protocol.client;
 import io.jdbd.postgre.PgServerVersion;
 import io.jdbd.postgre.Server;
 import io.jdbd.postgre.ServerParameter;
-import io.jdbd.postgre.config.PgKey;
+import io.jdbd.postgre.env.PgKey;
 import io.jdbd.postgre.session.SessionAdjutant;
+import io.jdbd.postgre.syntax.PgStatement;
+import io.jdbd.postgre.util.PgCollections;
 import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.result.Result;
 import io.jdbd.result.ResultRow;
@@ -17,8 +19,13 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentMap;
 
-public abstract class ClientProtocolFactory {
+public final class ClientProtocolFactory extends FixedEnv {
+
+
+    final ConcurrentMap<String, PgStatement> stmtMap = PgCollections.concurrentHashMap();
+
 
     private ClientProtocolFactory() {
         throw new UnsupportedOperationException();

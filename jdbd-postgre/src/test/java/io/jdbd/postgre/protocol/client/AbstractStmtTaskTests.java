@@ -224,22 +224,22 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
     }
 
     /**
-     * @see PgType#DOUBLE
+     * @see PgType#FLOAT8
      */
     final void doDoubleBindAndExtract() {
         final String columnName = "my_double";
         final long id = startId + 6;
 
-        testType(columnName, PgType.DOUBLE, null, id);
+        testType(columnName, PgType.FLOAT8, null, id);
 
-        testType(columnName, PgType.DOUBLE, Double.MAX_VALUE, id);
-        testType(columnName, PgType.DOUBLE, Double.MIN_VALUE, id);
-        testType(columnName, PgType.DOUBLE, Double.toString(Double.MAX_VALUE), id);
-        testType(columnName, PgType.DOUBLE, Double.toString(Double.MAX_VALUE), id);
+        testType(columnName, PgType.FLOAT8, Double.MAX_VALUE, id);
+        testType(columnName, PgType.FLOAT8, Double.MIN_VALUE, id);
+        testType(columnName, PgType.FLOAT8, Double.toString(Double.MAX_VALUE), id);
+        testType(columnName, PgType.FLOAT8, Double.toString(Double.MAX_VALUE), id);
 
-        testType(columnName, PgType.DOUBLE, 0.0D, id);
-        testType(columnName, PgType.DOUBLE, Boolean.TRUE, id);
-        testType(columnName, PgType.DOUBLE, Boolean.FALSE, id);
+        testType(columnName, PgType.FLOAT8, 0.0D, id);
+        testType(columnName, PgType.FLOAT8, Boolean.TRUE, id);
+        testType(columnName, PgType.FLOAT8, Boolean.FALSE, id);
 
         testType(columnName, PgType.VARCHAR, Float.toString(Float.MAX_VALUE), id);
         testType(columnName, PgType.VARCHAR, Float.toString(Float.MAX_VALUE), id);
@@ -1039,7 +1039,7 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
     }
 
     /**
-     * @see PgType#LINE_SEGMENT
+     * @see PgType#LSEG
      * @see <a href="https://www.postgresql.org/docs/current/datatype-geometric.html#DATATYPE-LSEG">Line Segments</a>
      */
     final void doLineSegmentBindAndExtract() {
@@ -1047,13 +1047,13 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
         final long id = startId + 29;
         String text;
 
-        testType(columnName, PgType.LINE_SEGMENT, null, id);
+        testType(columnName, PgType.LSEG, null, id);
 
         text = "[(0,0),(1,1)]";
-        testType(columnName, PgType.LINE_SEGMENT, text, id);
+        testType(columnName, PgType.LSEG, text, id);
 
         text = String.format("[(34.33,%s),(44.33,%s)]", Double.MAX_VALUE, Double.MIN_VALUE);
-        testType(columnName, PgType.LINE_SEGMENT, text, id);
+        testType(columnName, PgType.LSEG, text, id);
 
     }
 
@@ -1122,7 +1122,7 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
     }
 
     /**
-     * @see PgType#CIRCLES
+     * @see PgType#CIRCLE
      * @see <a href="https://www.postgresql.org/docs/current/datatype-geometric.html#DATATYPE-CIRCLE"> Circles</a>
      */
     final void doCircleBindAndExtract() {
@@ -1130,13 +1130,13 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
         final long id = startId + 33;
         String text;
 
-        testType(columnName, PgType.CIRCLES, null, id);
+        testType(columnName, PgType.CIRCLE, null, id);
 
         text = "<(0,0),5.3>";
-        testType(columnName, PgType.CIRCLES, text, id);
+        testType(columnName, PgType.CIRCLE, text, id);
 
         text = String.format("<(%s,%s),8.8>", Double.MIN_VALUE, Double.MAX_VALUE);
-        testType(columnName, PgType.CIRCLES, text, id);
+        testType(columnName, PgType.CIRCLE, text, id);
 
     }
 
@@ -3018,7 +3018,7 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
                 assertEquals(result.compareTo(v), 0, columnName);
             }
             break;
-            case DOUBLE: {
+            case FLOAT8: {
                 final Double v;
                 if (nonNull instanceof String) {
                     v = Double.parseDouble((String) nonNull);
@@ -3215,7 +3215,7 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
                 assertEquals(row.get(columnName, PgLine.class), v, columnName);
             }
             break;
-            case LINE_SEGMENT: {
+            case LSEG: {
                 final Line v = PgGeometries.lineSegment(nonNull.toString());
                 assertEquals(row.get(columnName, Line.class), v, columnName);
             }
@@ -3230,7 +3230,7 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
                 assertEquals(row.get(columnName, PgPolygon.class), v, columnName);
             }
             break;
-            case CIRCLES: {
+            case CIRCLE: {
                 final Circle v = PgGeometries.circle(nonNull.toString());
                 assertEquals(row.get(columnName, Circle.class), v, columnName);
             }

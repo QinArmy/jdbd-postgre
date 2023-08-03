@@ -2,9 +2,9 @@ package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.PgReConnectableException;
 import io.jdbd.postgre.PgServerVersion;
-import io.jdbd.postgre.config.Enums;
-import io.jdbd.postgre.config.PgHost;
-import io.jdbd.postgre.config.PgKey;
+import io.jdbd.postgre.env.Enums;
+import io.jdbd.postgre.env.PgHost;
+import io.jdbd.postgre.env.PgKey;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.postgre.util.PgTimes;

@@ -72,7 +72,7 @@ public abstract class PgBinds extends JdbdBinds {
                 pgType = PgType.REAL;
                 break;
             case DOUBLE:
-                pgType = PgType.DOUBLE;
+                pgType = PgType.FLOAT8;
                 break;
             case NUMERIC:
             case DECIMAL:
@@ -136,7 +136,7 @@ public abstract class PgBinds extends JdbdBinds {
             } else if (nullable instanceof Short || nullable instanceof Byte) {
                 pgType = PgType.SMALLINT;
             } else if (nullable instanceof Double) {
-                pgType = PgType.DOUBLE;
+                pgType = PgType.FLOAT8;
             } else if (nullable instanceof Float) {
                 pgType = PgType.REAL;
             } else {
@@ -169,7 +169,7 @@ public abstract class PgBinds extends JdbdBinds {
         } else if (nullable instanceof Point) {
             pgType = PgType.POINT;
         } else if (nullable instanceof Circle) {
-            pgType = PgType.CIRCLES;
+            pgType = PgType.CIRCLE;
         } else if (nullable instanceof BitSet) {
             pgType = PgType.VARBIT;
         } else if (nullable instanceof UUID) {
@@ -306,7 +306,7 @@ public abstract class PgBinds extends JdbdBinds {
             case SMALLINT:
             case INTEGER:
             case REAL:
-            case DOUBLE:
+            case FLOAT8:
             case OID:
             case BIGINT:
             case BYTEA:

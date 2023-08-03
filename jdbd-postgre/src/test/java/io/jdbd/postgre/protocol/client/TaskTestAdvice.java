@@ -149,7 +149,7 @@ public class TaskTestAdvice extends AbstractTaskTests {
 
         index = meta.getColumnIndex("my_double");
         assertNotNull(row.get(index), "my_double");
-        assertEquals(meta.getSQLType(index), PgType.DOUBLE, "sqlType");
+        assertEquals(meta.getSQLType(index), PgType.FLOAT8, "sqlType");
         assertEquals(meta.getPrecision(index), 8, "precision");
         assertEquals(meta.getScale(index), UNKNOWN_SCALE, "scale");
         assertFalse(meta.getSQLType(index).isCaseSensitive(), "caseSensitive");
@@ -331,7 +331,7 @@ public class TaskTestAdvice extends AbstractTaskTests {
 
         index = meta.getColumnIndex("my_line_segment");
         assertNotNull(row.get(index), "my_line_segment");
-        assertEquals(meta.getSQLType(index), PgType.LINE_SEGMENT, "sqlType");
+        assertEquals(meta.getSQLType(index), PgType.LSEG, "sqlType");
         assertEquals(meta.getPrecision(index), 32, "precision");
         assertEquals(meta.getScale(index), UNKNOWN_SCALE, "scale");
         assertFalse(meta.getSQLType(index).isCaseSensitive(), "caseSensitive");
@@ -360,7 +360,7 @@ public class TaskTestAdvice extends AbstractTaskTests {
 
         index = meta.getColumnIndex("my_circles");
         assertNotNull(row.get(index), "my_circles");
-        assertEquals(meta.getSQLType(index), PgType.CIRCLES, "sqlType");
+        assertEquals(meta.getSQLType(index), PgType.CIRCLE, "sqlType");
         assertEquals(meta.getPrecision(index), 24, "precision");
         assertEquals(meta.getScale(index), UNKNOWN_SCALE, "scale");
         assertFalse(meta.getSQLType(index).isCaseSensitive(), "caseSensitive");

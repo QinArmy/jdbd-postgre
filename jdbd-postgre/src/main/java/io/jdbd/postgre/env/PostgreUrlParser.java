@@ -1,4 +1,4 @@
-package io.jdbd.postgre.config;
+package io.jdbd.postgre.env;
 
 import io.jdbd.postgre.util.PgCollections;
 import io.jdbd.postgre.util.PgStrings;

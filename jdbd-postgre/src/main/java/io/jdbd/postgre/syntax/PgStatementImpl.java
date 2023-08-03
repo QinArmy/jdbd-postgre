@@ -22,7 +22,7 @@ final class PgStatementImpl implements PgStatement {
     }
 
     @Override
-    public final List<String> getStaticSql() {
+    public final List<String> sqlPartList() {
         return this.staticSqlList;
     }
 

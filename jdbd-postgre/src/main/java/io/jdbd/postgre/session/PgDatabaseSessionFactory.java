@@ -2,8 +2,8 @@ package io.jdbd.postgre.session;
 
 import io.jdbd.DriverVersion;
 import io.jdbd.postgre.PgDriver;
-import io.jdbd.postgre.config.PgKey;
-import io.jdbd.postgre.config.PgUrl;
+import io.jdbd.postgre.env.PgKey;
+import io.jdbd.postgre.env.PgUrl;
 import io.jdbd.postgre.protocol.client.ClientProtocolFactory;
 import io.jdbd.postgre.protocol.client.PgProtocol;
 import io.jdbd.session.DatabaseSessionFactory;

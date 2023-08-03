@@ -73,7 +73,7 @@ final class PgExtendedCommandWriter implements ExtendedCommandWriter {
         this.stmt = stmtTask.getStmt();
         final PgStatement statement = this.adjutant.sqlParser().parse(this.stmt.getSql());
         if (isOneShotStmt(this.stmt)) {
-            if (statement.getStaticSql().size() != 1) {
+            if (statement.sqlPartList().size() != 1) {
                 throw PgExceptions.createBindCountNotMatchError(0, 0, getFirstBatchBindCount(this.stmt));
             }
             this.oneShot = true;
@@ -383,7 +383,7 @@ final class PgExtendedCommandWriter implements ExtendedCommandWriter {
 
     private String replacePlaceholder(PgStatement statement) {
 
-        final List<String> staticSqlList = statement.getStaticSql();
+        final List<String> staticSqlList = statement.sqlPartList();
         String sql;
         if (staticSqlList.size() == 1) {
             sql = this.stmt.getSql();
@@ -486,7 +486,7 @@ final class PgExtendedCommandWriter implements ExtendedCommandWriter {
                 message.writeInt(Float.floatToIntBits(value));
             }
             break;
-            case DOUBLE: {// binary format
+            case FLOAT8: {// binary format
                 final double value = PgBinds.bindToDouble(batchIndex, pgType, paramValue);
                 message.writeLong(Double.doubleToLongBits(value));
             }
@@ -628,11 +628,11 @@ final class PgExtendedCommandWriter implements ExtendedCommandWriter {
             case JSONB_ARRAY:
                 // all geometry type is text format
             case POINT:
-            case CIRCLES:
+            case CIRCLE:
             case LINE:
             case PATH:
             case POLYGON:
-            case LINE_SEGMENT:
+            case LSEG:
             case BOX:
             case XML:
             case TEXT:

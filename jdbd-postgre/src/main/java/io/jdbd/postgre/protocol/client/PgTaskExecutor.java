@@ -4,7 +4,7 @@ import io.jdbd.postgre.Encoding;
 import io.jdbd.postgre.PgServerVersion;
 import io.jdbd.postgre.Server;
 import io.jdbd.postgre.ServerParameter;
-import io.jdbd.postgre.config.PgHost;
+import io.jdbd.postgre.env.PgHost;
 import io.jdbd.postgre.session.SessionAdjutant;
 import io.jdbd.postgre.syntax.PgParser;
 import io.jdbd.postgre.util.PgExceptions;

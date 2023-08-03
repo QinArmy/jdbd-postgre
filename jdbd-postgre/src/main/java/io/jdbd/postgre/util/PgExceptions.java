@@ -2,10 +2,8 @@ package io.jdbd.postgre.util;
 
 import io.jdbd.JdbdException;
 import io.jdbd.postgre.protocol.client.ErrorMessage;
-import io.jdbd.postgre.stmt.BindValue;
+import io.jdbd.vendor.stmt.ParamValue;
 import io.jdbd.vendor.util.JdbdExceptions;
-
-import java.sql.SQLException;
 
 
 public abstract class PgExceptions extends JdbdExceptions {
@@ -20,23 +18,23 @@ public abstract class PgExceptions extends JdbdExceptions {
         return new JdbdException("SQL too large to send over the protocol");
     }
 
-    public static SQLException createBindCountNotMatchError(int stmtIndex, int paramCount, int valueSize) {
+    public static JdbdException createBindCountNotMatchError(int stmtIndex, int paramCount, int valueSize) {
         String m = String.format("Statement[%s] parameter placeholder count[%s] and bind value count[%s] not match."
                 , stmtIndex, paramCount, valueSize);
-        return new SQLException(m);
+        return new JdbdException(m);
     }
 
-    public static SQLException createBindIndexNotMatchError(int stmtIndex, int placeholderIndex, BindValue bindValue) {
+    public static JdbdException createBindIndexNotMatchError(int stmtIndex, int placeholderIndex, ParamValue bindValue) {
         String m = String.format("Statement[%s] parameter placeholder number[%s] and bind index[%s] not match."
                 , stmtIndex, placeholderIndex, bindValue.getIndex());
-        return new SQLException(m);
+        return new JdbdException(m);
     }
 
-    public static SQLException createNotSupportBindTypeError(int stmtIndex, BindValue bindValue) {
+    public static JdbdException createNotSupportBindTypeError(int stmtIndex, ParamValue bindValue) {
         String m = String.format("Statement[%s] parameter[%s] java type[%s] couldn't bind to postgre type[%s]"
                 , stmtIndex, bindValue.getIndex()
                 , bindValue.getNonNull().getClass().getName(), bindValue.getType());
-        return new SQLException(m);
+        return new JdbdException(m);
     }
 
 

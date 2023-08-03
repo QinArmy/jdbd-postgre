@@ -21,6 +21,8 @@ public interface PgConstant {
     byte SEMICOLON_BYTE = ';';
     byte EMPTY_BYTE = '\0';
 
+    byte SPACE_BYTE = ' ';
+
     char QUOTE = '\'';
 
     char DOUBLE_QUOTE = '"';
@@ -66,6 +68,28 @@ public interface PgConstant {
     short TYPE_VARCHAR = 1043;
     short TYPE_VARCHAR_ARRAY = 1015;
     short TYPE_OID = 26;
+
+    short TYPE_INT4RANGE = 3904;
+
+    short TYPE_INT8RANGE = 3926;
+
+    short TYPE_NUMRANGE = 3906;
+
+    short TYPE_DATERANGE = 3912;
+    short TYPE_TSRANGE = 3908;
+    short TYPE_TSTZRANGE = 3910;
+
+    short TYPE_INT4MULTIRANGE = 4451;
+    short TYPE_INT8MULTIRANGE = 4536;
+
+    short TYPE_NUMMULTIRANGE = 4532;
+
+    short TYPE_DATEMULTIRANGE = 4535;
+
+    short TYPE_TSMULTIRANGE = 4533;
+
+    short TYPE_TSTZMULTIRANGE = 4534;
+
 
     short TYPE_OID_ARRAY = 1028;
     short TYPE_BPCHAR = 1042;// “blank-padded char”, the internal name of the character data type
@@ -132,19 +156,27 @@ public interface PgConstant {
     short TYPE_MACADDR_ARRAY = 1040;
     short TYPE_MACADDR8_ARRAY = 775;
 
-    short TYPE_INT4RANGE = 3904;
-    short TYPE_TSRANGE = 3908;
-    short TYPE_TSTZRANGE = 3910;
-    short TYPE_DATERANGE = 3912;
 
-    short TYPE_INT8RANGE = 3926;
+    short TYPE_INT4MULTIRANGE_ARRAY = 6150;
+
+    short TYPE_INT8MULTIRANGE_ARRAY = 6157;
+
+    short TYPE_NUMMULTIRANGE_ARRAY = 6151;
+
+    short TYPE_DATEMULTIRANGE_ARRAY = 6155;
+
+    short TYPE_TSMULTIRANGE_ARRAY = 6152;
+
+    short TYPE_TSTZMULTIRANGE_ARRAY = 6153;
+
+
     short TYPE_INT4RANGE_ARRAY = 3905;
     short TYPE_TSRANGE_ARRAY = 3909;
     short TYPE_TSTZRANGE_ARRAY = 3911;
 
     short TYPE_DATERANGE_ARRAY = 3913;
     short TYPE_INT8RANGE_ARRAY = 3927;
-    short TYPE_NUMRANGE = 3906;
+
     short TYPE_NUMRANGE_ARRAY = 3907;
 
 

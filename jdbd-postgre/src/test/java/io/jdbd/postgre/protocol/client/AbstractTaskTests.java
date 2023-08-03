@@ -1,8 +1,8 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.ClientTestUtils;
-import io.jdbd.postgre.config.PgKey;
-import io.jdbd.postgre.config.PgUrl;
+import io.jdbd.postgre.env.PgKey;
+import io.jdbd.postgre.env.PgUrl;
 import io.jdbd.postgre.session.SessionAdjutant;
 import io.jdbd.result.ResultStates;
 import io.jdbd.session.DatabaseSessionFactory;

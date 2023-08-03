@@ -190,7 +190,7 @@ final class QueryCommandWriter {
                     packet.writeByte(Constants.SEMICOLON_BYTE);
                 }
                 final ParamStmt stmt = stmtGroup.get(i);
-                final List<String> staticSqlList = parser.parse(stmt.getSql()).getStaticSql();
+                final List<String> staticSqlList = parser.parse(stmt.getSql()).sqlPartList();
                 doWriteBindableCommand(i, staticSqlList, stmt.getBindGroup(), packet);
             }
             return Packets.createPacketPublisher(packet, this.sequenceId, this.adjutant);
@@ -208,7 +208,7 @@ final class QueryCommandWriter {
         final TaskAdjutant adjutant = this.adjutant;
 
         final List<String> staticSqlList;
-        staticSqlList = adjutant.parse(stmt.getSql()).getStaticSql();
+        staticSqlList = adjutant.parse(stmt.getSql()).sqlPartList();
         final ByteBuf packet;
         packet = Packets.createStmtPacket(adjutant.allocator(), stmt);
         packet.writeByte(Packets.COM_QUERY);

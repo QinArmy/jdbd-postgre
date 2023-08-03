@@ -1,2 +1,2 @@
 @reactor.util.annotation.NonNullApi
-package io.jdbd.postgre.config;
+package io.jdbd.postgre.env;

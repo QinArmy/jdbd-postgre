@@ -86,7 +86,7 @@ public class SimpleQuerySqlTypeSuiteTests extends AbstractStmtTaskTests {
     }
 
     /**
-     * @see PgType#DOUBLE
+     * @see PgType#FLOAT8
      */
     @Test
     public void doubleBindAndExtract() {
@@ -262,7 +262,7 @@ public class SimpleQuerySqlTypeSuiteTests extends AbstractStmtTaskTests {
     }
 
     /**
-     * @see PgType#LINE_SEGMENT
+     * @see PgType#LSEG
      */
     @Test
     public void lineSegmentBindAndExtract() {
@@ -294,7 +294,7 @@ public class SimpleQuerySqlTypeSuiteTests extends AbstractStmtTaskTests {
     }
 
     /**
-     * @see PgType#CIRCLES
+     * @see PgType#CIRCLE
      */
     @Test
     public void circleBindAndExtract() {

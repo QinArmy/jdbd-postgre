@@ -2,79 +2,98 @@ package io.jdbd.postgre;
 
 
 import io.jdbd.meta.BooleanMode;
+import io.jdbd.meta.JdbdType;
+import io.jdbd.meta.SQLType;
 import io.jdbd.type.Interval;
 import io.jdbd.type.Point;
-import io.jdbd.type.geo.Line;
-import io.jdbd.type.geo.LineString;
-import io.jdbd.type.geometry.Circle;
-import io.jdbd.type.geometry.LongString;
 import reactor.util.annotation.Nullable;
 
 import java.math.BigDecimal;
-import java.sql.JDBCType;
 import java.time.*;
 import java.util.*;
 
-public enum PgType implements io.jdbd.meta.SQLType {
+/**
+ * <p>
+ * This enum is postgre build-in data type.
+ * </p>
+ *
+ * @see <a href="https://www.postgresql.org/docs/current/datatype.html">Data Types</a>
+ */
+public enum PgType implements SQLType {
 
-    UNSPECIFIED(PgConstant.TYPE_UNSPECIFIED, JDBCType.NULL, Object.class),
+    UNSPECIFIED(PgConstant.TYPE_UNSPECIFIED, JdbdType.UNKNOWN, Object.class),
 
-    BOOLEAN(PgConstant.TYPE_BOOLEAN, JDBCType.BOOLEAN, Boolean.class),
+    BOOLEAN(PgConstant.TYPE_BOOLEAN, JdbdType.BOOLEAN, Boolean.class),
 
-    SMALLINT(PgConstant.TYPE_INT2, JDBCType.SMALLINT, Short.class),
-    INTEGER(PgConstant.TYPE_INT4, JDBCType.INTEGER, Integer.class),
-    BIGINT(PgConstant.TYPE_INT8, JDBCType.BIGINT, Long.class),
-    DECIMAL(PgConstant.TYPE_NUMERIC, JDBCType.DECIMAL, BigDecimal.class),
-    REAL(PgConstant.TYPE_FLOAT4, JDBCType.FLOAT, Float.class),
-    DOUBLE(PgConstant.TYPE_FLOAT8, JDBCType.DOUBLE, Double.class),
+    SMALLINT(PgConstant.TYPE_INT2, JdbdType.SMALLINT, Short.class),
+    INTEGER(PgConstant.TYPE_INT4, JdbdType.INTEGER, Integer.class),
+    BIGINT(PgConstant.TYPE_INT8, JdbdType.BIGINT, Long.class),
+    REAL(PgConstant.TYPE_FLOAT4, JdbdType.FLOAT, Float.class),
+    FLOAT8(PgConstant.TYPE_FLOAT8, JdbdType.DOUBLE, Double.class),
 
-    BIT(PgConstant.TYPE_BIT, JDBCType.BIT, BitSet.class),
-    VARBIT(PgConstant.TYPE_VARBIT, JDBCType.BIT, BitSet.class),
-    TIMESTAMP(PgConstant.TYPE_TIMESTAMP, JDBCType.TIMESTAMP, LocalDateTime.class),
-    DATE(PgConstant.TYPE_DATE, JDBCType.DATE, LocalDate.class),
-    TIME(PgConstant.TYPE_TIME, JDBCType.TIME, LocalTime.class),
-    TIMESTAMPTZ(PgConstant.TYPE_TIMESTAMPTZ, JDBCType.TIMESTAMP_WITH_TIMEZONE, OffsetDateTime.class),
-    TIMETZ(PgConstant.TYPE_TIMETZ, JDBCType.TIME_WITH_TIMEZONE, OffsetTime.class),
-    BYTEA(PgConstant.TYPE_BYTEA, JDBCType.LONGVARBINARY, LongBinary.class),
-    CHAR(PgConstant.TYPE_CHAR, JDBCType.CHAR, String.class),
-    VARCHAR(PgConstant.TYPE_VARCHAR, JDBCType.VARCHAR, String.class),
-    MONEY(PgConstant.TYPE_MONEY, JDBCType.VARCHAR, String.class),//java.lang.String because format dependent on locale
-    TEXT(PgConstant.TYPE_TEXT, JDBCType.LONGVARCHAR, LongString.class),
-    TSVECTOR(PgConstant.TYPE_TSVECTOR, JDBCType.LONGVARCHAR, LongString.class),
-    TSQUERY(PgConstant.TYPE_TSQUERY, JDBCType.LONGVARCHAR, LongString.class),
-    OID(PgConstant.TYPE_OID, JDBCType.BIGINT, Long.class),
-    INTERVAL(PgConstant.TYPE_INTERVAL, JDBCType.OTHER, Interval.class),
-    UUID(PgConstant.TYPE_UUID, JDBCType.CHAR, UUID.class),
-    XML(PgConstant.TYPE_XML, JDBCType.SQLXML, LongString.class),
-    POINT(PgConstant.TYPE_POINT, JDBCType.OTHER, Point.class),
-    CIRCLES(PgConstant.TYPE_CIRCLE, JDBCType.OTHER, Circle.class),
-    LINE_SEGMENT(PgConstant.TYPE_LSEG, JDBCType.OTHER, Line.class),
-    PATH(PgConstant.TYPE_PATH, JDBCType.OTHER, LineString.class),
+    DECIMAL(PgConstant.TYPE_NUMERIC, JdbdType.DECIMAL, BigDecimal.class),
+
+
+    BIT(PgConstant.TYPE_BIT, JdbdType.BIT, BitSet.class),
+    VARBIT(PgConstant.TYPE_VARBIT, JdbdType.BIT, BitSet.class),
+
+    TIME(PgConstant.TYPE_TIME, JdbdType.TIME, LocalTime.class),
+    TIMETZ(PgConstant.TYPE_TIMETZ, JdbdType.TIME_WITH_TIMEZONE, OffsetTime.class),
+    DATE(PgConstant.TYPE_DATE, JdbdType.DATE, LocalDate.class),
+    TIMESTAMP(PgConstant.TYPE_TIMESTAMP, JdbdType.TIMESTAMP, LocalDateTime.class),
+    TIMESTAMPTZ(PgConstant.TYPE_TIMESTAMPTZ, JdbdType.TIMESTAMP_WITH_TIMEZONE, OffsetDateTime.class),
+
+    BYTEA(PgConstant.TYPE_BYTEA, JdbdType.VARBINARY, byte[].class),
+    CHAR(PgConstant.TYPE_CHAR, JdbdType.CHAR, String.class),
+    VARCHAR(PgConstant.TYPE_VARCHAR, JdbdType.VARCHAR, String.class),
+    MONEY(PgConstant.TYPE_MONEY, JdbdType.DIALECT_TYPE, String.class),//java.lang.String because format dependent on locale
+    TEXT(PgConstant.TYPE_TEXT, JdbdType.TEXT, String.class),
+    TSVECTOR(PgConstant.TYPE_TSVECTOR, JdbdType.DIALECT_TYPE, String.class),
+    TSQUERY(PgConstant.TYPE_TSQUERY, JdbdType.DIALECT_TYPE, String.class),
+    OID(PgConstant.TYPE_OID, JdbdType.BIGINT, Long.class),
+    INTERVAL(PgConstant.TYPE_INTERVAL, JdbdType.INTERVAL, Interval.class),
+    UUID(PgConstant.TYPE_UUID, JdbdType.DIALECT_TYPE, UUID.class),
+    XML(PgConstant.TYPE_XML, JdbdType.XML, String.class),
+
+    POINT(PgConstant.TYPE_POINT, JdbdType.POINT, Point.class),
+    CIRCLE(PgConstant.TYPE_CIRCLE, JdbdType.DIALECT_TYPE, String.class),
+    LSEG(PgConstant.TYPE_LSEG, JdbdType.DIALECT_TYPE, String.class),
+    PATH(PgConstant.TYPE_PATH, JdbdType.LINE_STRING, String.class),
 
     // below Geometries use ResultRow.get(int,Class)
-    BOX(PgConstant.TYPE_BOX, JDBCType.OTHER, String.class),
-    LINE(PgConstant.TYPE_LINE, JDBCType.OTHER, String.class),
-    POLYGON(PgConstant.TYPE_POLYGON, JDBCType.OTHER, String.class),
+    BOX(PgConstant.TYPE_BOX, JdbdType.DIALECT_TYPE, String.class),
+    LINE(PgConstant.TYPE_LINE, JdbdType.DIALECT_TYPE, String.class),
+    POLYGON(PgConstant.TYPE_POLYGON, JdbdType.DIALECT_TYPE, String.class),
 
-    JSON(PgConstant.TYPE_JSON, JDBCType.LONGVARCHAR, LongString.class),
-    JSONB(PgConstant.TYPE_JSONB, JDBCType.LONGVARCHAR, LongString.class),
-    MACADDR(PgConstant.TYPE_MAC_ADDR, JDBCType.VARCHAR, String.class),
-    MACADDR8(PgConstant.TYPE_MAC_ADDR8, JDBCType.VARCHAR, String.class),
-    INET(PgConstant.TYPE_INET, JDBCType.VARCHAR, String.class),
-    CIDR(PgConstant.TYPE_CIDR, JDBCType.VARCHAR, String.class),
+    JSON(PgConstant.TYPE_JSON, JdbdType.JSON, String.class),
+    JSONB(PgConstant.TYPE_JSONB, JdbdType.JSONB, String.class),
+    MACADDR(PgConstant.TYPE_MAC_ADDR, JdbdType.DIALECT_TYPE, String.class),
+    MACADDR8(PgConstant.TYPE_MAC_ADDR8, JdbdType.DIALECT_TYPE, String.class),
+    INET(PgConstant.TYPE_INET, JdbdType.DIALECT_TYPE, String.class),
+    CIDR(PgConstant.TYPE_CIDR, JdbdType.DIALECT_TYPE, String.class),
 
-    INT4RANGE(PgConstant.TYPE_INT4RANGE, JDBCType.VARCHAR, String.class),
-    INT8RANGE(PgConstant.TYPE_INT8RANGE, JDBCType.VARCHAR, String.class),
-    NUMRANGE(PgConstant.TYPE_NUMRANGE, JDBCType.VARCHAR, String.class),
-    TSRANGE(PgConstant.TYPE_TSRANGE, JDBCType.VARCHAR, String.class),
-    TSTZRANGE(PgConstant.TYPE_TSTZRANGE, JDBCType.VARCHAR, String.class),
-    DATERANGE(PgConstant.TYPE_DATERANGE, JDBCType.VARCHAR, String.class),
+    INT4RANGE(PgConstant.TYPE_INT4RANGE, JdbdType.DIALECT_TYPE, String.class),
+    INT8RANGE(PgConstant.TYPE_INT8RANGE, JdbdType.DIALECT_TYPE, String.class),
+    NUMRANGE(PgConstant.TYPE_NUMRANGE, JdbdType.DIALECT_TYPE, String.class),
 
-    REF_CURSOR(PgConstant.TYPE_REF_CURSOR, JDBCType.REF_CURSOR, Object.class),
+    DATERANGE(PgConstant.TYPE_DATERANGE, JdbdType.DIALECT_TYPE, String.class),
+    TSRANGE(PgConstant.TYPE_TSRANGE, JdbdType.DIALECT_TYPE, String.class),
+    TSTZRANGE(PgConstant.TYPE_TSTZRANGE, JdbdType.DIALECT_TYPE, String.class),
+
+
+    INT4MULTIRANGE(PgConstant.TYPE_INT4MULTIRANGE, JdbdType.DIALECT_TYPE, String.class),
+    INT8MULTIRANGE(PgConstant.TYPE_INT8MULTIRANGE, JdbdType.DIALECT_TYPE, String.class),
+    NUMMULTIRANGE(PgConstant.TYPE_NUMMULTIRANGE, JdbdType.DIALECT_TYPE, String.class),
+
+    DATEMULTIRANGE(PgConstant.TYPE_DATEMULTIRANGE, JdbdType.DIALECT_TYPE, String.class),
+    TSMULTIRANGE(PgConstant.TYPE_TSMULTIRANGE, JdbdType.DIALECT_TYPE, String.class),
+    TSTZMULTIRANGE(PgConstant.TYPE_TSTZMULTIRANGE, JdbdType.DIALECT_TYPE, String.class),
+
+
+    REF_CURSOR(PgConstant.TYPE_REF_CURSOR, JdbdType.REF_CURSOR, Object.class),//TODO fix java type
 
 
     BOOLEAN_ARRAY(PgConstant.TYPE_BOOLEAN_ARRAY, BOOLEAN),
-
 
     SMALLINT_ARRAY(PgConstant.TYPE_INT2_ARRAY, SMALLINT),
     INTEGER_ARRAY(PgConstant.TYPE_INT4_ARRAY, INTEGER),
@@ -83,7 +102,7 @@ public enum PgType implements io.jdbd.meta.SQLType {
 
     OID_ARRAY(PgConstant.TYPE_OID_ARRAY, OID),
     REAL_ARRAY(PgConstant.TYPE_FLOAT4_ARRAY, REAL),
-    DOUBLE_ARRAY(PgConstant.TYPE_FLOAT8_ARRAY, DOUBLE),
+    DOUBLE_ARRAY(PgConstant.TYPE_FLOAT8_ARRAY, FLOAT8),
     MONEY_ARRAY(PgConstant.TYPE_MONEY_ARRAY, MONEY),
 
     TIME_ARRAY(PgConstant.TYPE_TIME_ARRAY, TIME),
@@ -114,12 +133,12 @@ public enum PgType implements io.jdbd.meta.SQLType {
 
     POINT_ARRAY(PgConstant.TYPE_POINT_ARRAY, POINT),
     LINE_ARRAY(PgConstant.TYPE_LINE_ARRAY, LINE),
-    LINE_SEGMENT_ARRAY(PgConstant.TYPE_LINE_LSEG_ARRAY, LINE_SEGMENT),
+    LINE_SEGMENT_ARRAY(PgConstant.TYPE_LINE_LSEG_ARRAY, LSEG),
     BOX_ARRAY(PgConstant.TYPE_BOX_ARRAY, BOX),
 
     PATH_ARRAY(PgConstant.TYPE_PATH_ARRAY, PATH),
     POLYGON_ARRAY(PgConstant.TYPE_POLYGON_ARRAY, POLYGON),
-    CIRCLES_ARRAY(PgConstant.TYPE_CIRCLES_ARRAY, CIRCLES),
+    CIRCLES_ARRAY(PgConstant.TYPE_CIRCLES_ARRAY, CIRCLE),
 
 
     UUID_ARRAY(PgConstant.TYPE_UUID_ARRAY, UUID),
@@ -138,39 +157,44 @@ public enum PgType implements io.jdbd.meta.SQLType {
     NUMRANGE_ARRAY(PgConstant.TYPE_NUMRANGE_ARRAY, NUMRANGE),
 
 
+    INT4MULTIRANGE_ARRAY(PgConstant.TYPE_INT4MULTIRANGE_ARRAY, INT4MULTIRANGE),
+    INT8MULTIRANGE_ARRAY(PgConstant.TYPE_INT8MULTIRANGE_ARRAY, INT8MULTIRANGE),
+    NUMMULTIRANGE_ARRAY(PgConstant.TYPE_NUMMULTIRANGE_ARRAY, NUMMULTIRANGE),
+
+    DATEMULTIRANGE_ARRAY(PgConstant.TYPE_DATEMULTIRANGE_ARRAY, DATEMULTIRANGE),
+    TSMULTIRANGE_ARRAY(PgConstant.TYPE_TSMULTIRANGE_ARRAY, TSMULTIRANGE),
+    TSTZMULTIRANGE_ARRAY(PgConstant.TYPE_TSTZMULTIRANGE_ARRAY, TSTZMULTIRANGE),
+
+
     REF_CURSOR_ARRAY(PgConstant.TYPE_REF_CURSOR_ARRAY, REF_CURSOR);
 
     private static final Map<Short, PgType> CODE_TO_TYPE_MAP = createCodeToTypeMap();
 
     private final short typeOid;
 
-    private final JDBCType jdbcType;
+    private final JdbdType jdbdType;
 
     private final Class<?> javaType;
 
     private final PgType elementType;
 
-    PgType(short typeOid, JDBCType jdbcType, Class<?> javaType) {
-        if (jdbcType == JDBCType.ARRAY) {
-            throw new IllegalArgumentException(String.format("jdbcType[%s] error", jdbcType));
+    PgType(short typeOid, JdbdType jdbdType, Class<?> javaType) {
+        if (jdbdType == JdbdType.ARRAY) {
+            throw new IllegalArgumentException(String.format("jdbcType[%s] error", jdbdType));
         }
         this.typeOid = typeOid;
-        this.jdbcType = jdbcType;
+        this.jdbdType = jdbdType;
         this.javaType = javaType;
         this.elementType = null;
     }
 
     PgType(short typeOid, PgType elementType) {
         this.typeOid = typeOid;
-        this.jdbcType = JDBCType.ARRAY;
+        this.jdbdType = JdbdType.ARRAY;
         this.javaType = Object.class;
         this.elementType = elementType;
     }
 
-    @Override
-    public final JDBCType jdbcType() {
-        return this.jdbcType;
-    }
 
     @Override
     public String typeName() {
@@ -179,8 +203,18 @@ public enum PgType implements io.jdbd.meta.SQLType {
 
 
     @Override
+    public JdbdType jdbdType() {
+        return null;
+    }
+
+    @Override
     public final Class<?> firstJavaType() {
         return this.javaType;
+    }
+
+    @Override
+    public Class<?> secondJavaType() {
+        return null;
     }
 
     @Nullable
@@ -189,145 +223,9 @@ public enum PgType implements io.jdbd.meta.SQLType {
         return this.elementType;
     }
 
-
-    @Override
-    public final boolean isUnsigned() {
-        return false;
-    }
-
-    @Override
-    public final boolean isNumber() {
-        return isIntegerType()
-                || isFloatType()
-                || isDecimal();
-    }
-
-    @Override
-    public final boolean isIntegerType() {
-        return this == SMALLINT
-                || this == INTEGER
-                || this == BIGINT;
-    }
-
-
-    @Override
-    public final boolean isFloatType() {
-        return this == REAL || this == DOUBLE;
-    }
-
-    @Override
-    public final boolean isLongString() {
-        return false;
-    }
-
-    @Override
-    public final boolean isLongBinary() {
-        return this == BYTEA || this == BYTEA_ARRAY;
-    }
-
-
-    @Override
-    public final boolean isStringType() {
-        return false;
-    }
-
-    @Override
-    public boolean isBinaryType() {
-        return false;
-    }
-
-    @Override
-    public boolean isTimeType() {
-        return false;
-    }
-
-    @Override
-    public final boolean isDecimal() {
-        return this == DECIMAL;
-    }
-
-    @Override
-    public final boolean isCaseSensitive() {
-        final boolean sensitive;
-        switch (this) {
-            case OID:
-            case SMALLINT:
-            case SMALLINT_ARRAY:
-            case INTEGER:
-            case INTEGER_ARRAY:
-            case BIGINT:
-            case BIGINT_ARRAY:
-            case REAL:
-            case REAL_ARRAY:
-            case DOUBLE:
-            case DOUBLE_ARRAY:
-            case DECIMAL:
-            case DECIMAL_ARRAY:
-            case BOOLEAN:
-            case BOOLEAN_ARRAY:
-            case BIT:
-            case BIT_ARRAY:
-            case VARBIT:
-            case VARBIT_ARRAY:
-            case TIMESTAMP:
-            case TIMESTAMP_ARRAY:
-            case TIME:
-            case TIME_ARRAY:
-            case DATE:
-            case DATE_ARRAY:
-            case TIMESTAMPTZ:
-            case TIMESTAMPTZ_ARRAY:
-            case TIMETZ:
-            case TIMETZ_ARRAY:
-            case INTERVAL:
-            case INTERVAL_ARRAY:
-            case POINT:
-            case POINT_ARRAY:
-            case BOX:
-            case BOX_ARRAY:
-            case LINE:
-            case LINE_ARRAY:
-            case LINE_SEGMENT:
-            case LINE_SEGMENT_ARRAY:
-            case PATH:
-            case PATH_ARRAY:
-            case POLYGON:
-            case POLYGON_ARRAY:
-            case CIRCLES:
-            case CIRCLES_ARRAY:
-            case UUID:
-            case UUID_ARRAY:
-            case CIDR:
-            case CIDR_ARRAY:
-            case INET:
-            case INET_ARRAY:
-            case INT4RANGE:
-            case INT4RANGE_ARRAY:
-            case INT8RANGE:
-            case INT8RANGE_ARRAY:
-            case DATERANGE:
-            case DATERANGE_ARRAY:
-            case NUMRANGE:
-            case NUMRANGE_ARRAY:
-            case MACADDR:
-            case MACADDR_ARRAY:
-            case MACADDR8:
-            case MACADDR8_ARRAY:
-            case TSRANGE:
-            case TSRANGE_ARRAY:
-            case TSTZRANGE:
-            case TSTZRANGE_ARRAY:
-                sensitive = false;
-                break;
-            default:
-                sensitive = true;
-        }
-        return sensitive;
-    }
-
     @Override
     public final boolean isArray() {
-        return this.jdbcType == JDBCType.ARRAY;
+        return this.jdbcType == JdbdType.ARRAY;
     }
 
     @Override
@@ -340,32 +238,6 @@ public enum PgType implements io.jdbd.meta.SQLType {
         return null;
     }
 
-    @Override
-    public final boolean supportPublisher() {
-        return supportBinaryPublisher() || supportTextPublisher();
-
-    }
-
-    @Override
-    public boolean supportTextPublisher() {
-        return isArray()
-                || this == TEXT
-                || this == VARCHAR
-                || this == TSVECTOR
-                || this == TSQUERY
-                || this == XML
-                || this == PATH
-                || this == POLYGON
-                || this == JSON
-                || this == JSONB;
-    }
-
-    @Override
-    public final boolean supportBinaryPublisher() {
-        return this == BYTEA;
-    }
-
-
 
     @Override
     public final String vendor() {
@@ -374,6 +246,7 @@ public enum PgType implements io.jdbd.meta.SQLType {
 
 
     /**
+     *
      */
     private String getNonArrayTypeName() {
         final String name;

@@ -124,7 +124,7 @@ final class PgColumnMeta {
                 break;
             case BIGINT:
             case BIGINT_ARRAY:
-            case DOUBLE:
+            case FLOAT8:
             case DOUBLE_ARRAY:
             case TIME:
             case TIME_ARRAY:
@@ -166,13 +166,13 @@ final class PgColumnMeta {
             case POINT_ARRAY:
                 precision = 16;
                 break;
-            case CIRCLES:
+            case CIRCLE:
             case CIRCLES_ARRAY:
                 precision = 24;
                 break;
             case BOX:
             case BOX_ARRAY:
-            case LINE_SEGMENT:
+            case LSEG:
             case LINE_SEGMENT_ARRAY:
                 precision = 32;
                 break;

@@ -7,7 +7,7 @@ public interface SQLStatement {
     /**
      * @return a unmodified list
      */
-    List<String> getStaticSql();
+    List<String> sqlPartList();
 
 
     String getSql();

@@ -192,11 +192,13 @@ public abstract class Converters {
             case "true":
             case "on":
             case "yes":
+            case "1":
                 value = true;
                 break;
             case "false":
             case "off":
             case "no":
+            case "0":
                 value = false;
                 break;
             default:

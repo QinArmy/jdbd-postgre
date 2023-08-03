@@ -1,7 +1,7 @@
 package io.jdbd.postgre;
 
-import io.jdbd.postgre.config.PgKey;
-import io.jdbd.postgre.config.PgUrl;
+import io.jdbd.postgre.env.PgKey;
+import io.jdbd.postgre.env.PgUrl;
 
 import java.io.IOException;
 import java.io.InputStream;

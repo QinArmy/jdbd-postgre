@@ -98,7 +98,7 @@ public class PgParserSuiteTests {
             stmt = parser.parse(sql);
 
             assertNotNull(stmt, "stmt");
-            list = stmt.getStaticSql();
+            list = stmt.sqlPartList();
             assertNotNull(list, "list");
             assertEquals(list.size(), 2, "list size");
 
@@ -314,7 +314,7 @@ public class PgParserSuiteTests {
             stmt = parser.parse(sql);
 
             assertNotNull(stmt, "stmt");
-            list = stmt.getStaticSql();
+            list = stmt.sqlPartList();
             assertNotNull(list, "list");
             assertEquals(list.size(), 1, "list size");
 

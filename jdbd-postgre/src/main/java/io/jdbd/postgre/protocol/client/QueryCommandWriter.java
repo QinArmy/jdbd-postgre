@@ -3,20 +3,15 @@ package io.jdbd.postgre.protocol.client;
 import io.jdbd.JdbdException;
 import io.jdbd.postgre.PgConstant;
 import io.jdbd.postgre.PgType;
-import io.jdbd.postgre.config.PgKey;
+import io.jdbd.postgre.env.PgKey;
 import io.jdbd.postgre.stmt.BindValue;
 import io.jdbd.postgre.syntax.PgParser;
 import io.jdbd.postgre.syntax.PgStatement;
 import io.jdbd.postgre.util.*;
-import io.jdbd.vendor.stmt.ParamBatchStmt;
-import io.jdbd.vendor.stmt.ParamMultiStmt;
-import io.jdbd.vendor.stmt.ParamStmt;
-import io.jdbd.vendor.stmt.StaticBatchStmt;
+import io.jdbd.vendor.stmt.*;
 import io.netty.buffer.ByteBuf;
 import io.qinarmy.util.Pair;
 import org.reactivestreams.Publisher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
@@ -31,7 +26,6 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.sql.SQLException;
 import java.time.*;
-import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -104,9 +98,7 @@ final class QueryCommandWriter {
     static Publisher<ByteBuf> paramCommand(ParamStmt stmt, final TaskAdjutant adjutant) throws JdbdException {
         try {
             QueryCommandWriter writer = new QueryCommandWriter(adjutant);
-            final ByteBuf message;
-            message = writer.writeMultiBindCommand(Collections.singletonList(stmt));
-            return Mono.just(message);
+            return Mono.just(writer.writeParamStmt(stmt));
         } catch (Throwable e) {
             throw PgExceptions.wrapForMessage(e);
         }
@@ -137,9 +129,6 @@ final class QueryCommandWriter {
     }
 
 
-    private static final Logger LOG = LoggerFactory.getLogger(QueryCommandWriter.class);
-
-
     private final TaskAdjutant adjutant;
 
     private final Charset clientCharset;
@@ -156,12 +145,32 @@ final class QueryCommandWriter {
         this.hexEscapes = adjutant.obtainHost().getProperties().getOrDefault(PgKey.hexEscapes, Boolean.class);
     }
 
-    /**
-     * @see #createMultiStmtCommand(BindMultiStmt, TaskAdjutant)
-     * @see #createBindableCommand(ParamStmt, TaskAdjutant)
-     */
-    private ByteBuf writeMultiBindCommand(final List<ParamStmt> stmtList)
-            throws SQLException, LongDataReadException, JdbdSQLException {
+
+    private ByteBuf writeParamStmt(final ParamStmt stmt) throws JdbdException {
+        final String sql = stmt.getSql();
+        final TaskAdjutant adjutant = this.adjutant;
+
+        final PgStatement pgStmt;
+        pgStmt = adjutant.parse(sql);
+        final List<String> sqlPartList = pgStmt.sqlPartList();
+
+
+        final ByteBuf message = adjutant.allocator()
+                .buffer(sql.length() + (sqlPartList.size() * 10), Integer.MAX_VALUE);
+
+        message.writeByte(Messages.Q);
+        message.writeZero(Messages.LENGTH_BYTES); // placeholder
+
+        writeStatement(-1, pgStmt, stmt.getBindGroup(), message);
+
+        message.writeByte(Messages.STRING_TERMINATOR);
+
+        Messages.writeLength(message);
+        return message;
+    }
+
+
+    private ByteBuf writeMultiBindCommand(final List<ParamStmt> stmtList) throws JdbdException {
         final TaskAdjutant adjutant = this.adjutant;
         int capacity = stmtList.size() << 7;
         if (capacity < 0) {
@@ -235,99 +244,95 @@ final class QueryCommandWriter {
     }
 
 
-    /**
-     * @see #writeMultiBindCommand(List)
-     * @see #writeBatchBindCommand(BindBatchStmt)
-     */
-    private void writeStatement(final int stmtIndex, PgStatement statement, List<BindValue> valueList, ByteBuf message)
-            throws SQLException {
+    private void writeStatement(final int stmtIndex, final List<String> sqlPartList, final List<ParamValue> valueList,
+                                final ByteBuf message) throws JdbdException {
 
-        final List<String> staticSqlList = statement.getStaticSql();
-        final int paramCount = staticSqlList.size() - 1;
+        final int paramCount = sqlPartList.size() - 1;
         if (valueList.size() != paramCount) {
             throw PgExceptions.createBindCountNotMatchError(stmtIndex, paramCount, valueList.size());
         }
         final Charset clientCharset = this.clientCharset;
         final byte[] nullBytes = PgConstant.NULL.getBytes(clientCharset);
-        BindValue bindValue;
+        ParamValue paramValue;
         Object value;
         for (int i = 0; i < paramCount; i++) {
-            bindValue = valueList.get(i);
-            if (bindValue.getIndex() != i) {
-                throw PgExceptions.createBindIndexNotMatchError(stmtIndex, i, bindValue);
+            paramValue = valueList.get(i);
+            if (paramValue.getIndex() != i) {
+                throw PgExceptions.createBindIndexNotMatchError(stmtIndex, i, paramValue);
             }
-            message.writeBytes(staticSqlList.get(i).getBytes(clientCharset));
-            value = bindValue.get();
+            message.writeBytes(sqlPartList.get(i).getBytes(clientCharset));
+            value = paramValue.getValue();
             if (value == null) {
                 message.writeBytes(nullBytes);
                 continue;
             }
-            if (value instanceof Publisher) {
-                throw PgExceptions.createNotSupportBindTypeError(stmtIndex, bindValue);
-            }
-            if (bindValue.getType().isArray() && !(value instanceof byte[]) && value.getClass().isArray()) {
-                bindNonNullArray(stmtIndex, bindValue, message);
+
+            if (paramValue.getType().isArray()) {
+                bindArray(stmtIndex, paramValue, message);
             } else {
-                bindNonNullParameter(stmtIndex, bindValue, message);
+                bindParameter(stmtIndex, paramValue, message);
             }
 
         }
-        message.writeBytes(staticSqlList.get(paramCount).getBytes(clientCharset));
+
+        message.writeBytes(sqlPartList.get(paramCount).getBytes(clientCharset));
 
     }
 
 
     /**
-     * @see #writeStatement(int, PgStatement, List, ByteBuf)
+     * @see <a href="https://www.postgresql.org/docs/current/datatype-numeric.html#DATATYPE-INT">Numeric Types</a>
      */
-    private void bindNonNullParameter(final int batchIndex, BindValue bindValue, ByteBuf message)
-            throws SQLException {
-
-        switch (bindValue.getType()) {
+    private void bindParameter(final int batchIndex, final ParamValue bindValue, final ByteBuf message)
+            throws JdbdException {
+        final Charset clientCharset = this.clientCharset;
+        final PgType pgType = (PgType) bindValue.getType();
+        switch (pgType) {
             case SMALLINT: {
-                final short value = PgBinds.bindToShort(batchIndex, bindValue.getType(), bindValue);
-                message.writeBytes(Short.toString(value).getBytes(this.clientCharset));
+                final int value = PgBinds.bindToInt(batchIndex, bindValue, Short.MIN_VALUE, Short.MAX_VALUE);
+                message.writeBytes(Integer.toString(value).getBytes(clientCharset));
+                message.writeBytes("::SMALLINT".getBytes(clientCharset));
             }
             break;
             case INTEGER: {
-                final int value = PgBinds.bindToInt(batchIndex, bindValue.getType(), bindValue);
-                message.writeBytes(Integer.toString(value).getBytes(this.clientCharset));
+                final int value = PgBinds.bindToInt(batchIndex, bindValue, Integer.MIN_VALUE, Integer.MAX_VALUE);
+                message.writeBytes(Integer.toString(value).getBytes(clientCharset));
+                message.writeBytes("::INTEGER".getBytes(clientCharset));
             }
             break;
             case OID:
             case BIGINT: {
-                final long value = PgBinds.bindToLong(batchIndex, bindValue.getType(), bindValue);
-                message.writeBytes(Long.toString(value).getBytes(this.clientCharset));
+                final long value = PgBinds.bindToLong(batchIndex, bindValue, Long.MIN_VALUE, Long.MAX_VALUE);
+                message.writeBytes(Long.toString(value).getBytes(clientCharset));
+                message.writeBytes("::BIGINT".getBytes(clientCharset));
             }
             break;
             case DECIMAL: {
-                final BigDecimal value = PgBinds.bindToDecimal(batchIndex, bindValue.getType(), bindValue);
-                message.writeBytes(value.toPlainString().getBytes(this.clientCharset));
+                final BigDecimal value = PgBinds.bindToDecimal(batchIndex, bindValue);
+                message.writeBytes(value.toPlainString().getBytes(clientCharset));
+                message.writeBytes("::DECIMAL".getBytes(clientCharset));
             }
             break;
             case REAL: {
-                final float value = PgBinds.bindToFloat(batchIndex, bindValue.getType(), bindValue);
-                message.writeBytes(Float.toString(value).getBytes(this.clientCharset));
+                final float value = PgBinds.bindToFloat(batchIndex, bindValue);
+                message.writeBytes(Float.toString(value).getBytes(clientCharset));
+                message.writeBytes("::REAL".getBytes(clientCharset));
             }
             break;
-            case DOUBLE: {
-                final double value = PgBinds.bindToDouble(batchIndex, bindValue.getType(), bindValue);
-                message.writeBytes(Double.toString(value).getBytes(this.clientCharset));
+            case FLOAT8: {
+                final double value = PgBinds.bindToDouble(batchIndex, bindValue);
+                message.writeBytes(Double.toString(value).getBytes(clientCharset));
+                message.writeBytes("::FLOAT8".getBytes(clientCharset));
             }
             break;
             case BOOLEAN: {
-                final boolean value = PgBinds.bindToBoolean(batchIndex, bindValue.getType(), bindValue);
+                final boolean value = PgBinds.bindToBoolean(batchIndex, bindValue);
                 message.writeBytes((value ? PgConstant.TRUE : PgConstant.FALSE).getBytes(this.clientCharset));
             }
             break;
-            case BYTEA: {
-                bindNonNullToBytea(batchIndex, bindValue, message);
-            }
-            break;
-            case MONEY: {
-                bindNoNullToMoney(batchIndex, bindValue, message);
-            }
-            break;
+            case BYTEA:
+                bindToBytea(batchIndex, bindValue, message);
+                break;
             case CHAR:
             case VARCHAR:
             case TEXT:
@@ -337,26 +342,39 @@ final class QueryCommandWriter {
             case INT4RANGE:
             case INT8RANGE:
             case NUMRANGE:
+            case DATERANGE:
             case TSRANGE:
             case TSTZRANGE:
-            case DATERANGE:
+
+            case INT4MULTIRANGE:
+            case INT8MULTIRANGE:
+            case NUMMULTIRANGE:
+            case DATEMULTIRANGE:
+            case TSMULTIRANGE:
+            case TSTZMULTIRANGE:
+
 
             case JSON:
             case JSONB:
             case XML:
+
+            case POINT:
             case LINE:
-            case UUID:
+            case PATH:
+            case CIRCLE:
+            case BOX:
+            case POLYGON:
+            case LSEG:
+
             case CIDR:
             case INET:
             case MACADDR:
             case MACADDR8:
-            case PATH:
-            case POINT:
-            case CIRCLES:
-            case BOX:
-            case POLYGON:
-            case LINE_SEGMENT: {
-                bindNonNullToString(batchIndex, bindValue, message);
+
+            case UUID: {
+                message.writeBytes(pgType.name().getBytes(this.clientCharset));
+                message.writeByte(PgConstant.SPACE_BYTE);
+                bindToString(batchIndex, bindValue, message);
             }
             break;
             case BIT:
@@ -388,6 +406,9 @@ final class QueryCommandWriter {
                 bindNonNullToOffsetDateTime(batchIndex, bindValue, message);
             }
             break;
+            case MONEY:
+                bindToMoney(batchIndex, bindValue, message);
+                break;
             // below bind array with non-array value.
             case BOOLEAN_ARRAY:
             case SMALLINT_ARRAY:
@@ -438,7 +459,7 @@ final class QueryCommandWriter {
                 if (bindValue.getNonNull().getClass().isArray()) {
                     throw new IllegalArgumentException("bindValue error");
                 }
-                bindNonNullToString(batchIndex, bindValue, message);
+                bindToString(batchIndex, bindValue, message);
             }
             break;
             case REF_CURSOR_ARRAY:
@@ -454,7 +475,7 @@ final class QueryCommandWriter {
     /**
      * @see #writeStatement(int, PgStatement, List, ByteBuf)
      */
-    private void bindNonNullArray(final int batchIndex, BindValue bindValue, ByteBuf message) throws SQLException {
+    private void bindArray(final int batchIndex, BindValue bindValue, ByteBuf message) throws SQLException {
         final String v;
         switch (bindValue.getType()) {
             case BOOLEAN_ARRAY: {
@@ -597,46 +618,47 @@ final class QueryCommandWriter {
 
 
     /**
-     * @see #bindNonNullParameter(int, BindValue, ByteBuf)
+     * @see #bindParameter(int, ParamValue, ByteBuf)
      */
-    private void bindNonNullToString(final int batchIndex, BindValue bindValue, ByteBuf message)
-            throws SQLException, LongDataReadException {
-        final Object nonNull = bindValue.getNonNull();
+    private void bindToString(final int batchIndex, ParamValue bindValue, ByteBuf message)
+            throws JdbdException {
+        final Object value;
+        value = PgBinds.bindToString(batchIndex, bindValue);
 
-        if (nonNull instanceof Number) {
+        if (value instanceof Number) {
             message.writeByte(PgConstant.QUOTE_BYTE);
-            if (nonNull instanceof BigDecimal) {
-                message.writeBytes(((BigDecimal) nonNull).toPlainString().getBytes(this.clientCharset));
-            } else if (nonNull instanceof Long
-                    || nonNull instanceof Integer
-                    || nonNull instanceof Short
-                    || nonNull instanceof Byte
-                    || nonNull instanceof Double
-                    || nonNull instanceof Float
-                    || nonNull instanceof BigInteger) {
-                message.writeBytes(nonNull.toString().getBytes(this.clientCharset));
+            if (value instanceof BigDecimal) {
+                message.writeBytes(((BigDecimal) value).toPlainString().getBytes(this.clientCharset));
+            } else if (value instanceof Long
+                    || value instanceof Integer
+                    || value instanceof Short
+                    || value instanceof Byte
+                    || value instanceof Double
+                    || value instanceof Float
+                    || value instanceof BigInteger) {
+                message.writeBytes(value.toString().getBytes(this.clientCharset));
             } else {
                 throw PgExceptions.createNotSupportBindTypeError(batchIndex, bindValue);
             }
             message.writeByte(PgConstant.QUOTE_BYTE);
-        } else if (nonNull instanceof Path) {
+        } else if (value instanceof Path) {
             writeTextPathWithEscapes(batchIndex, bindValue, message);
         } else {
             message.writeByte('E');
             message.writeByte(PgConstant.QUOTE_BYTE);
-            if (nonNull instanceof String) {
-                final byte[] bytes = ((String) nonNull).getBytes(this.clientCharset);
+            if (value instanceof String) {
+                final byte[] bytes = ((String) value).getBytes(this.clientCharset);
                 writeWithEscape(message, bytes, bytes.length);
-            } else if (nonNull instanceof byte[]) {
-                byte[] bytes = ((byte[]) nonNull);
+            } else if (value instanceof byte[]) {
+                byte[] bytes = ((byte[]) value);
                 if (!this.clientUtf8) {
                     bytes = new String(bytes, StandardCharsets.UTF_8).getBytes(this.clientCharset);
                 }
                 writeWithEscape(message, bytes, bytes.length);
-            } else if (nonNull instanceof Enum) {
-                message.writeBytes(((Enum<?>) nonNull).name().getBytes(this.clientCharset));
-            } else if (nonNull instanceof UUID) {
-                final byte[] bytes = nonNull.toString().getBytes(this.clientCharset);
+            } else if (value instanceof Enum) {
+                message.writeBytes(((Enum<?>) value).name().getBytes(this.clientCharset));
+            } else if (value instanceof UUID) {
+                final byte[] bytes = value.toString().getBytes(this.clientCharset);
                 message.writeBytes(bytes);
             } else {
                 throw PgExceptions.createNotSupportBindTypeError(batchIndex, bindValue);
@@ -648,65 +670,56 @@ final class QueryCommandWriter {
     }
 
     /**
-     * @see #bindNonNullParameter(int, BindValue, ByteBuf)
+     * @see #bindParameter(int, ParamValue, ByteBuf)
      * @see PgType#MONEY
      */
-    private void bindNoNullToMoney(final int batchIndex, BindValue bindValue, ByteBuf message)
-            throws SQLException {
-        final Object nonNull = bindValue.getNonNull();
+    private void bindToMoney(final int batchIndex, final ParamValue bindValue, final ByteBuf message)
+            throws JdbdException {
+        final Object value = bindValue.getValue();
 
-        if (nonNull instanceof Number) {
+        if (value instanceof Number) {
             final byte[] bytes;
-            if (nonNull instanceof BigDecimal) {
-                bytes = ((BigDecimal) nonNull).toPlainString().getBytes(this.clientCharset);
-            } else if (nonNull instanceof Long
-                    || nonNull instanceof Integer
-                    || nonNull instanceof Short
-                    || nonNull instanceof Byte
-                    || nonNull instanceof BigInteger) {
+            if (value instanceof BigDecimal) {
+                bytes = ((BigDecimal) value).toPlainString().getBytes(this.clientCharset);
+            } else if (value instanceof Long
+                    || value instanceof Integer
+                    || value instanceof Short
+                    || value instanceof Byte
+                    || value instanceof BigInteger) {
                 // not support double and float
-                bytes = nonNull.toString().getBytes(this.clientCharset);
+                bytes = value.toString().getBytes(this.clientCharset);
             } else {
                 throw PgExceptions.createNotSupportBindTypeError(batchIndex, bindValue);
             }
             message.writeByte(PgConstant.QUOTE_BYTE);
             message.writeBytes(bytes);
-            message.writeByte(PgConstant.QUOTE_BYTE);
-            message.writeBytes("::decimal::money".getBytes(this.clientCharset));
-        } else if (nonNull instanceof String) {
+        } else if (value instanceof String) {
             message.writeByte('E');
             message.writeByte(PgConstant.QUOTE_BYTE);
-            final byte[] bytes = ((String) nonNull).getBytes(this.clientCharset);
+            final byte[] bytes = ((String) value).getBytes(this.clientCharset);
             writeWithEscape(message, bytes, bytes.length);
-            message.writeByte(PgConstant.QUOTE_BYTE);
         } else {
             throw PgExceptions.createNotSupportBindTypeError(batchIndex, bindValue);
         }
 
+        message.writeByte(PgConstant.QUOTE_BYTE);
+        message.writeBytes("::decimal::money".getBytes(this.clientCharset));
 
     }
 
 
     /**
-     * @see #bindNonNullParameter(int, BindValue, ByteBuf)
+     * @see #bindParameter(int, ParamValue, ByteBuf)
+     * @see <a href="https://www.postgresql.org/docs/current/datatype-binary.html">Binary Data Types</a>
      */
-    private void bindNonNullToBytea(final int batchIndex, BindValue bindValue, ByteBuf message)
-            throws SQLException, LongDataReadException {
-        final Object nonNull = bindValue.getNonNull();
-
-        if (nonNull instanceof Path) {
-            writeBinaryPathWithEscapes(batchIndex, bindValue, message);
-            return;
-        }
-
-        final byte[] v;
-        if (nonNull instanceof byte[]) {
-            v = (byte[]) nonNull;
-        } else if (nonNull instanceof String) {
-            v = ((String) nonNull).getBytes(this.clientCharset);
-        } else {
+    private void bindToBytea(final int batchIndex, final ParamValue bindValue, final ByteBuf message) {
+        final Object value;
+        value = bindValue.getValue();
+        if (!(value instanceof byte[])) {
             throw PgExceptions.createNotSupportBindTypeError(batchIndex, bindValue);
         }
+        final byte[] v = (byte[]) value;
+
         message.writeByte(PgConstant.QUOTE_BYTE);
         message.writeByte(PgConstant.BACK_SLASH_BYTE);
         message.writeByte('x');
@@ -716,7 +729,7 @@ final class QueryCommandWriter {
     }
 
     /**
-     * @see #bindNonNullToBytea(int, BindValue, ByteBuf)
+     * @see #bindToBytea(int, BindValue, ByteBuf)
      */
     private void writeBinaryPathWithEscapes(final int batchIndex, BindValue bindValue, ByteBuf message)
             throws LongDataReadException {
@@ -746,7 +759,7 @@ final class QueryCommandWriter {
 
 
     /**
-     * @see #bindNonNullParameter(int, BindValue, ByteBuf)
+     * @see #bindParameter(int, BindValue, ByteBuf)
      */
     private void bindNonNullToLocalDate(final int batchIndex, BindValue bindValue, ByteBuf message)
             throws SQLException {
@@ -769,7 +782,7 @@ final class QueryCommandWriter {
 
 
     /**
-     * @see #bindNonNullParameter(int, BindValue, ByteBuf)
+     * @see #bindParameter(int, BindValue, ByteBuf)
      */
     private void bindNonNullToLocalTime(final int batchIndex, BindValue bindValue, ByteBuf message)
             throws SQLException {
@@ -782,7 +795,7 @@ final class QueryCommandWriter {
     }
 
     /**
-     * @see #bindNonNullParameter(int, BindValue, ByteBuf)
+     * @see #bindParameter(int, BindValue, ByteBuf)
      */
     private void bindNonNullToOffsetTime(final int batchIndex, BindValue bindValue, ByteBuf message)
             throws SQLException {
@@ -794,7 +807,7 @@ final class QueryCommandWriter {
     }
 
     /**
-     * @see #bindNonNullParameter(int, BindValue, ByteBuf)
+     * @see #bindParameter(int, BindValue, ByteBuf)
      */
     private void bindNonNullToOffsetDateTime(final int batchIndex, BindValue bindValue, ByteBuf message)
             throws SQLException {
@@ -818,7 +831,7 @@ final class QueryCommandWriter {
 
 
     /**
-     * @see #bindNonNullParameter(int, BindValue, ByteBuf)
+     * @see #bindParameter(int, BindValue, ByteBuf)
      */
     private void bindNonNullToLocalDateTime(final int batchIndex, BindValue bindValue, ByteBuf message)
             throws SQLException {
@@ -869,7 +882,7 @@ final class QueryCommandWriter {
     }
 
     /**
-     * @see #bindNonNullParameter(int, BindValue, ByteBuf)
+     * @see #bindParameter(int, BindValue, ByteBuf)
      */
     private void bindNonNullToBit(final int stmtIndex, BindValue bindValue, ByteBuf message)
             throws SQLException {
@@ -886,7 +899,7 @@ final class QueryCommandWriter {
     }
 
     /**
-     * @see #bindNonNullParameter(int, BindValue, ByteBuf)
+     * @see #bindParameter(int, BindValue, ByteBuf)
      */
     private void bindNonNullToInterval(final int stmtIndex, BindValue bindValue, ByteBuf message)
             throws SQLException {
@@ -952,7 +965,7 @@ final class QueryCommandWriter {
 
     /**
      * @see #bindNonNullToString(int, BindValue, ByteBuf)
-     * @see #bindNonNullToBytea(int, BindValue, ByteBuf)
+     * @see #bindToBytea(int, BindValue, ByteBuf)
      * @see #writeBinaryPathWithEscapes(int, BindValue, ByteBuf)
      */
     private void writeWithEscape(ByteBuf message, final byte[] bytes, final int length) {
