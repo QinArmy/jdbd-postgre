@@ -2,7 +2,6 @@ package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.ClientTestUtils;
 import io.jdbd.postgre.Group;
-import io.jdbd.postgre.stmt.PgStmts;
 import io.jdbd.result.ResultStates;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;

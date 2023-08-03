@@ -3,9 +3,7 @@ package io.jdbd.postgre.protocol.client;
 import io.jdbd.postgre.ClientTestUtils;
 import io.jdbd.postgre.Group;
 import io.jdbd.postgre.PgType;
-import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.postgre.stmt.BindValue;
-import io.jdbd.postgre.stmt.PgStmts;
 import io.jdbd.result.ResultStates;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
@@ -141,7 +139,7 @@ public class CopyInSuiteTests extends AbstractTaskTests {
                 , LINE_SEPARATOR);
 
         final ResultStates state;
-        state = SimpleQueryTask.bindableUpdate(PgStmts.single(sql, BindValue.wrap(0, PgType.VARCHAR, path.toString())), adjutant)
+        state = SimpleQueryTask.paramUpdate(PgStmts.single(sql, BindValue.wrap(0, PgType.VARCHAR, path.toString())), adjutant)
 
                 .concatWith(releaseConnection(protocol))
                 .onErrorResume(releaseConnectionOnError(protocol))
@@ -176,7 +174,7 @@ public class CopyInSuiteTests extends AbstractTaskTests {
         }
 
         final List<ResultStates> stateList;
-        stateList = SimpleQueryTask.bindableBatchUpdate(PgStmts.bindBatch(sql, groupList), adjutant)
+        stateList = SimpleQueryTask.paramBatchUpdate(PgStmts.bindBatch(sql, groupList), adjutant)
 
                 .concatWith(releaseConnection(protocol))
                 .onErrorResume(releaseConnectionOnError(protocol))

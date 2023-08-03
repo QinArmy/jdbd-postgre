@@ -3,7 +3,6 @@ package io.jdbd.postgre.session;
 import io.jdbd.JdbdException;
 import io.jdbd.meta.DataType;
 import io.jdbd.postgre.PgType;
-import io.jdbd.postgre.stmt.PgStmts;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PgFunctions;
 import io.jdbd.result.*;

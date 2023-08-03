@@ -1,6 +1,5 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.postgre.stmt.BindBatchStmt;
 import io.jdbd.vendor.stmt.ParamSingleStmt;
 import io.jdbd.vendor.stmt.PrepareStmt;
 import io.netty.buffer.ByteBuf;

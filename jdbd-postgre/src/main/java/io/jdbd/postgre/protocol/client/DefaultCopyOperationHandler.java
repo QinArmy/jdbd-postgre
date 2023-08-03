@@ -1,8 +1,5 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.postgre.stmt.BindBatchStmt;
-import io.jdbd.postgre.stmt.BindMultiStmt;
-import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.postgre.stmt.BindValue;
 import io.jdbd.postgre.syntax.CopyIn;
 import io.jdbd.postgre.syntax.CopyOperation;
@@ -40,13 +37,13 @@ import java.util.function.Function;
 
 final class DefaultCopyOperationHandler implements CopyOperationHandler {
 
-    static DefaultCopyOperationHandler create(AbstractStmtTask task, Consumer<Publisher<ByteBuf>> messageSender) {
+    static DefaultCopyOperationHandler create(PgCommandTask task, Consumer<Publisher<ByteBuf>> messageSender) {
         return new DefaultCopyOperationHandler(task, messageSender);
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(DefaultCopyOperationHandler.class);
 
-    private final AbstractStmtTask task;
+    private final PgCommandTask task;
 
     private final Consumer<Publisher<ByteBuf>> messageSender;
 
@@ -59,7 +56,7 @@ final class DefaultCopyOperationHandler implements CopyOperationHandler {
     private List<String> singleSqlList;
 
 
-    private DefaultCopyOperationHandler(AbstractStmtTask task, Consumer<Publisher<ByteBuf>> messageSender) {
+    private DefaultCopyOperationHandler(PgCommandTask task, Consumer<Publisher<ByteBuf>> messageSender) {
         this.task = task;
         this.messageSender = messageSender;
         this.adjutant = task.adjutant();
@@ -497,7 +494,7 @@ final class DefaultCopyOperationHandler implements CopyOperationHandler {
     }
 
 
-    private static JdbdSQLException readCopyFailMessage(final ByteBuf cumulateBuffer, AbstractStmtTask task) {
+    private static JdbdSQLException readCopyFailMessage(final ByteBuf cumulateBuffer, PgCommandTask task) {
         if (cumulateBuffer.readByte() != Messages.f) {
             throw new IllegalArgumentException("Non-CopyFail message");
         }
@@ -524,13 +521,13 @@ final class DefaultCopyOperationHandler implements CopyOperationHandler {
 
     private static final class LocalFileCopyOutHandler implements CopyOutHandler {
 
-        private final AbstractStmtTask task;
+        private final PgCommandTask task;
 
         private final FileChannel channel;
 
         final ByteBuffer buffer;
 
-        private LocalFileCopyOutHandler(AbstractStmtTask task, Path path) {
+        private LocalFileCopyOutHandler(PgCommandTask task, Path path) {
             this.task = task;
             FileChannel channel;
             try {
@@ -638,7 +635,7 @@ final class DefaultCopyOperationHandler implements CopyOperationHandler {
         private static final AtomicIntegerFieldUpdater<SubscriberCopyOutHandler> CANCEL
                 = AtomicIntegerFieldUpdater.newUpdater(SubscriberCopyOutHandler.class, "cancel");
 
-        private final AbstractStmtTask task;
+        private final PgCommandTask task;
 
         private final Subscriber<byte[]> subscriber;
 
@@ -652,12 +649,12 @@ final class DefaultCopyOperationHandler implements CopyOperationHandler {
         /**
          * skip all CopyOut data
          */
-        private SubscriberCopyOutHandler(AbstractStmtTask task) {
+        private SubscriberCopyOutHandler(PgCommandTask task) {
             this.task = task;
             this.subscriber = null;
         }
 
-        private SubscriberCopyOutHandler(AbstractStmtTask task, final Subscriber<byte[]> subscriber) {
+        private SubscriberCopyOutHandler(PgCommandTask task, final Subscriber<byte[]> subscriber) {
             this.task = task;
             Subscriber<byte[]> actualSubscriber;
             try {

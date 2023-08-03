@@ -426,7 +426,7 @@ abstract class Messages {
     }
 
 
-    static void writeLength(ByteBuf message) {
+    static void writeLength(final ByteBuf message) {
         final int length = message.readableBytes() - 1, writerIndex = message.writerIndex();
         message.writerIndex(message.readerIndex() + 1);
         message.writeInt(length);

@@ -16,8 +16,8 @@ public abstract class PgExceptions extends JdbdExceptions {
     }
 
 
-    public static SQLException createObjectTooLargeError() {
-        return new SQLException("SQL too large to send over the protocol");
+    public static JdbdException createObjectTooLargeError() {
+        return new JdbdException("SQL too large to send over the protocol");
     }
 
     public static SQLException createBindCountNotMatchError(int stmtIndex, int paramCount, int valueSize) {

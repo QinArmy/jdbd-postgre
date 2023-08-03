@@ -2,8 +2,6 @@ package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.PgConstant;
 import io.jdbd.postgre.PgType;
-import io.jdbd.postgre.stmt.BindBatchStmt;
-import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.postgre.stmt.BindValue;
 import io.jdbd.postgre.syntax.PgStatement;
 import io.jdbd.postgre.util.PgBinds;

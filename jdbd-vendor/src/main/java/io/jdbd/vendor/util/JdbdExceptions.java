@@ -18,6 +18,7 @@ import io.jdbd.vendor.JdbdCompositeException;
 import io.jdbd.vendor.result.ColumnMeta;
 import io.jdbd.vendor.stmt.NamedValue;
 import io.jdbd.vendor.stmt.ParamValue;
+import io.jdbd.vendor.stmt.Stmt;
 import io.jdbd.vendor.stmt.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -162,12 +163,12 @@ public abstract class JdbdExceptions {
                 SQLStates.SYNTAX_ERROR, 0);
     }
 
-    public static Throwable wrapForMessage(final Throwable e) {
-        final Throwable error;
+    public static JdbdException wrapForMessage(final Throwable e) {
+        final JdbdException error;
         if (e instanceof IndexOutOfBoundsException && isByteBufOutflow(e)) {
             error = tooLargeObject(e);
         } else {
-            error = wrapIfNonJvmFatal(e);
+            error = wrap(e);
         }
         return error;
     }
@@ -331,6 +332,10 @@ public abstract class JdbdExceptions {
 
     public static JdbdException unknownSavePoint(SavePoint savePoint) {
         return new JdbdException(String.format("unknown %s %s", SavePoint.class.getName(), savePoint));
+    }
+
+    public static JdbdException unknownStmt(Stmt stmt) {
+        return new JdbdException(String.format("unknown %s %s", Stmt.class.getName(), stmt));
     }
 
     public static JdbdException unknownIsolation(Isolation isolation) {

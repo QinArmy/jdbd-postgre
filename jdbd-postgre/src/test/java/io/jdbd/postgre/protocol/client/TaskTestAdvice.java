@@ -5,7 +5,6 @@ import io.jdbd.postgre.ClientTestUtils;
 import io.jdbd.postgre.Group;
 import io.jdbd.postgre.PgTestUtils;
 import io.jdbd.postgre.PgType;
-import io.jdbd.postgre.stmt.PgStmts;
 import io.jdbd.postgre.util.PgStreams;
 import io.jdbd.result.FieldType;
 import io.jdbd.result.ResultRow;

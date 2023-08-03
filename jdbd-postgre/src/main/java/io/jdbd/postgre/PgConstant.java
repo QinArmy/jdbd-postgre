@@ -14,6 +14,8 @@ public interface PgConstant {
 
     String NaN = "NaN";
 
+    String SPACE_SEMICOLON_SPACE = " ; ";
+
     byte BACK_SLASH_BYTE = '\\';
     byte QUOTE_BYTE = '\'';
     byte SEMICOLON_BYTE = ';';

@@ -1,8 +1,6 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.PgType;
-import io.jdbd.postgre.stmt.BindStmt;
-import io.jdbd.postgre.stmt.PgStmts;
 import io.jdbd.postgre.util.PgNumbers;
 import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.result.ResultRow;
@@ -39,12 +37,12 @@ public class SimpleQuerySqlTypeSuiteTests extends AbstractStmtTaskTests {
 
     @Override
     final Mono<ResultStates> executeUpdate(BindStmt stmt, TaskAdjutant adjutant) {
-        return SimpleQueryTask.bindableUpdate(stmt, adjutant);
+        return SimpleQueryTask.paramUpdate(stmt, adjutant);
     }
 
     @Override
     final Flux<ResultRow> executeQuery(BindStmt stmt, TaskAdjutant adjutant) {
-        return SimpleQueryTask.bindableQuery(stmt, adjutant);
+        return SimpleQueryTask.paramQuery(stmt, adjutant);
     }
 
     /**

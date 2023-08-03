@@ -3,12 +3,13 @@ package io.jdbd.postgre.protocol.client;
 import io.jdbd.postgre.Server;
 import io.jdbd.postgre.config.PgHost;
 import io.jdbd.postgre.syntax.PgParser;
+import io.jdbd.vendor.syntax.SQLParser;
 import io.jdbd.vendor.task.ITaskAdjutant;
 
 import java.nio.charset.Charset;
 import java.time.ZoneOffset;
 
-interface TaskAdjutant extends ITaskAdjutant {
+interface TaskAdjutant extends ITaskAdjutant, SQLParser {
 
     /**
      * @return always same instance

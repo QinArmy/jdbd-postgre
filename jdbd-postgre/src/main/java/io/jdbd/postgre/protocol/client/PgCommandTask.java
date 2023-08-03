@@ -1,8 +1,6 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.PgType;
-import io.jdbd.postgre.stmt.BindMultiStmt;
-import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.postgre.syntax.PgParser;
 import io.jdbd.postgre.util.PgArrays;
 import io.jdbd.postgre.util.PgExceptions;
@@ -32,7 +30,7 @@ import java.util.function.Supplier;
  *     </ul>
  * </p>
  */
-abstract class AbstractStmtTask extends PgTask implements StmtTask {
+abstract class PgCommandTask extends PgTask implements StmtTask {
 
     final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -59,7 +57,7 @@ abstract class AbstractStmtTask extends PgTask implements StmtTask {
     private CopyOperationHandler copyOperationHandler;
 
 
-    AbstractStmtTask(TaskAdjutant adjutant, ResultSink sink, Stmt stmt) {
+    PgCommandTask(TaskAdjutant adjutant, ResultSink sink, Stmt stmt) {
         super(adjutant, sink::error);
         this.sink = sink;
         this.stmt = stmt;

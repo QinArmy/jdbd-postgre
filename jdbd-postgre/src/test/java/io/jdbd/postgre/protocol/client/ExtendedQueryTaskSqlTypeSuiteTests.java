@@ -1,7 +1,6 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.PgType;
-import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
 import org.testng.annotations.Test;

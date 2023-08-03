@@ -1,9 +1,7 @@
 package io.jdbd.postgre.protocol.client;
 
+import io.jdbd.JdbdException;
 import io.jdbd.postgre.PgType;
-import io.jdbd.postgre.stmt.BindBatchStmt;
-import io.jdbd.postgre.stmt.BindMultiStmt;
-import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.result.*;
 import io.jdbd.session.SessionCloseException;
@@ -12,22 +10,32 @@ import io.jdbd.statement.MultiStatement;
 import io.jdbd.statement.StaticStatement;
 import io.jdbd.vendor.result.MultiResults;
 import io.jdbd.vendor.result.ResultSink;
-import io.jdbd.vendor.stmt.StaticBatchStmt;
-import io.jdbd.vendor.stmt.StaticStmt;
+import io.jdbd.vendor.stmt.*;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.annotation.Nullable;
 
-import java.sql.SQLException;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
+ * <p>
+ * The class is implementation of postgre simple query protocol.
+ * </p>
+ * <p>
+ * following is chinese signature:<br/>
+ * 当你在阅读这段代码时,我才真正在写这段代码,你阅读到哪里,我便写到哪里.
+ * </p>
+ *
+ * @see QueryCommandWriter
+ * @see ExtendedQueryTask
  * @see <a href="https://www.postgresql.org/docs/current/protocol-flow.html#id-1.10.5.7.4">Simple Query</a>
+ * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Simple Query Message Formats</a>
  */
-final class SimpleQueryTask extends AbstractStmtTask implements SimpleStmtTask {
+final class SimpleQueryTask extends PgCommandTask implements SimpleStmtTask {
 
     /*################################## blow for static stmt ##################################*/
 
@@ -52,8 +60,8 @@ final class SimpleQueryTask extends AbstractStmtTask implements SimpleStmtTask {
      * This method is underlying api of {@link StaticStatement#executeQuery(String)} method.
      * </p>
      */
-    static Flux<ResultRow> query(StaticStmt stmt, TaskAdjutant adjutant) {
-        return MultiResults.query(stmt.getStatusConsumer(), sink -> {
+    static Flux<ResultRow> query(StaticStmt stmt, Function<CurrentRow, ResultRow> func, TaskAdjutant adjutant) {
+        return MultiResults.query(func, stmt.getStatusConsumer(), sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
                 task.submit(sink::error);
@@ -70,6 +78,18 @@ final class SimpleQueryTask extends AbstractStmtTask implements SimpleStmtTask {
      */
     static Flux<ResultStates> batchUpdate(StaticBatchStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.batchUpdate(sink -> {
+            try {
+                SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
+                task.submit(sink::error);
+            } catch (Throwable e) {
+                sink.error(PgExceptions.wrapIfNonJvmFatal(e));
+            }
+        });
+    }
+
+
+    static BatchQuery batchQuery(final StaticBatchStmt stmt, final TaskAdjutant adjutant) {
+        return MultiResults.batchQuery(adjutant, sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
                 task.submit(sink::error);
@@ -117,7 +137,7 @@ final class SimpleQueryTask extends AbstractStmtTask implements SimpleStmtTask {
      * This method is underlying api of {@link StaticStatement#executeAsFlux(String)} method.
      * </p>
      */
-    static OrderedFlux multiCommandAsFlux(StaticStmt stmt, TaskAdjutant adjutant) {
+    static OrderedFlux executeAsFlux(StaticStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.asFlux(sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
@@ -135,10 +155,10 @@ final class SimpleQueryTask extends AbstractStmtTask implements SimpleStmtTask {
      * This method is one of underlying api of {@link BindStatement#executeUpdate()} method.
      * </p>
      */
-    static Mono<ResultStates> bindableUpdate(BindStmt stmt, TaskAdjutant adjutant) {
+    static Mono<ResultStates> paramUpdate(ParamStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.update(sink -> {
             try {
-                SimpleQueryTask task = new SimpleQueryTask(sink, stmt, adjutant);
+                SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
                 task.submit(sink::error);
             } catch (Throwable e) {
                 sink.error(PgExceptions.wrapIfNonJvmFatal(e));
@@ -151,14 +171,14 @@ final class SimpleQueryTask extends AbstractStmtTask implements SimpleStmtTask {
      * This method is one of underlying api of below methods:
      * <ul>
      *     <li>{@link BindStatement#executeQuery()}</li>
-     *     <li>{@link BindStatement#executeQuery(Consumer)}</li>
+     *     <li>{@link BindStatement#executeQuery(Function, Consumer)}</li>
      * </ul>
      * </p>
      */
-    static Flux<ResultRow> bindableQuery(BindStmt stmt, TaskAdjutant adjutant) {
-        return MultiResults.query(stmt.getStatusConsumer(), sink -> {
+    static Flux<ResultRow> paramQuery(ParamStmt stmt, Function<CurrentRow, ResultRow> func, TaskAdjutant adjutant) {
+        return MultiResults.query(func, stmt.getStatusConsumer(), sink -> {
             try {
-                SimpleQueryTask task = new SimpleQueryTask(sink, stmt, adjutant);
+                SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
                 task.submit(sink::error);
             } catch (Throwable e) {
                 sink.error(PgExceptions.wrapIfNonJvmFatal(e));
@@ -171,10 +191,21 @@ final class SimpleQueryTask extends AbstractStmtTask implements SimpleStmtTask {
      * This method is one of underlying api of {@link BindStatement#executeBatchUpdate()} method.
      * </p>
      */
-    static Flux<ResultStates> bindableBatchUpdate(BindBatchStmt stmt, TaskAdjutant adjutant) {
+    static Flux<ResultStates> paramBatchUpdate(ParamBatchStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.batchUpdate(sink -> {
             try {
-                SimpleQueryTask task = new SimpleQueryTask(adjutant, sink, stmt);
+                SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
+                task.submit(sink::error);
+            } catch (Throwable e) {
+                sink.error(PgExceptions.wrapIfNonJvmFatal(e));
+            }
+        });
+    }
+
+    static BatchQuery paramBatchQuery(ParamBatchStmt stmt, TaskAdjutant adjutant) {
+        return MultiResults.batchQuery(adjutant, sink -> {
+            try {
+                SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
                 task.submit(sink::error);
             } catch (Throwable e) {
                 sink.error(PgExceptions.wrapIfNonJvmFatal(e));
@@ -189,10 +220,10 @@ final class SimpleQueryTask extends AbstractStmtTask implements SimpleStmtTask {
      * This method is one of underlying api of below methods {@link BindStatement#executeBatchAsMulti()}.
      * </p>
      */
-    static MultiResult bindableAsMulti(BindBatchStmt stmt, TaskAdjutant adjutant) {
+    static MultiResult paramBatchAsMulti(ParamBatchStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.asMulti(adjutant, sink -> {
             try {
-                SimpleQueryTask task = new SimpleQueryTask(adjutant, sink, stmt);
+                SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
                 task.submit(sink::error);
             } catch (Throwable e) {
                 sink.error(PgExceptions.wrapIfNonJvmFatal(e));
@@ -205,10 +236,10 @@ final class SimpleQueryTask extends AbstractStmtTask implements SimpleStmtTask {
      * This method is one of underlying api of below methods {@link BindStatement#executeBatchAsFlux()}.
      * </p>
      */
-    static OrderedFlux bindableAsFlux(BindBatchStmt stmt, TaskAdjutant adjutant) {
+    static OrderedFlux paramBatchAsFlux(ParamBatchStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.asFlux(sink -> {
             try {
-                SimpleQueryTask task = new SimpleQueryTask(adjutant, sink, stmt);
+                SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
                 task.submit(sink::error);
             } catch (Throwable e) {
                 sink.error(PgExceptions.wrapIfNonJvmFatal(e));
@@ -225,10 +256,21 @@ final class SimpleQueryTask extends AbstractStmtTask implements SimpleStmtTask {
      * This method is underlying api of {@link MultiStatement#executeBatchUpdate()} method.
      * </p>
      */
-    static Flux<ResultStates> multiStmtBatch(BindMultiStmt stmt, TaskAdjutant adjutant) {
+    static Flux<ResultStates> multiStmtBatchUpdate(ParamMultiStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.batchUpdate(sink -> {
             try {
-                SimpleQueryTask task = new SimpleQueryTask(adjutant, stmt, sink);
+                SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
+                task.submit(sink::error);
+            } catch (Throwable e) {
+                sink.error(PgExceptions.wrapIfNonJvmFatal(e));
+            }
+        });
+    }
+
+    static BatchQuery multiStmtBatchQuery(ParamMultiStmt stmt, TaskAdjutant adjutant) {
+        return MultiResults.batchQuery(adjutant, sink -> {
+            try {
+                SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
                 task.submit(sink::error);
             } catch (Throwable e) {
                 sink.error(PgExceptions.wrapIfNonJvmFatal(e));
@@ -241,10 +283,10 @@ final class SimpleQueryTask extends AbstractStmtTask implements SimpleStmtTask {
      * This method is underlying api of {@link MultiStatement#executeBatchAsMulti()} method.
      * </p>
      */
-    static MultiResult multiStmtAsMulti(BindMultiStmt stmt, TaskAdjutant adjutant) {
+    static MultiResult multiStmtAsMulti(ParamMultiStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.asMulti(adjutant, sink -> {
             try {
-                SimpleQueryTask task = new SimpleQueryTask(adjutant, stmt, sink);
+                SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
                 task.submit(sink::error);
             } catch (Throwable e) {
                 sink.error(PgExceptions.wrapIfNonJvmFatal(e));
@@ -257,10 +299,10 @@ final class SimpleQueryTask extends AbstractStmtTask implements SimpleStmtTask {
      * This method is underlying api of {@link MultiStatement#executeBatchAsFlux()} method.
      * </p>
      */
-    static OrderedFlux multiStmtAsFlux(BindMultiStmt stmt, TaskAdjutant adjutant) {
+    static OrderedFlux multiStmtAsFlux(ParamMultiStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.asFlux(sink -> {
             try {
-                SimpleQueryTask task = new SimpleQueryTask(adjutant, stmt, sink);
+                SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
                 task.submit(sink::error);
             } catch (Throwable e) {
                 sink.error(PgExceptions.wrapIfNonJvmFatal(e));
@@ -268,72 +310,32 @@ final class SimpleQueryTask extends AbstractStmtTask implements SimpleStmtTask {
         });
     }
 
-
-    private final ResultSink sink;
-
     private Phase phase;
 
-    /**
-     * <p>
-     * create instance for single static statement.
-     * </p>
-     *
-     * @see #update(StaticStmt, TaskAdjutant)
-     * @see #query(StaticStmt, TaskAdjutant)
-     * @see #multiCommandAsFlux(StaticStmt, TaskAdjutant)
-     */
-    private SimpleQueryTask(StaticStmt stmt, ResultSink sink, TaskAdjutant adjutant) throws SQLException {
-        super(adjutant, sink, stmt);
-        this.packetPublisher = QueryCommandWriter.createStaticCommand(stmt.getSql(), adjutant);
-        this.sink = sink;
-    }
 
-    /**
-     * @see #batchUpdate(StaticBatchStmt, TaskAdjutant)
-     * @see #batchAsMulti(StaticBatchStmt, TaskAdjutant)
-     * @see #batchAsFlux(StaticBatchStmt, TaskAdjutant)
-     */
-    private SimpleQueryTask(StaticBatchStmt stmt, ResultSink sink, TaskAdjutant adjutant)
-            throws Throwable {
+    private SimpleQueryTask(Stmt stmt, ResultSink sink, TaskAdjutant adjutant) throws JdbdException {
         super(adjutant, sink, stmt);
-        this.packetPublisher = QueryCommandWriter.createStaticBatchCommand(stmt, adjutant);
-        this.sink = sink;
-    }
 
-    /*################################## blow for bindable single stmt ##################################*/
+        if (stmt instanceof StaticStmt) {
+            this.packetPublisher = QueryCommandWriter.staticCommand(((StaticStmt) stmt).getSql(), adjutant);
+        } else if (stmt instanceof StaticMultiStmt) {
+            this.packetPublisher = QueryCommandWriter.staticCommand(((StaticMultiStmt) stmt).getMultiStmt(), adjutant);
+        } else if (stmt instanceof StaticBatchStmt) {
+            this.packetPublisher = QueryCommandWriter.staticBatchCommand((StaticBatchStmt) stmt, adjutant);
+        } else if (stmt instanceof ParamStmt) {
+            this.packetPublisher = QueryCommandWriter.paramCommand((ParamStmt) stmt, adjutant);
+        } else if (stmt instanceof ParamBatchStmt) {
+            this.packetPublisher = QueryCommandWriter.paramBatchCommand((ParamBatchStmt) stmt, adjutant);
+        } else if (stmt instanceof ParamMultiStmt) {
+            this.packetPublisher = QueryCommandWriter.multiStmtCommand((ParamMultiStmt) stmt, adjutant);
+        } else {
+            throw PgExceptions.unknownStmt(stmt);
+        }
 
-    /**
-     * @see #bindableUpdate(BindStmt, TaskAdjutant)
-     * @see #bindableQuery(BindStmt, TaskAdjutant)
-     */
-    private SimpleQueryTask(ResultSink sink, BindStmt stmt, TaskAdjutant adjutant) throws Throwable {
-        super(adjutant, sink, stmt);
-        this.packetPublisher = QueryCommandWriter.createBindableCommand(stmt, adjutant);
-        this.sink = sink;
-    }
-
-    /**
-     * @see #bindableBatchUpdate(BindBatchStmt, TaskAdjutant)
-     * @see #bindableAsMulti(BindBatchStmt, TaskAdjutant)
-     * @see #bindableAsFlux(BindBatchStmt, TaskAdjutant)
-     */
-    private SimpleQueryTask(TaskAdjutant adjutant, ResultSink sink, BindBatchStmt stmt) throws Throwable {
-        super(adjutant, sink, stmt);
-        this.packetPublisher = QueryCommandWriter.createBindableBatchCommand(stmt, adjutant);
-        this.sink = sink;
     }
 
     /*################################## blow for bindable multi stmt ##################################*/
 
-    /**
-     * @see #multiStmtAsMulti(BindMultiStmt, TaskAdjutant)
-     * @see #multiStmtAsFlux(BindMultiStmt, TaskAdjutant)
-     */
-    private SimpleQueryTask(TaskAdjutant adjutant, BindMultiStmt stmt, ResultSink sink) throws Throwable {
-        super(adjutant, sink, stmt);
-        this.packetPublisher = QueryCommandWriter.createMultiStmtCommand(stmt, adjutant);
-        this.sink = sink;
-    }
 
     /*#################### blow io.jdbd.postgre.protocol.client.SimpleStmtTask method ##########################*/
 
@@ -349,7 +351,7 @@ final class SimpleQueryTask extends AbstractStmtTask implements SimpleStmtTask {
 
 
     @Override
-    protected final Publisher<ByteBuf> start() {
+    protected Publisher<ByteBuf> start() {
         final Publisher<ByteBuf> publisher = this.packetPublisher;
         if (publisher == null) {
             this.phase = Phase.END;
@@ -363,7 +365,7 @@ final class SimpleQueryTask extends AbstractStmtTask implements SimpleStmtTask {
 
 
     @Override
-    protected final void onChannelClose() {
+    protected void onChannelClose() {
         if (this.phase != Phase.END) {
             addError(new SessionCloseException("Unexpected session close."));
             publishError(this.sink::error);
@@ -371,7 +373,7 @@ final class SimpleQueryTask extends AbstractStmtTask implements SimpleStmtTask {
     }
 
     @Override
-    protected final Action onError(Throwable e) {
+    protected Action onError(Throwable e) {
         if (this.phase != Phase.END) {
             addError(e);
             publishError(this.sink::error);
@@ -381,7 +383,7 @@ final class SimpleQueryTask extends AbstractStmtTask implements SimpleStmtTask {
 
 
     @Override
-    protected final boolean decode(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
+    protected boolean decode(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
         final boolean taskEnd;
         taskEnd = readExecuteResponse(cumulateBuffer, serverStatusConsumer);
         if (taskEnd) {

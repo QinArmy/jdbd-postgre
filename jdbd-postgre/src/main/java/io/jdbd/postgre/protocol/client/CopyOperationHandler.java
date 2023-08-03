@@ -3,7 +3,7 @@ package io.jdbd.postgre.protocol.client;
 import io.netty.buffer.ByteBuf;
 
 /**
- * @see AbstractStmtTask
+ * @see PgCommandTask
  */
 interface CopyOperationHandler {
 

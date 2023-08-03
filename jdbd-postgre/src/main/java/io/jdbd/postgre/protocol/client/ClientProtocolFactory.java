@@ -5,7 +5,6 @@ import io.jdbd.postgre.Server;
 import io.jdbd.postgre.ServerParameter;
 import io.jdbd.postgre.config.PgKey;
 import io.jdbd.postgre.session.SessionAdjutant;
-import io.jdbd.postgre.stmt.PgStmts;
 import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.result.Result;
 import io.jdbd.result.ResultRow;

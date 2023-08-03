@@ -1,6 +1,5 @@
 package io.jdbd.postgre.session;
 
-import io.jdbd.postgre.stmt.PgStmts;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.OrderedFlux;
 import io.jdbd.result.ResultRow;

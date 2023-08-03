@@ -6,7 +6,6 @@ import io.jdbd.postgre.Server;
 import io.jdbd.postgre.ServerParameter;
 import io.jdbd.postgre.config.PgHost;
 import io.jdbd.postgre.session.SessionAdjutant;
-import io.jdbd.postgre.stmt.PgStmts;
 import io.jdbd.postgre.syntax.PgParser;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PgStrings;

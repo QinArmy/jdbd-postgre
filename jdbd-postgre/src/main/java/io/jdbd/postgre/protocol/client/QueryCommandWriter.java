@@ -1,17 +1,17 @@
 package io.jdbd.postgre.protocol.client;
 
+import io.jdbd.JdbdException;
 import io.jdbd.postgre.PgConstant;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.config.PgKey;
-import io.jdbd.postgre.stmt.BindBatchStmt;
-import io.jdbd.postgre.stmt.BindMultiStmt;
-import io.jdbd.postgre.stmt.BindStmt;
 import io.jdbd.postgre.stmt.BindValue;
 import io.jdbd.postgre.syntax.PgParser;
 import io.jdbd.postgre.syntax.PgStatement;
 import io.jdbd.postgre.util.*;
+import io.jdbd.vendor.stmt.ParamBatchStmt;
+import io.jdbd.vendor.stmt.ParamMultiStmt;
+import io.jdbd.vendor.stmt.ParamStmt;
 import io.jdbd.vendor.stmt.StaticBatchStmt;
-import io.jdbd.vendor.syntax.SQLParser;
 import io.netty.buffer.ByteBuf;
 import io.qinarmy.util.Pair;
 import org.reactivestreams.Publisher;
@@ -36,49 +36,25 @@ import java.util.List;
 import java.util.UUID;
 
 /**
+ * <p>
+ * This class is writer of postgre simple query protocol.
+ * </p>
+ *
+ * @see SimpleQueryTask
  * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Query</a>
  */
 final class QueryCommandWriter {
 
+    static Publisher<ByteBuf> staticCommand(final String sql, final TaskAdjutant adjutant) throws JdbdException {
+        final byte[] sqlBytes;
+        sqlBytes = sql.getBytes(adjutant.clientCharset());
 
-    static Publisher<ByteBuf> createStaticBatchCommand(StaticBatchStmt stmt, TaskAdjutant adjutant)
-            throws Throwable {
-        final List<String> sqlGroup = stmt.getSqlGroup();
-        final ByteBuf message = adjutant.allocator().buffer(sqlGroup.size() * 50, Integer.MAX_VALUE);
-        message.writeByte(Messages.Q);
-        message.writeZero(Messages.LENGTH_BYTES); // placeholder of length
-        try {
-            final Charset charset = adjutant.clientCharset();
-            final SQLParser sqlParser = adjutant.sqlParser();
-            int count = 0;
-            for (String sql : sqlGroup) {
-                if (!sqlParser.isSingleStmt(sql)) {
-                    throw PgExceptions.createMultiStatementError();
-                }
-                if (count > 0) {
-                    message.writeByte(PgConstant.SEMICOLON_BYTE);
-                }
-                message.writeBytes(sql.getBytes(charset));
-                count++;
-            }
-            message.writeByte(Messages.STRING_TERMINATOR);
-
-            Messages.writeLength(message);
-            return Mono.just(message);
-        } catch (Throwable e) {
-            message.release();
-            throw PgExceptions.wrapForMessage(e);
-        }
-    }
-
-
-    static Publisher<ByteBuf> createStaticCommand(String sql, TaskAdjutant adjutant) throws SQLException {
-        final byte[] sqlBytes = sql.getBytes(adjutant.clientCharset());
         final int capacity = sqlBytes.length + 6;
         if (capacity < 0) {
             throw PgExceptions.createObjectTooLargeError();
         }
-        final ByteBuf message = adjutant.allocator().buffer(capacity);
+        final ByteBuf message;
+        message = adjutant.allocator().buffer(capacity);
 
         message.writeByte(Messages.Q);
         message.writeZero(Messages.LENGTH_BYTES); // placeholder
@@ -90,7 +66,42 @@ final class QueryCommandWriter {
     }
 
 
-    static Publisher<ByteBuf> createBindableCommand(BindStmt stmt, final TaskAdjutant adjutant) throws Throwable {
+    static Publisher<ByteBuf> staticBatchCommand(final StaticBatchStmt stmt, final TaskAdjutant adjutant)
+            throws JdbdException {
+        final List<String> sqlGroup = stmt.getSqlGroup();
+        final int groupSize = sqlGroup.size();
+        final ByteBuf message = adjutant.allocator().buffer(groupSize * 50, Integer.MAX_VALUE);
+        message.writeByte(Messages.Q);
+        message.writeZero(Messages.LENGTH_BYTES); // placeholder of length
+        try {
+            final Charset charset = adjutant.clientCharset();
+            final byte[] semicolonBytes = PgConstant.SPACE_SEMICOLON_SPACE.getBytes(charset);
+            String sql;
+            for (int i = 0; i < groupSize; i++) {
+                sql = sqlGroup.get(i);
+
+                if (!adjutant.isSingleStmt(sql)) {
+                    throw PgExceptions.createMultiStatementError();
+                }
+                if (i > 0) {
+                    message.writeBytes(semicolonBytes);
+                }
+                message.writeBytes(sql.getBytes(charset));
+
+            }
+
+            message.writeByte(Messages.STRING_TERMINATOR);
+
+            Messages.writeLength(message);
+            return Mono.just(message);
+        } catch (Throwable e) {
+            message.release();
+            throw PgExceptions.wrapForMessage(e);
+        }
+    }
+
+
+    static Publisher<ByteBuf> paramCommand(ParamStmt stmt, final TaskAdjutant adjutant) throws JdbdException {
         try {
             QueryCommandWriter writer = new QueryCommandWriter(adjutant);
             final ByteBuf message;
@@ -101,8 +112,8 @@ final class QueryCommandWriter {
         }
     }
 
-    static Publisher<ByteBuf> createBindableBatchCommand(final BindBatchStmt stmt, final TaskAdjutant adjutant)
-            throws Throwable {
+    static Publisher<ByteBuf> paramBatchCommand(final ParamBatchStmt stmt, final TaskAdjutant adjutant)
+            throws JdbdException {
         try {
             QueryCommandWriter writer = new QueryCommandWriter(adjutant);
             final ByteBuf message;
@@ -113,8 +124,8 @@ final class QueryCommandWriter {
         }
     }
 
-    static Publisher<ByteBuf> createMultiStmtCommand(final BindMultiStmt stmt, final TaskAdjutant adjutant)
-            throws Throwable {
+    static Publisher<ByteBuf> multiStmtCommand(final ParamMultiStmt stmt, final TaskAdjutant adjutant)
+            throws JdbdException {
         try {
             QueryCommandWriter writer = new QueryCommandWriter(adjutant);
             final ByteBuf message;
@@ -147,9 +158,9 @@ final class QueryCommandWriter {
 
     /**
      * @see #createMultiStmtCommand(BindMultiStmt, TaskAdjutant)
-     * @see #createBindableCommand(BindStmt, TaskAdjutant)
+     * @see #createBindableCommand(ParamStmt, TaskAdjutant)
      */
-    private ByteBuf writeMultiBindCommand(final List<BindStmt> stmtList)
+    private ByteBuf writeMultiBindCommand(final List<ParamStmt> stmtList)
             throws SQLException, LongDataReadException, JdbdSQLException {
         final TaskAdjutant adjutant = this.adjutant;
         int capacity = stmtList.size() << 7;
@@ -164,7 +175,7 @@ final class QueryCommandWriter {
 
             final PgParser sqlParser = adjutant.sqlParser();
             PgStatement statement;
-            BindStmt stmt;
+            ParamStmt stmt;
             final int stmtCount = stmtList.size();
             for (int i = 0; i < stmtCount; i++) {
                 stmt = stmtList.get(i);

@@ -1,6 +1,5 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.postgre.stmt.PgStmts;
 import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.ResultRow;

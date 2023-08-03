@@ -2,7 +2,6 @@ package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.JdbdException;
 import io.jdbd.postgre.PgType;
-import io.jdbd.postgre.stmt.BindBatchStmt;
 import io.jdbd.postgre.util.PgCollections;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.result.*;
@@ -29,9 +28,15 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
+ * <p>
+ * following is chinese signature:<br/>
+ * 当你在阅读这段代码时,我才真正在写这段代码,你阅读到哪里,我便写到哪里.
+ * </p>
+ *
+ * @see SimpleQueryTask
  * @see <a href="https://www.postgresql.org/docs/current/protocol-flow.html#PROTOCOL-FLOW-EXT-QUERY"> Extended Query</a>
  */
-final class ExtendedQueryTask extends AbstractStmtTask implements PrepareTask, ExtendedStmtTask {
+final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, ExtendedStmtTask {
 
 
     static Mono<ResultStates> update(ParamStmt stmt, TaskAdjutant adjutant) {
