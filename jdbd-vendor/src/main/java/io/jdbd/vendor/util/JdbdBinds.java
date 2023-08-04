@@ -180,7 +180,7 @@ public abstract class JdbdBinds {
 
 
     public static boolean bindToBoolean(final int batchIndex, final Value paramValue) {
-        final Object nonNull = paramValue.getNonNullValue();
+        final Object nonNull = paramValue.getValue();
         final boolean value;
         if (nonNull instanceof Boolean) {
             value = (Boolean) nonNull;
@@ -209,14 +209,44 @@ public abstract class JdbdBinds {
                 || nonNull instanceof Float) {
             value = ((Number) nonNull).doubleValue() != 0.0;
         } else {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, paramValue);
         }
         return value;
     }
 
+    public static String bindToBit(final int batchIndex, final Value paramValue, final int maxLength) {
+        final Object value = paramValue.getValue();
+        final String bitValue;
+
+        if (value instanceof Long) {
+            bitValue = Long.toBinaryString((Long) value);
+        } else if (value instanceof Integer) {
+            bitValue = Integer.toBinaryString((Integer) value);
+        } else if (value instanceof Short) {
+            bitValue = Integer.toBinaryString(((Short) value) & 0xFFFF);
+        } else if (value instanceof Byte) {
+            bitValue = Integer.toBinaryString(((Byte) value) & 0xFF);
+        } else if (value instanceof BitSet) {
+            final BitSet v = (BitSet) value;
+            if (v.length() > maxLength) {
+                throw JdbdExceptions.outOfTypeRange(batchIndex, paramValue);
+            }
+            bitValue = JdbdStrings.bitSetToBitString(v, true);
+        } else if (value instanceof String) {
+            final String v = (String) value;
+            if (v.length() > maxLength || !JdbdStrings.isBinaryString(v)) {
+                throw JdbdExceptions.outOfTypeRange(batchIndex, paramValue);
+            }
+            bitValue = v;
+        } else {
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, paramValue);
+        }
+        return bitValue;
+    }
+
     public static int bindToIntUnsigned(final int batchIndex, final Value paramValue, final int maxvalue)
             throws JdbdException, IllegalArgumentException {
-        final Object nonNull = paramValue.getNonNullValue();
+        final Object nonNull = paramValue.getValue();
         final int value;
         if (nonNull instanceof Integer) {
             value = (Integer) nonNull;
@@ -251,7 +281,7 @@ public abstract class JdbdBinds {
             }
             value = (int) v;
         } else {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, paramValue);
         }
 
         if (maxvalue != -1 && (value & (~maxvalue)) != 0) {
@@ -262,7 +292,7 @@ public abstract class JdbdBinds {
 
     public static int bindToInt(final int batchIndex, final Value paramValue, final int minValue, int maxValue)
             throws JdbdException {
-        final Object nonNull = paramValue.getNonNullValue();
+        final Object nonNull = paramValue.getValue();
         final int value;
         if (nonNull instanceof Integer
                 || nonNull instanceof Short
@@ -283,7 +313,7 @@ public abstract class JdbdBinds {
         } else if (nonNull instanceof BigDecimal) {
             value = ((BigDecimal) nonNull).intValueExact();
         } else {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, paramValue);
         }
 
         if (value < minValue || value > maxValue) {
@@ -295,7 +325,7 @@ public abstract class JdbdBinds {
 
     public static long bindToLong(final int batchIndex, final Value paramValue, final long minValue, final long maxValue)
             throws JdbdException {
-        final Object nonNull = paramValue.getNonNullValue();
+        final Object nonNull = paramValue.getValue();
         final long value;
         if (nonNull instanceof Long
                 || nonNull instanceof Integer
@@ -312,7 +342,7 @@ public abstract class JdbdBinds {
         } else if (nonNull instanceof BigDecimal) {
             value = ((BigDecimal) nonNull).longValueExact();
         } else {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, paramValue);
         }
 
         if (value < minValue || value > maxValue) {
@@ -323,7 +353,7 @@ public abstract class JdbdBinds {
 
     public static long bindToLongUnsigned(final int batchIndex, final Value paramValue, final long maxValue)
             throws JdbdException, IllegalArgumentException {
-        final Object nonNull = paramValue.getNonNullValue();
+        final Object nonNull = paramValue.getValue();
         final long value;
         if (nonNull instanceof Integer || nonNull instanceof Long) {
             value = ((Number) nonNull).longValue();
@@ -344,7 +374,7 @@ public abstract class JdbdBinds {
         } else if (nonNull instanceof BigDecimal) {
             value = Long.parseUnsignedLong(((BigDecimal) nonNull).stripTrailingZeros().toPlainString());
         } else {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, paramValue);
         }
 
         if (maxValue != -1L && (value & (~maxValue)) != 0) {
@@ -354,7 +384,7 @@ public abstract class JdbdBinds {
     }
 
     public static BigInteger bindToBigInteger(final int batchIndex, final Value paramValue) {
-        final Object nonNull = paramValue.getNonNullValue();
+        final Object nonNull = paramValue.getValue();
 
         final BigInteger value;
         if (nonNull instanceof BigInteger) {
@@ -372,13 +402,13 @@ public abstract class JdbdBinds {
         } else if (nonNull instanceof BigDecimal) {
             value = ((BigDecimal) nonNull).toBigIntegerExact();
         } else {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, paramValue);
         }
         return value;
     }
 
     public static BigDecimal bindToDecimal(final int batchIndex, final Value paramValue) {
-        final Object nonNull = paramValue.getNonNullValue();
+        final Object nonNull = paramValue.getValue();
 
         final BigDecimal value;
         if (nonNull instanceof BigDecimal) {
@@ -397,13 +427,13 @@ public abstract class JdbdBinds {
         } else if (nonNull instanceof Double || nonNull instanceof Float) {
             value = new BigDecimal(nonNull.toString());
         } else {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, paramValue);
         }
         return value;
     }
 
     public static float bindToFloat(final int batchIndex, final Value paramValue) {
-        final Object nonNull = paramValue.getNonNullValue();
+        final Object nonNull = paramValue.getValue();
         final float value;
         if (nonNull instanceof Float) {
             value = (Float) nonNull;
@@ -414,14 +444,14 @@ public abstract class JdbdBinds {
         } else if (nonNull instanceof Boolean) {
             value = ((Boolean) nonNull) ? 1.0F : 0.0F;
         } else {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, paramValue);
         }
         return value;
     }
 
 
     public static double bindToDouble(final int batchIndex, final Value paramValue) {
-        final Object nonNull = paramValue.getNonNullValue();
+        final Object nonNull = paramValue.getValue();
         final double value;
         if (nonNull instanceof Float
                 || nonNull instanceof Double
@@ -434,13 +464,13 @@ public abstract class JdbdBinds {
         } else if (nonNull instanceof Boolean) {
             value = ((Boolean) nonNull) ? 1.0D : 0.0D;
         } else {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, paramValue);
         }
         return value;
     }
 
     public static String bindToString(final int batchIndex, final Value paramValue) {
-        final Object nonNull = paramValue.getNonNullValue();
+        final Object nonNull = paramValue.getValue();
         final String value;
 
         if (nonNull instanceof String) {
@@ -466,7 +496,7 @@ public abstract class JdbdBinds {
         } else if (nonNull instanceof BitSet) {
             value = JdbdStrings.bitSetToBitString((BitSet) nonNull, true);
         } else {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, paramValue);
         }
         return value;
     }
@@ -475,7 +505,7 @@ public abstract class JdbdBinds {
      * @return {@link Number} or {@link String}
      */
     public static Object bindToJson(final int batchIndex, final Value paramValue) {
-        final Object nonNull = paramValue.getNonNullValue();
+        final Object nonNull = paramValue.getValue();
         final Object value;
 
         if (nonNull instanceof String || nonNull instanceof Number) {
@@ -488,7 +518,7 @@ public abstract class JdbdBinds {
 
 
     public static LocalDate bindToLocalDate(final int batchIndex, final Value paramValue) {
-        final Object nonNull = paramValue.getNonNullValue();
+        final Object nonNull = paramValue.getValue();
         final LocalDate value;
         if (nonNull instanceof LocalDate) {
             value = (LocalDate) nonNull;
@@ -503,52 +533,52 @@ public abstract class JdbdBinds {
         } else if (nonNull instanceof Year) {
             value = LocalDate.of(((Year) nonNull).getValue(), 1, 1);
         } else {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, paramValue);
         }
         return value;
     }
 
     public static LocalTime bindToLocalTime(final int batchIndex, final Value paramValue) {
-        final Object nonNull = paramValue.getNonNullValue();
+        final Object nonNull = paramValue.getValue();
         final LocalTime value;
         if (nonNull instanceof LocalTime) {
             value = (LocalTime) nonNull;
         } else if (nonNull instanceof String) {
             value = LocalTime.parse((String) nonNull, JdbdTimes.TIME_FORMATTER_6);
         } else {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, paramValue);
         }
         return value;
     }
 
     public static LocalDateTime bindToLocalDateTime(final int batchIndex, final Value paramValue) {
-        final Object nonNull = paramValue.getNonNullValue();
+        final Object nonNull = paramValue.getValue();
         final LocalDateTime value;
         if (nonNull instanceof LocalDateTime) {
             value = (LocalDateTime) nonNull;
         } else if (nonNull instanceof String) {
             value = LocalDateTime.parse((String) nonNull, JdbdTimes.DATETIME_FORMATTER_6);
         } else {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, paramValue);
         }
         return value;
     }
 
     public static OffsetTime bindToOffsetTime(final int batchIndex, final Value paramValue) {
-        final Object nonNull = paramValue.getNonNullValue();
+        final Object nonNull = paramValue.getValue();
         final OffsetTime value;
         if (nonNull instanceof OffsetTime) {
             value = (OffsetTime) nonNull;
         } else if (nonNull instanceof String) {
             value = OffsetTime.parse((String) nonNull, JdbdTimes.OFFSET_TIME_FORMATTER_6);
         } else {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, paramValue);
         }
         return value;
     }
 
     public static OffsetDateTime bindToOffsetDateTime(final int batchIndex, final Value paramValue) {
-        final Object nonNull = paramValue.getNonNullValue();
+        final Object nonNull = paramValue.getValue();
         final OffsetDateTime value;
         if (nonNull instanceof OffsetDateTime) {
             value = (OffsetDateTime) nonNull;
@@ -557,14 +587,14 @@ public abstract class JdbdBinds {
         } else if (nonNull instanceof String) {
             value = OffsetDateTime.parse((String) nonNull, JdbdTimes.OFFSET_DATETIME_FORMATTER_6);
         } else {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, paramValue);
         }
         return value;
     }
 
 
     public static String bindToInterval(final int batchIndex, final Value paramValue) {
-        final Object nonNull = paramValue.getNonNullValue();
+        final Object nonNull = paramValue.getValue();
         final String value;
         if (nonNull instanceof Period) {
             value = nonNull.toString();
@@ -577,7 +607,7 @@ public abstract class JdbdBinds {
             } else if (nonNull instanceof Interval) {
                 v = (Interval) nonNull;
             } else {
-                throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, paramValue);
+                throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, paramValue);
             }
             value = v.toString(true);
         }

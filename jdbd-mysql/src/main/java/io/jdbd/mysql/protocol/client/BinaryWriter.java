@@ -164,7 +164,7 @@ abstract class BinaryWriter {
             case LONGBLOB: {
                 final Object nonNull = paramValue.getNonNullValue();
                 if (!(nonNull instanceof byte[])) {
-                    throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, paramValue);
+                    throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, paramValue);
                 }
                 Packets.writeStringLenEnc(packet, (byte[]) nonNull);
             }
@@ -198,7 +198,7 @@ abstract class BinaryWriter {
                 } else if (nonNull instanceof String) {
                     Packets.writeStringLenEnc(packet, ((String) nonNull).getBytes(charset));
                 } else {
-                    throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, paramValue);
+                    throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, paramValue);
                 }
             }
             break;
@@ -214,7 +214,7 @@ abstract class BinaryWriter {
             case NULL:
             case UNKNOWN:
             default:
-                throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, paramValue);
+                throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, paramValue);
 
         }
 
@@ -301,7 +301,7 @@ abstract class BinaryWriter {
         } else if (nonNull instanceof String) {
             value = Long.parseUnsignedLong((String) nonNull, 2);
         } else {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, paramValue);
         }
         // MySQL server 8.0.27 and before don't support send MYSQL_TYPE_BIT
         Packets.writeInt8(packet, value);
@@ -346,7 +346,7 @@ abstract class BinaryWriter {
             value = MySQLTimes.truncatedIfNeed(precision, (OffsetTime) nonNull);
             writeLocalTime(packet, value.withOffsetSameInstant(serverZone).toLocalTime());
         } else {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, paramValue);
         }
 
 

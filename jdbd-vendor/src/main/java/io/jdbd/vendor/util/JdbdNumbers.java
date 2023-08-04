@@ -2,10 +2,24 @@ package io.jdbd.vendor.util;
 
 import io.qinarmy.util.NumberUtils;
 
+import java.math.BigDecimal;
+
 public abstract class JdbdNumbers extends NumberUtils {
 
     protected JdbdNumbers() {
         throw new UnsupportedOperationException();
+    }
+
+
+    public static boolean isDecimal(String text) {
+        boolean match;
+        try {
+            new BigDecimal(text);
+            match = true;
+        } catch (NumberFormatException e) {
+            match = false;
+        }
+        return match;
     }
 
 

@@ -116,6 +116,11 @@ public abstract class JdbdExceptions {
         return error;
     }
 
+    public static JdbdException errorTypeName(DataType dataType) {
+        String m = String.format("%s typeName[%s] error", DataType.class.getName(), dataType.typeName());
+        return new JdbdException(m);
+    }
+
     public static JdbdException dontSupportImporter(String database) {
         return new JdbdException(String.format("%s don't support importer.", database));
     }
@@ -505,7 +510,7 @@ public abstract class JdbdExceptions {
     /**
      * @param batchIndex negative:single stmt;not negative representing batch index of batch operation.
      */
-    public static JdbdException createNonSupportBindSqlTypeError(int batchIndex, final Value bindValue) {
+    public static JdbdException nonSupportBindSqlTypeError(int batchIndex, final Value bindValue) {
         final String m;
         if (batchIndex < 0) {
             m = String.format("parameter[%s] javaType[%s] bind to sql type[%s] not supported."

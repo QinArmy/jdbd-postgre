@@ -288,7 +288,7 @@ final class QueryCommandWriter {
             }
             if (value instanceof Publisher || value instanceof Path) {
                 // Statement no bug,never here
-                throw MySQLExceptions.createNonSupportBindSqlTypeError(batchIndex, paramValue);
+                throw MySQLExceptions.nonSupportBindSqlTypeError(batchIndex, paramValue);
             }
             writeParameter(batchIndex, paramValue, packet);
         }
@@ -493,7 +493,7 @@ final class QueryCommandWriter {
                     } else if (nonNull instanceof String) {
                         writeOneEscapesValue(packet, ((String) nonNull).getBytes(this.clientCharset));
                     } else {
-                        throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, paramValue);
+                        throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, paramValue);
                     }
                 }
                 break;
@@ -546,7 +546,7 @@ final class QueryCommandWriter {
         } else if (nonNull instanceof Short) {
             value = (Short) nonNull;
         } else {
-            throw MySQLExceptions.createNonSupportBindSqlTypeError(batchIndex, bindValue);
+            throw MySQLExceptions.nonSupportBindSqlTypeError(batchIndex, bindValue);
         }
         packet.writeBytes(Integer.toString(value).getBytes(this.clientCharset));
     }
@@ -623,7 +623,7 @@ final class QueryCommandWriter {
      * @see #writeBitValue(int, ParamValue, ByteBuf)
      */
     private static String bindToBit(final int batchIndex, final Value paramValue) {
-        final Object nonNull = paramValue.getNonNull();
+        final Object nonNull = paramValue.getValue();
         final String value;
 
         if (nonNull instanceof Long) {
@@ -647,7 +647,7 @@ final class QueryCommandWriter {
             }
             value = v;
         } else {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, paramValue);
         }
         return value;
     }

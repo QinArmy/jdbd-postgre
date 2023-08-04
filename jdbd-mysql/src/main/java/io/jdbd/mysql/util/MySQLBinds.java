@@ -188,7 +188,7 @@ public abstract class MySQLBinds extends JdbdBinds {
         } else if (nonNull instanceof Integer) {
             value = (Integer) nonNull;
         } else {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, paramValue);
         }
 
         if (value > 2155 || (value < 1901 && value != 0)) {
@@ -203,7 +203,7 @@ public abstract class MySQLBinds extends JdbdBinds {
             return (String) nonNull;
         }
         if (!(nonNull instanceof Set)) {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, paramValue);
         }
         final Set<?> set = (Set<?>) nonNull;
         final StringBuilder builder = new StringBuilder(set.size() * 4);
@@ -217,7 +217,7 @@ public abstract class MySQLBinds extends JdbdBinds {
             } else if (element instanceof Enum) {
                 builder.append(((Enum<?>) element).name());
             } else {
-                throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, paramValue);
+                throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, paramValue);
             }
             index++;
         }

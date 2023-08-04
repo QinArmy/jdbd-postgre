@@ -1,5 +1,6 @@
 package io.jdbd.postgre.util;
 
+import io.jdbd.JdbdException;
 import io.jdbd.postgre.PgConstant;
 import io.jdbd.postgre.PgType;
 import io.jdbd.type.Interval;
@@ -239,7 +240,7 @@ public abstract class PgBinds extends JdbdBinds {
         } else if (componentClass == Point.class) {
             pgType = PgType.POINT_ARRAY;
         } else if (componentClass == Circle.class) {
-            pgType = PgType.CIRCLES_ARRAY;
+            pgType = PgType.CIRCLE_ARRAY;
         } else if (componentClass == UUID.class) {
             pgType = PgType.UUID_ARRAY;
         } else if (componentClass == BitSet.class) {
@@ -272,7 +273,7 @@ public abstract class PgBinds extends JdbdBinds {
                 throw JdbdExceptions.outOfTypeRange(batchIndex, pgType, paramValue);
             }
         } else {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }
         return value;
     }
@@ -294,7 +295,7 @@ public abstract class PgBinds extends JdbdBinds {
                 throw JdbdExceptions.outOfTypeRange(batchIndex, pgType, paramValue);
             }
         } else {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }
         return value;
     }
@@ -321,14 +322,10 @@ public abstract class PgBinds extends JdbdBinds {
         return formatCode;
     }
 
-    public static String bindNonNullBooleanArray(final int batchIndex, PgType pgType, ParamValue paramValue)
-            throws SQLException {
-        if (pgType != PgType.BOOLEAN_ARRAY) {
-            throw new IllegalArgumentException("pgType error");
-        }
+    public static String bindToBooleanArray(final int batchIndex, final ParamValue paramValue) throws JdbdException {
         final Class<?> arrayType = obtainArrayType(batchIndex, pgType, paramValue);
         if (arrayType != Boolean.class && arrayType != boolean.class) {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }
         return bindNonNullToArray(batchIndex, pgType, paramValue, Object::toString);
     }
@@ -340,7 +337,7 @@ public abstract class PgBinds extends JdbdBinds {
         }
         final Class<?> arrayType = obtainArrayType(batchIndex, pgType, paramValue);
         if (arrayType != Short.class && arrayType != short.class) {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }
         return bindNonNullToArray(batchIndex, pgType, paramValue, Object::toString);
     }
@@ -352,7 +349,7 @@ public abstract class PgBinds extends JdbdBinds {
         }
         final Class<?> arrayType = obtainArrayType(batchIndex, pgType, paramValue);
         if (arrayType != Integer.class && arrayType != int.class) {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }
         return bindNonNullToArray(batchIndex, pgType, paramValue, Object::toString);
     }
@@ -364,7 +361,7 @@ public abstract class PgBinds extends JdbdBinds {
         }
         final Class<?> arrayType = obtainArrayType(batchIndex, pgType, paramValue);
         if (arrayType != Long.class && arrayType != long.class) {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }
         return bindNonNullToArray(batchIndex, pgType, paramValue, Object::toString);
     }
@@ -376,7 +373,7 @@ public abstract class PgBinds extends JdbdBinds {
         }
         final Class<?> arrayType = obtainArrayType(batchIndex, pgType, paramValue);
         if (arrayType != Float.class && arrayType != float.class) {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }
         return bindNonNullToArray(batchIndex, pgType, paramValue, Object::toString);
     }
@@ -389,7 +386,7 @@ public abstract class PgBinds extends JdbdBinds {
         }
         final Class<?> arrayType = obtainArrayType(batchIndex, pgType, paramValue);
         if (arrayType != Double.class && arrayType != double.class) {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }
         return bindNonNullToArray(batchIndex, pgType, paramValue, Object::toString);
     }
@@ -413,13 +410,13 @@ public abstract class PgBinds extends JdbdBinds {
                 } else if (nonNull instanceof String && PgConstant.NaN.equalsIgnoreCase((String) nonNull)) {
                     v = (String) nonNull;
                 } else {
-                    SQLException e = JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+                    SQLException e = JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
                     throw new JdbdSQLException(e);
                 }
                 return v;
             };
         } else {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }
         return bindNonNullToArray(batchIndex, pgType, paramValue, function);
     }
@@ -441,13 +438,13 @@ public abstract class PgBinds extends JdbdBinds {
         } else if (arrayType == String.class) {
             function = nonNull -> {
                 if (!PgStrings.isBinaryString((String) nonNull)) {
-                    SQLException e = JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+                    SQLException e = JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
                     throw new JdbdSQLException(e);
                 }
                 return (String) nonNull;
             };
         } else {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }
         return bindNonNullToArray(batchIndex, pgType, paramValue, function);
     }
@@ -468,13 +465,13 @@ public abstract class PgBinds extends JdbdBinds {
         } else if (arrayType == String.class) {
             function = nonNull -> {
                 if (!PgStrings.isBinaryString((String) nonNull)) {
-                    SQLException e = JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+                    SQLException e = JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
                     throw new JdbdSQLException(e);
                 }
                 return (String) nonNull;
             };
         } else {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }
         return bindNonNullToArray(batchIndex, pgType, paramValue, function);
     }
@@ -489,7 +486,7 @@ public abstract class PgBinds extends JdbdBinds {
         if (arrayType == LocalTime.class) {
             function = nonNull -> ((LocalTime) nonNull).format(PgTimes.ISO_LOCAL_TIME_FORMATTER);
         } else {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }
         return bindNonNullToArray(batchIndex, pgType, paramValue, function);
     }
@@ -502,7 +499,7 @@ public abstract class PgBinds extends JdbdBinds {
         }
         final Class<?> arrayType = obtainArrayType(batchIndex, pgType, paramValue);
         if (arrayType != LocalDate.class && arrayType != Object.class) {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }
         final Function<Object, String> function = nonNull -> {
             final String value;
@@ -513,7 +510,7 @@ public abstract class PgBinds extends JdbdBinds {
                     || PgConstant.NEG_INFINITY.equalsIgnoreCase((String) nonNull))) {
                 value = (String) nonNull;
             } else {
-                SQLException e = JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+                SQLException e = JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
                 throw new JdbdSQLException(e);
             }
             return value;
@@ -529,7 +526,7 @@ public abstract class PgBinds extends JdbdBinds {
         final Class<?> arrayType = obtainArrayType(batchIndex, pgType, paramValue);
 
         if (arrayType != LocalDateTime.class && arrayType != Object.class) {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }
         final Function<Object, String> function = nonNull -> {
             final String value;
@@ -540,7 +537,7 @@ public abstract class PgBinds extends JdbdBinds {
                     || PgConstant.NEG_INFINITY.equalsIgnoreCase((String) nonNull))) {
                 value = (String) nonNull;
             } else {
-                SQLException e = JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+                SQLException e = JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
                 throw new JdbdSQLException(e);
             }
             return value;
@@ -558,7 +555,7 @@ public abstract class PgBinds extends JdbdBinds {
         if (arrayType == OffsetTime.class) {
             function = nonNull -> ((OffsetTime) nonNull).format(PgTimes.ISO_OFFSET_TIME_FORMATTER);
         } else {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }
         return bindNonNullToArray(batchIndex, pgType, paramValue, function);
     }
@@ -570,7 +567,7 @@ public abstract class PgBinds extends JdbdBinds {
         }
         final Class<?> arrayType = obtainArrayType(batchIndex, pgType, paramValue);
         if (arrayType != OffsetDateTime.class && arrayType != ZonedDateTime.class && arrayType != Object.class) {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }
         final Function<Object, String> function = nonNull -> {
             final String value;
@@ -583,7 +580,7 @@ public abstract class PgBinds extends JdbdBinds {
                     || PgConstant.NEG_INFINITY.equalsIgnoreCase((String) nonNull))) {
                 value = (String) nonNull;
             } else {
-                SQLException e = JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+                SQLException e = JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
                 throw new JdbdSQLException(e);
             }
             return value;
@@ -598,7 +595,7 @@ public abstract class PgBinds extends JdbdBinds {
         }
         final Class<?> arrayType = obtainArrayType(batchIndex, pgType, paramValue);
         if (arrayType != UUID.class) {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }
         return bindNonNullToArray(batchIndex, pgType, paramValue, Object::toString);
     }
@@ -617,7 +614,7 @@ public abstract class PgBinds extends JdbdBinds {
         } else if (arrayType == Period.class) {
             function = nonNull -> Interval.of((Period) nonNull).toString(true);
         } else {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }
         return bindNonNullToArray(batchIndex, pgType, paramValue, function);
     }
@@ -634,7 +631,7 @@ public abstract class PgBinds extends JdbdBinds {
         } else if (arrayType == String.class) {
             function = PgBinds::textEscapesFunction;
         } else {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }
         return bindNonNullToArray(batchIndex, pgType, paramValue, function);
     }
@@ -657,10 +654,10 @@ public abstract class PgBinds extends JdbdBinds {
 
             case POINT_ARRAY:
             case LINE_ARRAY:
-            case LINE_SEGMENT_ARRAY:
+            case LSEG_ARRAY:
             case BOX_ARRAY:
             case PATH_ARRAY:
-            case CIRCLES_ARRAY:
+            case CIRCLE_ARRAY:
             case POLYGON_ARRAY:
                 break;
             default:
@@ -668,7 +665,7 @@ public abstract class PgBinds extends JdbdBinds {
         }
         final Class<?> arrayType = obtainArrayType(batchIndex, pgType, paramValue);
         if (arrayType != String.class) {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }
         final Function<Object, String> function = nonNull -> {
             for (char c : ((String) nonNull).toCharArray()) {
@@ -676,7 +673,7 @@ public abstract class PgBinds extends JdbdBinds {
                     case PgConstant.BACK_SLASH:
                     case PgConstant.DOUBLE_QUOTE:
                         SQLException e;
-                        e = JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+                        e = JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
                         throw new JdbdSQLException(e);
                     default:
                         //no-op
@@ -695,7 +692,7 @@ public abstract class PgBinds extends JdbdBinds {
         }
         final Class<?> arrayType = obtainArrayType(batchIndex, pgType, paramValue);
         if (arrayType != byte.class && arrayType != String.class) {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }
         final Function<Object, String> function = nonNull -> {
             final byte[] v;
@@ -704,7 +701,7 @@ public abstract class PgBinds extends JdbdBinds {
             } else if (nonNull instanceof String) {
                 v = ((String) nonNull).getBytes(clientCharset);
             } else {
-                SQLException e = JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+                SQLException e = JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
                 throw new JdbdSQLException(e);
             }
             @SuppressWarnings("all")
@@ -744,7 +741,7 @@ public abstract class PgBinds extends JdbdBinds {
         } else if (arrayType.isEnum()) {
             function = nonNull -> ((Enum<?>) nonNull).name();
         } else {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }
         return bindNonNullToArray(batchIndex, pgType, paramValue, function);
     }
@@ -787,13 +784,13 @@ public abstract class PgBinds extends JdbdBinds {
             throws SQLException {
         final Class<?> arrayClass = paramValue.getNonNull().getClass();
         if (!arrayClass.isArray()) {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }
         final Pair<Class<?>, Integer> pair;
         pair = JdbdArrays.getArrayDimensions(arrayClass);
         final Class<?> arrayType = pair.getFirst();
         if (arrayType == byte.class && pair.getSecond() < 2) {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }
         return arrayType;
     }
@@ -806,7 +803,7 @@ public abstract class PgBinds extends JdbdBinds {
         }
         final Object nonNull = paramValue.getNonNull();
         if (!nonNull.getClass().isArray()) {
-            throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+            throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }
         final Pair<Class<?>, Integer> pair = JdbdArrays.getArrayDimensions(nonNull.getClass());
 
@@ -814,7 +811,7 @@ public abstract class PgBinds extends JdbdBinds {
         final boolean isByteArray;
         if (pair.getFirst() == byte.class) {
             if (topArrayDimension < 2) {
-                throw JdbdExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+                throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
             }
             isByteArray = true;
         } else {

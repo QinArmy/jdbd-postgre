@@ -556,7 +556,7 @@ public class SimpleQuerySqlTypeSuiteTests extends AbstractStmtTaskTests {
     }
 
     /**
-     * @see PgType#LINE_SEGMENT_ARRAY
+     * @see PgType#LSEG_ARRAY
      */
     @Test
     public void lineSegmentArrayBindAndExtract() {
@@ -588,7 +588,7 @@ public class SimpleQuerySqlTypeSuiteTests extends AbstractStmtTaskTests {
     }
 
     /**
-     * @see PgType#CIRCLES_ARRAY
+     * @see PgType#CIRCLE_ARRAY
      */
     @Test
     public void circlesArrayBindAndExtract() {

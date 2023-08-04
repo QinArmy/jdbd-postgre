@@ -167,13 +167,13 @@ final class PgColumnMeta {
                 precision = 16;
                 break;
             case CIRCLE:
-            case CIRCLES_ARRAY:
+            case CIRCLE_ARRAY:
                 precision = 24;
                 break;
             case BOX:
             case BOX_ARRAY:
             case LSEG:
-            case LINE_SEGMENT_ARRAY:
+            case LSEG_ARRAY:
                 precision = 32;
                 break;
             case BOOLEAN:

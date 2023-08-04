@@ -36,7 +36,7 @@ public interface DataType {
     String name();
 
     /**
-     * @return data type name in database. If support ,upper case precedence.
+     * @return data type name in database. If support ,upper case precedence. If array end with [] .
      */
     String typeName();
 

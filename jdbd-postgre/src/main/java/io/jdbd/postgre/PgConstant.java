@@ -19,11 +19,19 @@ public interface PgConstant {
     byte BACK_SLASH_BYTE = '\\';
     byte QUOTE_BYTE = '\'';
     byte SEMICOLON_BYTE = ';';
-    byte EMPTY_BYTE = '\0';
+    byte NUL_BYTE = '\0';
 
     byte SPACE_BYTE = ' ';
 
+    char NUL = '\0';
+
+    char SPACE = ' ';
+
     char QUOTE = '\'';
+
+    char LEFT_BRACKET = '{';
+
+    char RIGHT_BRACKET = '}';
 
     char DOUBLE_QUOTE = '"';
 

@@ -287,7 +287,7 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
                 value = ColumnArrays.readLineArray(textValue, meta, targetArrayClass);
             }
             break;
-            case LINE_SEGMENT_ARRAY: {
+            case LSEG_ARRAY: {
                 value = ColumnArrays.readLineSegmentArray(textValue, meta, targetArrayClass);
             }
             break;
@@ -303,7 +303,7 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
                 value = ColumnArrays.readPolygonArray(textValue, meta, targetArrayClass);
             }
             break;
-            case CIRCLES_ARRAY: {
+            case CIRCLE_ARRAY: {
                 value = ColumnArrays.readCirclesArray(textValue, meta, targetArrayClass);
             }
             break;

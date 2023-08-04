@@ -2590,12 +2590,12 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
 
 
     /**
-     * @see PgType#LINE_SEGMENT_ARRAY
+     * @see PgType#LSEG_ARRAY
      */
     final void doLineSegmentArrayBindAndExtract() {
         String columnName;
         final long id = startId + 66;
-        final PgType pgType = PgType.LINE_SEGMENT_ARRAY;
+        final PgType pgType = PgType.LSEG_ARRAY;
         Object array;
         ResultRow row;
 
@@ -2747,12 +2747,12 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
     }
 
     /**
-     * @see PgType#CIRCLES_ARRAY
+     * @see PgType#CIRCLE_ARRAY
      */
     final void doCirclesArrayBindAndExtract() {
         String columnName;
         final long id = startId + 70;
-        final PgType pgType = PgType.CIRCLES_ARRAY;
+        final PgType pgType = PgType.CIRCLE_ARRAY;
         Object array;
         ResultRow row;
 
@@ -3272,7 +3272,7 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
             case LINE_ARRAY:
                 assertLineArray(columnName, row, nonNull);
                 break;
-            case LINE_SEGMENT_ARRAY:
+            case LSEG_ARRAY:
                 assertLineSegmentArray(columnName, row, nonNull);
                 break;
             case BOX_ARRAY:
@@ -3284,7 +3284,7 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
             case POLYGON_ARRAY:
                 assertPolygonArray(columnName, row, nonNull);
                 break;
-            case CIRCLES_ARRAY:
+            case CIRCLE_ARRAY:
                 assertCirclesArray(columnName, row, nonNull);
                 break;
             case TSVECTOR_ARRAY:

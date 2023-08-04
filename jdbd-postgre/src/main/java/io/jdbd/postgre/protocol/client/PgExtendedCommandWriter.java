@@ -612,10 +612,10 @@ final class PgExtendedCommandWriter implements ExtendedCommandWriter {
 
             case POINT_ARRAY:
             case LINE_ARRAY:
-            case LINE_SEGMENT_ARRAY:
+            case LSEG_ARRAY:
             case BOX_ARRAY:
             case PATH_ARRAY:
-            case CIRCLES_ARRAY:
+            case CIRCLE_ARRAY:
             case POLYGON_ARRAY:
             case TSVECTOR_ARRAY:
             case TSQUERY_ARRAY:
@@ -663,7 +663,7 @@ final class PgExtendedCommandWriter implements ExtendedCommandWriter {
         final String v;
         switch (pgType) {
             case BOOLEAN_ARRAY: {
-                v = PgBinds.bindNonNullBooleanArray(batchIndex, pgType, paramValue);
+                v = PgBinds.bindToBooleanArray(batchIndex, pgType, paramValue);
             }
             break;
             case SMALLINT_ARRAY: {
@@ -749,10 +749,10 @@ final class PgExtendedCommandWriter implements ExtendedCommandWriter {
 
             case POINT_ARRAY:
             case LINE_ARRAY:
-            case LINE_SEGMENT_ARRAY:
+            case LSEG_ARRAY:
             case BOX_ARRAY:
             case PATH_ARRAY:
-            case CIRCLES_ARRAY:
+            case CIRCLE_ARRAY:
             case POLYGON_ARRAY: {
                 v = PgBinds.bindNonNullSafeTextArray(batchIndex, pgType, paramValue);
             }
@@ -771,7 +771,7 @@ final class PgExtendedCommandWriter implements ExtendedCommandWriter {
             break;
             case REF_CURSOR_ARRAY:
             default: {
-                throw PgExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+                throw PgExceptions.nonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
             }
         }
 
@@ -1003,7 +1003,7 @@ final class PgExtendedCommandWriter implements ExtendedCommandWriter {
 
             if (value instanceof Publisher) {
                 if (!pgType.supportPublisher()) {
-                    throw PgExceptions.createNonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
+                    throw PgExceptions.nonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
                 }
                 final ParameterSubscriber subscriber;
                 subscriber = new ParameterSubscriber(message, batchIndex, paramIndex, pgType, channelSink);
