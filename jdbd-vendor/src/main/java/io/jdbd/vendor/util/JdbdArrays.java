@@ -117,5 +117,78 @@ public abstract class JdbdArrays extends ArrayUtils {
         return new Pair<>(componentClass, dimensions);
     }
 
+    public static Class<?> underlyingComponent(final Class<?> arrayType) {
+        if (!arrayType.isArray()) {
+            throw new IllegalArgumentException(String.format("%s isn't array type", arrayType.getName()));
+        }
+
+        Class<?> componentType;
+        componentType = arrayType.getComponentType();
+        while (componentType.isArray()) {
+            componentType = componentType.getComponentType();
+        }
+        return componentType;
+    }
+
+    public static int dimensionOf(final Class<?> arrayType) {
+        assert arrayType.isArray();
+        int dimension = 1;
+        Class<?> componentType;
+        componentType = arrayType.getComponentType();
+        while (componentType.isArray()) {
+            componentType = componentType.getComponentType();
+            dimension++;
+        }
+        return dimension;
+    }
+
+    public static Class<?> arrayClassOf(final Class<?> elementType, final int dimension) {
+        if (dimension < 1) {
+            throw new IllegalArgumentException("dimension error");
+        }
+        final StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < dimension; i++) {
+            builder.append('[');
+        }
+        if (elementType.isArray()) {
+            builder.append(elementType.getName());
+        } else if (elementType.isAnonymousClass()) {
+            throw new IllegalArgumentException("don't support anonymous class");
+        } else if (!(elementType.isPrimitive())) {
+            builder.append('L')
+                    .append(elementType.getName())
+                    .append(';');
+        } else if (elementType == int.class) {
+            builder.append('I');
+        } else if (elementType == long.class) {
+            builder.append('J');
+        } else if (elementType == boolean.class) {
+            builder.append('Z');
+        } else if (elementType == byte.class) {
+            builder.append('B');
+        } else if (elementType == char.class) {
+            builder.append('C');
+        } else if (elementType == double.class) {
+            builder.append('D');
+        } else if (elementType == float.class) {
+            builder.append('F');
+        } else if (elementType == short.class) {
+            builder.append('S');
+        } else {
+            String m = String.format("don't support %s", elementType.getName());
+            throw new IllegalArgumentException(m);
+        }
+        try {
+            return Class.forName(builder.toString());
+        } catch (ClassNotFoundException e) {
+            //no bug, never here
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static Class<?> arrayClassOf(final Class<?> elementType) {
+        return arrayClassOf(elementType, 1);
+    }
+
 
 }

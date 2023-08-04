@@ -1,11 +1,9 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.JdbdException;
-import io.jdbd.meta.BooleanMode;
 import io.jdbd.meta.DataType;
 import io.jdbd.postgre.PgConstant;
 import io.jdbd.postgre.PgType;
-import io.jdbd.postgre.env.PgKey;
 import io.jdbd.postgre.stmt.BindValue;
 import io.jdbd.postgre.syntax.PgParser;
 import io.jdbd.postgre.syntax.PgStatement;
@@ -29,7 +27,10 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.sql.SQLException;
 import java.time.*;
+import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 /**
  * <p>
@@ -39,7 +40,7 @@ import java.util.List;
  * @see SimpleQueryTask
  * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Query</a>
  */
-final class QueryCommandWriter {
+final class QueryCommandWriter extends CommandWriter {
 
     static Publisher<ByteBuf> staticCommand(final String sql, final TaskAdjutant adjutant) throws JdbdException {
         final byte[] sqlBytes;
@@ -131,20 +132,11 @@ final class QueryCommandWriter {
     }
 
 
-    private final TaskAdjutant adjutant;
-
-    private final Charset clientCharset;
-
-    private final boolean hexEscapes;
-
-    private final boolean clientUtf8;
+    private static final Map<String, Boolean> KEY_WORD_MAP = createKeyWordMap();
 
 
     private QueryCommandWriter(final TaskAdjutant adjutant) {
-        this.adjutant = adjutant;
-        this.clientCharset = adjutant.clientCharset();
-        this.clientUtf8 = this.clientCharset.equals(StandardCharsets.UTF_8);
-        this.hexEscapes = adjutant.obtainHost().getProperties().getOrDefault(PgKey.hexEscapes, Boolean.class);
+        super(adjutant);
     }
 
 
@@ -271,14 +263,20 @@ final class QueryCommandWriter {
             }
             dataType = paramValue.getType();
             if (dataType.isArray()) {
-                if (value instanceof String || dataType.isUserDefined() == BooleanMode.TRUE) {
+                if (value instanceof String || !(dataType instanceof PgType)) {
                     bindStringToArray(stmtIndex, paramValue, message);
-                } else {
+                } else if (value.getClass().isArray()) {
                     bindArrayObject(stmtIndex, paramValue, message);
+                } else {
+                    throw PgExceptions.nonSupportBindSqlTypeError(stmtIndex, paramValue);
                 }
             } else if (dataType instanceof PgType) {
                 bindBuildInType(stmtIndex, paramValue, message);
+            } else if (isIllegalTypeName(dataType)) {
+                throw PgExceptions.errorTypeName(dataType);
             } else if (value instanceof String) {
+                message.writeBytes(dataType.typeName().getBytes(clientCharset));
+                message.writeByte(PgConstant.SPACE);
                 writeBackslashEscapes((String) value, message);
             } else {
                 throw PgExceptions.nonSupportBindSqlTypeError(stmtIndex, paramValue);
@@ -289,7 +287,6 @@ final class QueryCommandWriter {
         message.writeBytes(sqlPartList.get(paramCount).getBytes(clientCharset));
 
     }
-
 
     /**
      * @see <a href="https://www.postgresql.org/docs/current/datatype-numeric.html#DATATYPE-INT">Numeric Types</a>
@@ -383,9 +380,13 @@ final class QueryCommandWriter {
             case MACADDR8:
 
             case UUID: {
+                final String value;
+                value = PgBinds.bindToString(batchIndex, bindValue);
+
                 message.writeBytes(pgType.name().getBytes(clientCharset));
                 message.writeByte(PgConstant.SPACE);
-                writeString(batchIndex, bindValue, message);
+
+                writeBackslashEscapes(value, message);
             }
             break;
             case BIT:
@@ -406,8 +407,7 @@ final class QueryCommandWriter {
                 final String intervalString;
                 intervalString = PgBinds.bindToInterval(batchIndex, bindValue);
 
-                message.writeBytes(pgType.name().getBytes(clientCharset));
-                message.writeByte(PgConstant.SPACE);
+                message.writeBytes("INTERVAL ".getBytes(clientCharset));
 
                 message.writeByte(PgConstant.QUOTE);
                 message.writeBytes(intervalString.getBytes(clientCharset));
@@ -502,7 +502,7 @@ final class QueryCommandWriter {
 
         final String typeSuffix;
         typeSuffix = dataType.typeName();
-        if (!(dataType instanceof PgType) && !typeSuffix.endsWith("[]")) {
+        if (!(dataType instanceof PgType) && isIllegalTypeName(dataType)) {
             throw PgExceptions.errorTypeName(dataType);
         }
 
@@ -520,76 +520,8 @@ final class QueryCommandWriter {
      */
     private void bindArrayObject(final int batchIndex, final ParamValue paramValue, final ByteBuf message)
             throws JdbdException {
-        final Object value = paramValue.getNonNullValue();
-        final Charset clientCharset = this.clientCharset;
-        final String v;
-        final PgType pgType = (PgType) paramValue.getType();
 
-        switch (pgType) {
-            case BOOLEAN_ARRAY:
-            case SMALLINT_ARRAY:
-            case INTEGER_ARRAY:
-            case BIGINT_ARRAY:
-            case DECIMAL_ARRAY:
-            case REAL_ARRAY:
-            case DOUBLE_ARRAY:
 
-            case OID_ARRAY:
-            case MONEY_ARRAY:
-
-            case TIME_ARRAY:
-            case TIMETZ_ARRAY:
-            case DATE_ARRAY:
-            case TIMESTAMP_ARRAY:
-            case TIMESTAMPTZ_ARRAY:
-            case INTERVAL_ARRAY:
-
-            case BYTEA_ARRAY:
-
-            case BIT_ARRAY:
-            case VARBIT_ARRAY:
-
-            case UUID_ARRAY:
-
-            case CHAR_ARRAY:
-            case VARCHAR_ARRAY:
-            case TEXT_ARRAY:
-            case JSON_ARRAY:
-            case JSONB_ARRAY:
-            case XML_ARRAY:
-            case TSQUERY_ARRAY:
-            case TSVECTOR_ARRAY:
-
-            case INT4RANGE_ARRAY:
-            case INT8RANGE_ARRAY:
-            case NUMRANGE_ARRAY:
-            case DATERANGE_ARRAY:
-            case TSRANGE_ARRAY:
-            case TSTZRANGE_ARRAY:
-
-            case INT4MULTIRANGE_ARRAY:
-            case INT8MULTIRANGE_ARRAY:
-            case NUMMULTIRANGE_ARRAY:
-            case DATEMULTIRANGE_ARRAY:
-            case TSMULTIRANGE_ARRAY:
-            case TSTZMULTIRANGE_ARRAY:
-
-            case POINT_ARRAY:
-            case LINE_ARRAY:
-            case PATH_ARRAY:
-            case BOX_ARRAY:
-            case LSEG_ARRAY:
-            case CIRCLE_ARRAY:
-            case POLYGON_ARRAY:
-
-            case CIDR_ARRAY:
-            case INET_ARRAY:
-            case MACADDR_ARRAY:
-            case MACADDR8_ARRAY:
-
-            default:
-                throw PgExceptions.unexpectedEnum(pgType);
-        }
         message.writeByte('E');
         message.writeByte(PgConstant.QUOTE);
         final byte[] bytes = v.getBytes(this.clientCharset);
@@ -616,17 +548,6 @@ final class QueryCommandWriter {
 
     }
 
-
-    /**
-     * @see #bindBuildInType(int, ParamValue, ByteBuf)
-     */
-    private void writeString(final int batchIndex, ParamValue bindValue, ByteBuf message)
-            throws JdbdException {
-        final String value;
-        value = PgBinds.bindToString(batchIndex, bindValue);
-
-
-    }
 
     /**
      * @see #bindBuildInType(int, ParamValue, ByteBuf)
@@ -759,34 +680,6 @@ final class QueryCommandWriter {
 
     }
 
-    /**
-     * @see #bindToBytea(int, BindValue, ByteBuf)
-     */
-    private void writeBinaryPathWithEscapes(final int batchIndex, BindValue bindValue, ByteBuf message)
-            throws LongDataReadException {
-        final Path path = (Path) bindValue.getNonNull();
-
-        try (FileChannel channel = FileChannel.open(path, StandardOpenOption.READ)) {
-
-            message.writeByte(PgConstant.QUOTE);
-            message.writeByte(PgConstant.BACK_SLASH_BYTE);
-            message.writeByte('x');
-
-            final byte[] bufferArray = new byte[2048];
-            final ByteBuffer buffer = ByteBuffer.wrap(bufferArray);
-            while (channel.read(buffer) > 0) {
-                buffer.flip();
-                message.writeBytes(PgBuffers.hexEscapes(true, bufferArray, buffer.remaining()));
-                buffer.clear();
-            }
-            message.writeByte(PgConstant.QUOTE);
-        } catch (Throwable e) {
-            String msg = String.format("batch[%s] parameter[%s] %s read occur error."
-                    , batchIndex, bindValue.getIndex(), path);
-            throw new LongDataReadException(msg, e);
-        }
-
-    }
 
 
     /**
@@ -985,6 +878,84 @@ final class QueryCommandWriter {
             message.writeBytes(bytes, lastWritten, length - lastWritten);
         }
 
+    }
+
+
+    private static boolean isIllegalTypeName(final DataType dataType) {
+        final String typeName;
+        typeName = dataType.typeName();
+
+        if (KEY_WORD_MAP.containsKey(typeName.toUpperCase(Locale.ROOT))) {
+            throw PgExceptions.errorTypeName(dataType);
+        }
+        final int length;
+        if (dataType.isArray()) {
+            final int index = typeName.lastIndexOf("[]");
+            if (index < 1) {
+                throw PgExceptions.errorTypeName(dataType);
+            }
+            length = index;
+        } else {
+            length = typeName.length();
+        }
+
+        boolean match = length > 0;
+        char ch;
+        for (int i = 0, lastIndex = 0; i < length; i++) {
+            ch = typeName.charAt(i);
+            if ((ch >= 'a' && ch <= 'z')
+                    || (ch >= 'A' && ch <= 'Z')
+                    || ch == '_') {
+                continue;
+            } else if (i == 0) {
+                match = false;
+                break;
+            } else if ((ch >= '0' && ch <= '9') || ch == '$') {
+                continue;
+            } else if (ch == PgConstant.SPACE) {
+                if (KEY_WORD_MAP.containsKey(typeName.substring(lastIndex, i).toUpperCase(Locale.ROOT))) {
+                    match = false;
+                    break;
+                }
+                lastIndex = i + 1;
+                continue;
+            }
+            match = false;
+            break;
+        }
+        return !match;
+    }
+
+
+    /**
+     * @see <a href="https://www.postgresql.org/docs/current/sql-keywords-appendix.html#KEYWORDS-TABLE">SQL Key Words</a>
+     */
+    private static Map<String, Boolean> createKeyWordMap() {
+        final Map<String, Boolean> map = PgCollections.hashMap();
+
+        map.put("SELECT", Boolean.TRUE);
+        map.put("INSERT", Boolean.TRUE);
+        map.put("UPDATE", Boolean.TRUE);
+        map.put("DELETE", Boolean.TRUE);
+
+        map.put("FROM", Boolean.TRUE);
+        map.put("WHERE", Boolean.TRUE);
+        map.put("SET", Boolean.TRUE);
+        map.put("AND", Boolean.TRUE);
+
+        map.put("JOIN", Boolean.TRUE);
+        map.put("ON", Boolean.TRUE);
+        map.put("VALUES", Boolean.TRUE);
+        map.put("VALUE", Boolean.TRUE);
+
+        map.put("VIEW", Boolean.TRUE);
+        map.put("VIEWS", Boolean.TRUE);
+        map.put("WITH", Boolean.TRUE);
+        map.put("MERGE", Boolean.TRUE);
+
+        map.put("TABLE", Boolean.TRUE);
+
+        return Collections.unmodifiableMap(map);
     }
 
 
