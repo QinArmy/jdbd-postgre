@@ -29,6 +29,10 @@ public interface PgConstant {
 
     char QUOTE = '\'';
 
+    char COMMA = ',';
+
+    char SEMICOLON = ';';
+
     char LEFT_BRACKET = '{';
 
     char RIGHT_BRACKET = '}';

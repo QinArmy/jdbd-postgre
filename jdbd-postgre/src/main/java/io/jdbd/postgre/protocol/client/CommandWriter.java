@@ -2,17 +2,18 @@ package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.PgConstant;
 import io.jdbd.postgre.PgType;
-import io.jdbd.postgre.util.PgArrays;
-import io.jdbd.postgre.util.PgExceptions;
-import io.jdbd.postgre.util.PgTimes;
+import io.jdbd.postgre.util.*;
 import io.jdbd.type.Interval;
 import io.jdbd.vendor.stmt.ParamValue;
 import io.netty.buffer.ByteBuf;
 
+import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.time.*;
+import java.util.BitSet;
+import java.util.UUID;
 import java.util.function.BiConsumer;
 
 abstract class CommandWriter {
@@ -31,14 +32,16 @@ abstract class CommandWriter {
     }
 
 
-    final void writeArray(final int batchIndex, final ParamValue paramValue, final ByteBuf message) {
+    final void writeArrayObject(final int batchIndex, final ParamValue paramValue, final ByteBuf message) {
         final Object arrayValue = paramValue.getNonNullValue();
+        final Class<?> arrayClass = arrayValue.getClass();
         final Class<?> componentType;
-        componentType = PgArrays.underlyingComponent(arrayValue.getClass());
+        componentType = PgArrays.underlyingComponent(arrayClass);
+
+        final int dimension;
+        dimension = PgArrays.dimensionOf(arrayClass);
 
         final BiConsumer<Object, ByteBuf> consumer;
-        final Charset clientCharset = this.clientCharset;
-        final String v;
         final PgType pgType = (PgType) paramValue.getType();
 
         switch (pgType) {
@@ -147,13 +150,31 @@ abstract class CommandWriter {
                 }
             }
             break;
-            case BYTEA_ARRAY:
-
+            case BYTEA_ARRAY: {
+                if (componentType != byte.class || dimension < 2) {
+                    throw PgExceptions.nonSupportBindSqlTypeError(batchIndex, paramValue);
+                }
+                consumer = this::writeByteaElement;
+            }
+            break;
             case BIT_ARRAY:
-            case VARBIT_ARRAY:
-
-            case UUID_ARRAY:
-
+            case VARBIT_ARRAY: {
+                if (componentType != Integer.class
+                        && componentType != Long.class
+                        && componentType != String.class
+                        && componentType != BitSet.class) {
+                    throw PgExceptions.nonSupportBindSqlTypeError(batchIndex, paramValue);
+                }
+                consumer = this::writeBitElement;
+            }
+            break;
+            case UUID_ARRAY: {
+                if (componentType != UUID.class && componentType != String.class) {
+                    throw PgExceptions.nonSupportBindSqlTypeError(batchIndex, paramValue);
+                }
+                consumer = this::writeUuidElement;
+            }
+            break;
             case CHAR_ARRAY:
             case VARCHAR_ARRAY:
             case TEXT_ARRAY:
@@ -188,16 +209,107 @@ abstract class CommandWriter {
             case CIDR_ARRAY:
             case INET_ARRAY:
             case MACADDR_ARRAY:
-            case MACADDR8_ARRAY:
-                break;
+            case MACADDR8_ARRAY: {
+                if (componentType != String.class) {
+                    throw PgExceptions.nonSupportBindSqlTypeError(batchIndex, paramValue);
+                }
+                consumer = this::writeStringElement;
+            }
+            break;
             default:
                 throw PgExceptions.unexpectedEnum(pgType);
         }
+
+
+        final boolean oneDimension;
+        if (pgType == PgType.BYTEA_ARRAY) {
+            oneDimension = dimension == 2;
+        } else {
+            oneDimension = dimension == 1;
+        }
+
+        if (componentType == String.class) {
+            message.writeByte('E');
+        }
+        message.writeByte(PgConstant.QUOTE);
+        if (oneDimension) {
+            writeOneDimensionArray((Object[]) arrayValue, pgType, consumer, message);
+        } else {
+            writeMultiDimensionArray(arrayValue, pgType, consumer, message);
+        }
+        message.writeByte(PgConstant.QUOTE);
+
+    }
+
+    /**
+     * @see #writeArrayObject(int, ParamValue, ByteBuf)
+     */
+    private void writeOneDimensionArray(final Object[] array, final PgType pgType,
+                                        final BiConsumer<Object, ByteBuf> consumer, final ByteBuf message) {
+        final int length = array.length;
+
+        message.writeByte(PgConstant.LEFT_BRACKET);
+        for (int i = 0; i < length; i++) {
+            if (i > 0) {
+                if (pgType == PgType.BOX_ARRAY) {
+                    message.writeByte(PgConstant.SEMICOLON);
+                } else {
+                    message.writeByte(PgConstant.COMMA);
+                }
+            }
+            consumer.accept(array[i], message);
+        }
+        message.writeByte(PgConstant.RIGHT_BRACKET);
+    }
+
+    /**
+     * @see #writeArrayObject(int, ParamValue, ByteBuf)
+     */
+    private void writeMultiDimensionArray(final Object array, final PgType pgType,
+                                          final BiConsumer<Object, ByteBuf> consumer, final ByteBuf message) {
+        final int length, dimension;
+        length = Array.getLength(array);
+        dimension = PgArrays.dimensionOf(array.getClass());
+
+        final boolean outElement;
+        if (pgType == PgType.BYTEA_ARRAY) {
+            outElement = dimension == 2;
+        } else {
+            outElement = dimension == 1;
+        }
+
+        message.writeByte(PgConstant.LEFT_BRACKET);
+        Object element;
+        byte[] nullBytes = null;
+        for (int i = 0; i < length; i++) {
+            if (i > 0) {
+                if (pgType == PgType.BOX_ARRAY) {
+                    message.writeByte(PgConstant.SEMICOLON);
+                } else {
+                    message.writeByte(PgConstant.COMMA);
+                }
+            }
+
+            element = Array.get(array, i);
+            if (element == null) {
+                if (nullBytes == null) {
+                    nullBytes = PgConstant.NULL.getBytes(this.clientCharset);
+                }
+                message.writeBytes(nullBytes);
+            } else if (outElement) {
+                consumer.accept(element, message);
+            } else {
+                writeMultiDimensionArray(element, pgType, consumer, message);
+            }
+
+        }
+        message.writeByte(PgConstant.RIGHT_BRACKET);
+
     }
 
 
     /**
-     * @see #writeArray(int, ParamValue, ByteBuf)
+     * @see #writeArrayObject(int, ParamValue, ByteBuf)
      */
     private void writeBooleanElement(final Object element, final ByteBuf message) {
         if ((Boolean) element) {
@@ -208,42 +320,42 @@ abstract class CommandWriter {
     }
 
     /**
-     * @see #writeArray(int, ParamValue, ByteBuf)
+     * @see #writeArrayObject(int, ParamValue, ByteBuf)
      */
     private void writeShortElement(final Object element, final ByteBuf message) {
         message.writeBytes(Short.toString((Short) element).getBytes(this.clientCharset));
     }
 
     /**
-     * @see #writeArray(int, ParamValue, ByteBuf)
+     * @see #writeArrayObject(int, ParamValue, ByteBuf)
      */
     private void writeIntegerElement(final Object element, final ByteBuf message) {
         message.writeBytes(Integer.toString((Integer) element).getBytes(this.clientCharset));
     }
 
     /**
-     * @see #writeArray(int, ParamValue, ByteBuf)
+     * @see #writeArrayObject(int, ParamValue, ByteBuf)
      */
     private void writeLongElement(final Object element, final ByteBuf message) {
         message.writeBytes(Long.toString((Long) element).getBytes(this.clientCharset));
     }
 
     /**
-     * @see #writeArray(int, ParamValue, ByteBuf)
+     * @see #writeArrayObject(int, ParamValue, ByteBuf)
      */
     private void writeBigDecimalElement(final Object element, final ByteBuf message) {
         message.writeBytes(((BigDecimal) element).toPlainString().getBytes(this.clientCharset));
     }
 
     /**
-     * @see #writeArray(int, ParamValue, ByteBuf)
+     * @see #writeArrayObject(int, ParamValue, ByteBuf)
      */
     private void writeFloatElement(final Object element, final ByteBuf message) {
         message.writeBytes(((Float) element).toString().getBytes(this.clientCharset));
     }
 
     /**
-     * @see #writeArray(int, ParamValue, ByteBuf)
+     * @see #writeArrayObject(int, ParamValue, ByteBuf)
      */
     private void writeDoubleElement(final Object element, final ByteBuf message) {
         message.writeBytes(((Double) element).toString().getBytes(this.clientCharset));
@@ -251,31 +363,103 @@ abstract class CommandWriter {
 
 
     /**
-     * @see #writeArray(int, ParamValue, ByteBuf)
+     * @see #writeArrayObject(int, ParamValue, ByteBuf)
      */
     private void writeStringElement(final Object element, final ByteBuf message) {
-        //TODO
-        throw new UnsupportedOperationException();
+        final byte[] bytes;
+        bytes = ((String) element).getBytes(this.clientCharset);
+        final int length = bytes.length;
+
+        message.writeByte(PgConstant.DOUBLE_QUOTE);
+
+        int lastWritten = 0;
+        char followChar;
+        for (int i = 0, byteValue; i < length; i++) {
+            byteValue = bytes[i];
+            switch (byteValue) {
+                case PgConstant.QUOTE: {
+                    if (i > lastWritten) {
+                        message.writeBytes(bytes, lastWritten, i - lastWritten);
+                    }
+                    message.writeByte(PgConstant.QUOTE);  // because jdbd-postgre support only the charset that ASCII is one byte
+                    lastWritten = i;//not i + 1 as current char wasn't written
+                }
+                continue;
+                case PgConstant.BACK_SLASH:
+                    followChar = PgConstant.BACK_SLASH;
+                    break;
+                case PgConstant.DOUBLE_QUOTE:
+                    followChar = PgConstant.DOUBLE_QUOTE;
+                    break;
+                case PgConstant.NUL:
+                    followChar = '0';
+                    break;
+                case '\b':
+                    followChar = 'b';
+                    break;
+                case '\f':
+                    followChar = 'f';
+                    break;
+                case '\n':
+                    followChar = 'n';
+                    break;
+                case '\r':
+                    followChar = 'r';
+                    break;
+                case '\t':
+                    followChar = 't';
+                    break;
+                default:
+                    continue;
+            }
+
+            if (i > lastWritten) {
+                message.writeBytes(bytes, lastWritten, i - lastWritten);
+            }
+            message.writeByte(PgConstant.BACK_SLASH);  // because jdbd-postgre support only the charset that ASCII is one byte
+            message.writeByte(followChar);
+            lastWritten = i + 1;
+
+
+        }// for
+
+        if (lastWritten < length) {
+            message.writeBytes(bytes, lastWritten, length - lastWritten);
+        }
+        message.writeByte(PgConstant.DOUBLE_QUOTE);
+
     }
 
+    /**
+     * @see #writeArrayObject(int, ParamValue, ByteBuf)
+     */
     private void writeLocalTime(final Object element, final ByteBuf message) {
         message.writeByte(PgConstant.DOUBLE_QUOTE);
         message.writeBytes(((LocalTime) element).format(PgTimes.TIME_FORMATTER_6).getBytes(this.clientCharset));
         message.writeByte(PgConstant.DOUBLE_QUOTE);
     }
 
+    /**
+     * @see #writeArrayObject(int, ParamValue, ByteBuf)
+     */
     private void writeOffsetTime(final Object element, final ByteBuf message) {
         message.writeByte(PgConstant.DOUBLE_QUOTE);
         message.writeBytes(((OffsetTime) element).format(PgTimes.OFFSET_TIME_FORMATTER_6).getBytes(this.clientCharset));
         message.writeByte(PgConstant.DOUBLE_QUOTE);
     }
 
+    /**
+     * @see #writeArrayObject(int, ParamValue, ByteBuf)
+     */
     private void writeLocalDate(final Object element, final ByteBuf message) {
         message.writeByte(PgConstant.DOUBLE_QUOTE);
         message.writeBytes(((LocalDate) element).toString().getBytes(this.clientCharset));
         message.writeByte(PgConstant.DOUBLE_QUOTE);
     }
 
+    /**
+     * @see #writeArrayObject(int, ParamValue, ByteBuf)
+     */
     private void writeLocalDateTime(final Object element, final ByteBuf message) {
         message.writeByte(PgConstant.DOUBLE_QUOTE);
         message.writeBytes(
@@ -284,7 +468,9 @@ abstract class CommandWriter {
         message.writeByte(PgConstant.DOUBLE_QUOTE);
     }
 
-
+    /**
+     * @see #writeArrayObject(int, ParamValue, ByteBuf)
+     */
     private void writeOffsetDateTime(final Object element, final ByteBuf message) {
         message.writeByte(PgConstant.DOUBLE_QUOTE);
         message.writeBytes(
@@ -293,10 +479,71 @@ abstract class CommandWriter {
         message.writeByte(PgConstant.DOUBLE_QUOTE);
     }
 
-
+    /**
+     * @see #writeArrayObject(int, ParamValue, ByteBuf)
+     */
     private void writeIntervalElement(final Object element, final ByteBuf message) {
         message.writeByte(PgConstant.DOUBLE_QUOTE);
         message.writeBytes(((Interval) element).toString(true).getBytes(this.clientCharset));
+        message.writeByte(PgConstant.DOUBLE_QUOTE);
+    }
+
+    /**
+     * @see #writeArrayObject(int, ParamValue, ByteBuf)
+     * @see <a href="https://www.postgresql.org/docs/current/datatype-binary.html">Binary Data Types</a>
+     */
+    private void writeByteaElement(final Object element, final ByteBuf message) {
+        message.writeByte(PgConstant.DOUBLE_QUOTE);
+        message.writeByte(PgConstant.BACK_SLASH);
+        message.writeByte('x');
+
+        final byte[] bytea = (byte[]) element;
+        message.writeBytes(PgBuffers.hexEscapes(true, bytea, bytea.length));
+
+        message.writeByte(PgConstant.DOUBLE_QUOTE);
+    }
+
+    /**
+     * @see #writeArrayObject(int, ParamValue, ByteBuf)
+     */
+    private void writeBitElement(final Object element, final ByteBuf message) {
+        final String bitString;
+        if (element instanceof Integer) {
+            bitString = Integer.toBinaryString((Integer) element);
+        } else if (element instanceof Long) {
+            bitString = Long.toBinaryString((Long) element);
+        } else if (element instanceof BitSet) {
+            bitString = PgStrings.bitSetToBitString((BitSet) element, true);
+        } else if (!(element instanceof String)) {
+            // no bug,never here
+            throw new IllegalArgumentException();
+        } else if (PgStrings.isBinaryString((String) element)) {
+            bitString = (String) element;
+        } else {
+            throw new IllegalArgumentException("non binary string");
+        }
+
+        message.writeByte(PgConstant.DOUBLE_QUOTE);
+        message.writeBytes(bitString.getBytes(this.clientCharset));
+        message.writeByte(PgConstant.DOUBLE_QUOTE);
+
+    }
+
+    /**
+     * @see #writeArrayObject(int, ParamValue, ByteBuf)
+     */
+    private void writeUuidElement(final Object element, final ByteBuf message) {
+        final String uuidString;
+        if (element instanceof UUID) {
+            uuidString = element.toString();
+        } else if (element instanceof String) {
+            uuidString = (String) element;
+        } else {
+            // no bug,never here
+            throw new IllegalArgumentException();
+        }
+        message.writeByte(PgConstant.DOUBLE_QUOTE);
+        message.writeBytes(uuidString.getBytes(this.clientCharset));
         message.writeByte(PgConstant.DOUBLE_QUOTE);
     }
 

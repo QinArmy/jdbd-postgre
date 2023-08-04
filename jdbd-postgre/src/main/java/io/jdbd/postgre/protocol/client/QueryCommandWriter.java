@@ -296,6 +296,11 @@ final class QueryCommandWriter extends CommandWriter {
         final Charset clientCharset = this.clientCharset;
         final PgType pgType = (PgType) bindValue.getType();
         switch (pgType) {
+            case BOOLEAN: {
+                final boolean value = PgBinds.bindToBoolean(batchIndex, bindValue);
+                message.writeBytes((value ? PgConstant.TRUE : PgConstant.FALSE).getBytes(this.clientCharset));
+            }
+            break;
             case SMALLINT: {
                 final int value = PgBinds.bindToInt(batchIndex, bindValue, Short.MIN_VALUE, Short.MAX_VALUE);
                 message.writeBytes(Integer.toString(value).getBytes(clientCharset));
@@ -331,11 +336,6 @@ final class QueryCommandWriter extends CommandWriter {
                 final double value = PgBinds.bindToDouble(batchIndex, bindValue);
                 message.writeBytes(Double.toString(value).getBytes(clientCharset));
                 message.writeBytes("::FLOAT8".getBytes(clientCharset));
-            }
-            break;
-            case BOOLEAN: {
-                final boolean value = PgBinds.bindToBoolean(batchIndex, bindValue);
-                message.writeBytes((value ? PgConstant.TRUE : PgConstant.FALSE).getBytes(this.clientCharset));
             }
             break;
             case BYTEA:
@@ -673,6 +673,7 @@ final class QueryCommandWriter extends CommandWriter {
         if (lastWritten < length) {
             message.writeBytes(bytes, lastWritten, length - lastWritten);
         }
+        message.writeByte(PgConstant.QUOTE);
 
         if (followChar != PgConstant.NUL) {
             message.setByte(startIndex, 'E');
