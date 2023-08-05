@@ -1,8 +1,8 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.postgre.PgJdbdException;
+import io.jdbd.JdbdException;
 
-class UnExpectedMessageException extends PgJdbdException {
+class UnExpectedMessageException extends JdbdException {
 
     UnExpectedMessageException(String message) {
         super(message);

@@ -1,11 +1,11 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.util.PgCollections;
+import io.jdbd.session.Option;
 import io.netty.buffer.ByteBuf;
 
 import java.nio.charset.Charset;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -20,7 +20,7 @@ abstract class MultiFieldMessage extends PgMessage {
      *
      * @see <a href="https://www.postgresql.org/docs/current/protocol-error-fields.html">Error and Notice Message Fields</a>
      */
-    static final byte SEVERITY = 'S';
+    static final byte SEVERITY_S = 'S';
     static final byte SEVERITY_V = 'V';
     static final byte SQLSTATE = 'C';
     static final byte MESSAGE = 'M';
@@ -44,6 +44,8 @@ abstract class MultiFieldMessage extends PgMessage {
     static final byte ROUTINE = 'R';
 
     static final Map<Byte, String> FIELD_NAME_MAP = createFieldNameMap();
+
+    static final Map<Option<String>, Byte> OPTION_MAP = createOptionMap();
 
     final Map<Byte, String> fieldMap;
 
@@ -84,14 +86,11 @@ abstract class MultiFieldMessage extends PgMessage {
      * </p>
      *
      * @param endIndex message end index,exclusive.
-     * @return map, key : field name,value : field value.
+     * @return a unmodified map, key : field name,value : field value.
      * @see ErrorMessage
      */
     static Map<Byte, String> readMultiFields(final ByteBuf messageBody, final int endIndex, Charset charset) {
-        if (messageBody.readerIndex() >= endIndex) {
-            throw new IllegalArgumentException(String.format("readerIndex() >= endIndex[%s]", endIndex));
-        }
-        Map<Byte, String> map = new HashMap<>();
+        final Map<Byte, String> map = PgCollections.hashMap();
 
         byte field;
         while (messageBody.readerIndex() < endIndex) {
@@ -102,7 +101,7 @@ abstract class MultiFieldMessage extends PgMessage {
             map.put(field, Messages.readString(messageBody, charset));
         }
         messageBody.readerIndex(endIndex);// avoid filler.
-        return map;
+        return Collections.unmodifiableMap(map);
     }
 
     /*################################## blow private static method ##################################*/
@@ -121,9 +120,9 @@ abstract class MultiFieldMessage extends PgMessage {
      * @return a unmodified map.
      */
     private static Map<Byte, String> createFieldNameMap() {
-        Map<Byte, String> map = new HashMap<>((int) (18 / 0.75));
+        Map<Byte, String> map = PgCollections.hashMap((int) (18 / 0.75));
 
-        map.put(SEVERITY, "SEVERITY");
+        map.put(SEVERITY_S, "SEVERITY");
         map.put(SEVERITY_V, "SEVERITY_V");
         map.put(SQLSTATE, "SQLSTATE");
         map.put(MESSAGE, "MESSAGE");
@@ -145,6 +144,39 @@ abstract class MultiFieldMessage extends PgMessage {
 
         map.put(LINE, "LINE");
         map.put(ROUTINE, "ROUTINE");
+
+        return Collections.unmodifiableMap(map);
+    }
+
+
+    /**
+     * @return a unmodified map.
+     */
+    private static Map<Option<String>, Byte> createOptionMap() {
+        final Map<Option<String>, Byte> map = PgCollections.hashMap((int) (18 / 0.75));
+
+        map.put(PgErrorOrNotice.PG_MSG_SEVERITY_S, SEVERITY_S);
+        map.put(PgErrorOrNotice.PG_MSG_SEVERITY_V, SEVERITY_V);
+        map.put(PgErrorOrNotice.PG_MSG_SQLSTATE, SQLSTATE);
+        map.put(PgErrorOrNotice.PG_MSG_MESSAGE, MESSAGE);
+
+        map.put(PgErrorOrNotice.PG_MSG_DETAIL, DETAIL);
+        map.put(PgErrorOrNotice.PG_MSG_HINT, HINT);
+        map.put(PgErrorOrNotice.PG_MSG_POSITION, POSITION);
+        map.put(PgErrorOrNotice.PG_MSG_INTERNAL_POSITION, INTERNAL_POSITION);
+
+        map.put(PgErrorOrNotice.PG_MSG_INTERNAL_QUERY, INTERNAL_QUERY);
+        map.put(PgErrorOrNotice.PG_MSG_WHERE, WHERE);
+        map.put(PgErrorOrNotice.PG_MSG_SCHEMA, SCHEMA);
+        map.put(PgErrorOrNotice.PG_MSG_TABLE, TABLE);
+
+        map.put(PgErrorOrNotice.PG_MSG_COLUMN, COLUMN);
+        map.put(PgErrorOrNotice.PG_MSG_DATATYPE, DATATYPE);
+        map.put(PgErrorOrNotice.PG_MSG_CONSTRAINT, CONSTRAINT);
+        map.put(PgErrorOrNotice.PG_MSG_FILE, FILE);
+
+        map.put(PgErrorOrNotice.PG_MSG_LINE, LINE);
+        map.put(PgErrorOrNotice.PG_MSG_ROUTINE, ROUTINE);
 
         return Collections.unmodifiableMap(map);
     }

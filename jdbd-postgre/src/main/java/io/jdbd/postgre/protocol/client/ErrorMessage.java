@@ -19,8 +19,16 @@ public final class ErrorMessage extends MultiFieldMessage {
             String msg = String.format("Message type[%s] isn't ErrorResponse.", type);
             throw new IllegalArgumentException(msg);
         }
-        int readIndex = message.readerIndex();
-        return readBody(message, readIndex + message.readInt(), charset);
+        return readBody(message, message.readerIndex() + message.readInt(), charset);
+    }
+
+    static PgServerException readAsError(final ByteBuf message, final Charset charset) {
+        if (message.readByte() != Messages.E) {
+            char type = (char) message.getByte(message.readerIndex() - 1);
+            String msg = String.format("Message type[%s] isn't ErrorResponse.", type);
+            throw new IllegalArgumentException(msg);
+        }
+        return new PgServerException(readMultiFields(message, message.readerIndex() + message.readInt(), charset));
     }
 
 
@@ -52,7 +60,7 @@ public final class ErrorMessage extends MultiFieldMessage {
 
     @Nullable
     String getSeverity() {
-        return this.fieldMap.get(MultiFieldMessage.SEVERITY);
+        return this.fieldMap.get(MultiFieldMessage.SEVERITY_S);
     }
 
     @Nullable
@@ -121,7 +129,7 @@ public final class ErrorMessage extends MultiFieldMessage {
 
     String getNonSensitiveErrorMessage() {
         StringBuilder builder = new StringBuilder();
-        String message = this.fieldMap.get(MultiFieldMessage.SEVERITY);
+        String message = this.fieldMap.get(MultiFieldMessage.SEVERITY_S);
         if (message != null) {
             builder.append(message).append(": ");
         }
@@ -144,49 +152,6 @@ public final class ErrorMessage extends MultiFieldMessage {
         return integer;
     }
 
-
-    private enum ErrorField {
-
-        SEVERITY(MultiFieldMessage.SEVERITY),
-        SEVERITY_V(MultiFieldMessage.SEVERITY_V),
-        SQLSTATE(MultiFieldMessage.SQLSTATE),
-        MESSAGE(MultiFieldMessage.MESSAGE),
-
-        DETAIL(MultiFieldMessage.DETAIL),
-        HINT(MultiFieldMessage.HINT),
-        POSITION(MultiFieldMessage.POSITION),
-        INTERNAL_POSITION(MultiFieldMessage.INTERNAL_POSITION),
-
-        INTERNAL_QUERY(MultiFieldMessage.INTERNAL_QUERY),
-        WHERE(MultiFieldMessage.WHERE),
-        SCHEMA(MultiFieldMessage.SCHEMA),
-        TABLE(MultiFieldMessage.TABLE),
-
-        COLUMN(MultiFieldMessage.COLUMN),
-        DATATYPE(MultiFieldMessage.DATATYPE),
-        CONSTRAINT(MultiFieldMessage.CONSTRAINT),
-        FILE(MultiFieldMessage.FILE),
-
-        LINE(MultiFieldMessage.LINE),
-        ROUTINE(MultiFieldMessage.ROUTINE);
-        byte type;
-
-        ErrorField(byte type) {
-            this.type = type;
-        }
-
-        @Nullable
-        static ErrorField fromType(final byte type) {
-            for (ErrorField value : ErrorField.values()) {
-                if (type == value.type) {
-                    return value;
-                }
-            }
-            return null;
-        }
-
-
-    }
 
 
 }

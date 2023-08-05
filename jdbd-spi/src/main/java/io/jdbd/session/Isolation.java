@@ -9,6 +9,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectStreamException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.function.Function;
 
 public final class Isolation {
 
@@ -16,9 +17,10 @@ public final class Isolation {
         if (hasNoText(value)) {
             throw new IllegalArgumentException("no text");
         }
-        return INSTANCE_MAP.computeIfAbsent(value, Isolation::new);
+        return INSTANCE_MAP.computeIfAbsent(value, CONSTRUCTOR);
     }
 
+    private static final Function<String, Isolation> CONSTRUCTOR = Isolation::new;
 
     private static final ConcurrentMap<String, Isolation> INSTANCE_MAP = concurrentHashMap((int) (4 / 0.75f));
 
@@ -119,18 +121,10 @@ public final class Isolation {
         return match;
     }
 
-    static <K, V> ConcurrentHashMap<K, V> concurrentHashMap() {
-        return new FinalConcurrentHashMap<>();
-    }
-
-    static <K, V> ConcurrentHashMap<K, V> concurrentHashMap(int capacity) {
-        return new FinalConcurrentHashMap<>(capacity);
-    }
 
     /*-------------------below private method -------------------*/
 
-    private void readObject(ObjectInputStream in) throws IOException,
-            ClassNotFoundException {
+    private void readObject(ObjectInputStream in) throws IOException {
         throw new InvalidObjectException("can't deserialize Isolation");
     }
 
@@ -138,6 +132,14 @@ public final class Isolation {
         throw new InvalidObjectException("can't deserialize Isolation");
     }
 
+
+    static <K, V> ConcurrentHashMap<K, V> concurrentHashMap() {
+        return new FinalConcurrentHashMap<>();
+    }
+
+    static <K, V> ConcurrentHashMap<K, V> concurrentHashMap(int capacity) {
+        return new FinalConcurrentHashMap<>(capacity);
+    }
 
     private static final class FinalConcurrentHashMap<K, V> extends ConcurrentHashMap<K, V> {
 

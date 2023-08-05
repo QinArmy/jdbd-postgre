@@ -6,11 +6,10 @@ import io.netty.buffer.ByteBuf;
 import java.util.function.Consumer;
 
 /**
- * @see ResultSink
+ * @see io.jdbd.vendor.result.ResultSink
  */
 interface ResultSetReader {
 
     boolean read(ByteBuf cumulateBuffer, Consumer<Object> serverStatesConsumer) throws JdbdException;
-
 
 }

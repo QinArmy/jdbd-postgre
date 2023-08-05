@@ -22,8 +22,6 @@ abstract class PgTask extends CommunicationTask {
     }
 
 
-
-
     /**
      * <p>
      * must invoke after ReadyForQuery message.
@@ -31,12 +29,11 @@ abstract class PgTask extends CommunicationTask {
      */
     final void readNoticeAfterReadyForQuery(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
         while (Messages.hasOneMessage(cumulateBuffer)) {
-            if (cumulateBuffer.getByte(cumulateBuffer.readerIndex()) == Messages.N) {// NoticeResponse message
-                NoticeMessage noticeMessage = NoticeMessage.read(cumulateBuffer, this.adjutant.clientCharset());
-                serverStatusConsumer.accept(noticeMessage);
-            } else {
+            if (cumulateBuffer.getByte(cumulateBuffer.readerIndex()) != Messages.N) {// NoticeResponse message
                 break;
             }
+            NoticeMessage noticeMessage = NoticeMessage.read(cumulateBuffer, this.adjutant.clientCharset());
+            serverStatusConsumer.accept(noticeMessage);
         }
 
     }

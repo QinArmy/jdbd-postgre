@@ -13,6 +13,8 @@ import io.jdbd.vendor.result.ResultSink;
 import io.jdbd.vendor.stmt.*;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.annotation.Nullable;
@@ -31,8 +33,7 @@ import java.util.function.Function;
  * </p>
  *
  * @see QueryCommandWriter
- * @see ExtendedQueryTask
- * @see <a href="https://www.postgresql.org/docs/current/protocol-flow.html#id-1.10.5.7.4">Simple Query</a>
+ * @see <a href="https://www.postgresql.org/docs/current/protocol-flow.html#id-1.10.6.7.4">Simple Query</a>
  * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Simple Query Message Formats</a>
  */
 final class SimpleQueryTask extends PgCommandTask implements SimpleStmtTask {
@@ -310,6 +311,8 @@ final class SimpleQueryTask extends PgCommandTask implements SimpleStmtTask {
         });
     }
 
+    private static final Logger LOG = LoggerFactory.getLogger(SimpleQueryTask.class);
+
     private Phase phase;
 
 
@@ -340,7 +343,7 @@ final class SimpleQueryTask extends PgCommandTask implements SimpleStmtTask {
     /*#################### blow io.jdbd.postgre.protocol.client.SimpleStmtTask method ##########################*/
 
     @Override
-    public final void handleNoQueryMessage() {
+    public void handleNoQueryMessage() {
         // create Query message occur error,end task.
         this.sendPacketSignal(true)
                 .subscribe();
@@ -354,6 +357,7 @@ final class SimpleQueryTask extends PgCommandTask implements SimpleStmtTask {
     protected Publisher<ByteBuf> start() {
         final Publisher<ByteBuf> publisher = this.packetPublisher;
         if (publisher == null) {
+            // no bug ,never here
             this.phase = Phase.END;
             this.sink.error(new JdbdException("No found command message publisher."));
         } else {
@@ -397,11 +401,15 @@ final class SimpleQueryTask extends PgCommandTask implements SimpleStmtTask {
     }
 
     @Override
-    final void internalToString(StringBuilder builder) {
+    void internalToString(StringBuilder builder) {
         builder.append(",phase:")
                 .append(this.phase);
     }
 
+    @Override
+    Logger getLog() {
+        return LOG;
+    }
 
     @Override
     final boolean handlePrepareResponse(List<PgType> paramTypeList, @Nullable ResultRowMeta rowMeta) {

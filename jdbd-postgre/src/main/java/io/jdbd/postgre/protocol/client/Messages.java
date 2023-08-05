@@ -25,21 +25,21 @@ abstract class Messages {
 
     /**
      * <ul>
-     *     <li>ParseComplete</li>
+     *     <li>backend (B) : ParseComplete</li>
      * </ul>
      */
     static final byte CHAR_ONE = '1';
 
     /**
      * <ul>
-     *     <li>BindComplete</li>
+     *     <li>backend (B) : BindComplete</li>
      * </ul>
      */
     static final byte CHAR_TWO = '2';
 
     /**
      * <ul>
-     *     <li>NotificationResponse</li>
+     *     <li>backend (B) : NotificationResponse</li>
      * </ul>
      */
     static final byte A = 'A';
@@ -61,14 +61,14 @@ abstract class Messages {
 
     /**
      * <ul>
-     *     <li>CopyDone</li>
+     *     <li>backend (B) : CopyDone</li>
      * </ul>
      */
     static final byte c = 'c';
 
     /**
      * <ul>
-     *     <li>CopyData</li>
+     *     <li>backend (B) : CopyData</li>
      * </ul>
      */
     static final byte d = 'd';
@@ -91,21 +91,21 @@ abstract class Messages {
 
     /**
      * <ul>
-     *     <li>CopyFail</li>
+     *     <li>backend (B) : CopyFail</li>
      * </ul>
      */
     static final byte f = 'f';
 
     /**
      * <ul>
-     *     <li>CopyInResponse</li>
+     *     <li>backend (B) : CopyInResponse</li>
      * </ul>
      */
     static final byte G = 'G';
 
     /**
      * <ul>
-     *     <li>CopyOutResponse</li>
+     *     <li>backend (B) : CopyOutResponse</li>
      * </ul>
      */
     static final byte H = 'H';
@@ -114,7 +114,7 @@ abstract class Messages {
 
     /**
      * <ul>
-     *     <li>NoData</li>
+     *     <li>backend (B) : NoData</li>
      * </ul>
      */
     static final byte n = 'n';
@@ -128,7 +128,7 @@ abstract class Messages {
 
     /**
      * <ul>
-     *     <li>PortalSuspended</li>
+     *     <li>backend (B) : PortalSuspended</li>
      * </ul>
      */
     static final byte s = 's';
@@ -136,6 +136,7 @@ abstract class Messages {
     /**
      * <ul>
      *     <li>Sync</li>
+     *     <li>backend (B) :  ParameterStatus</li>
      * </ul>
      */
     static final byte S = 'S';
@@ -151,18 +152,23 @@ abstract class Messages {
 
     /**
      * <ul>
-     *     <li>ParameterDescription</li>
+     *     <li>backend (B) : ParameterDescription</li>
      * </ul>
      */
     static final byte t = 't';
 
     /**
      * <ul>
-     *     <li>RowDescription</li>
+     *     <li>backend (B) : RowDescription</li>
      * </ul>
      */
     static final byte T = 'T';
 
+    /**
+     * <ul>
+     *     <li>EmptyQueryResponse</li>
+     * </ul>
+     */
     static final byte I = 'I';
 
     static final byte K = 'K';
@@ -184,37 +190,59 @@ abstract class Messages {
     static final byte W = 'W';
 
 
-    /** Specifies that the authentication was successful. See AuthenticationOk message format. */
+    /**
+     * Specifies that the authentication was successful. See AuthenticationOk message format.
+     */
     static final byte AUTH_OK = 0;
 
-    /** Specifies that Kerberos V5 authentication is required. See AuthenticationKerberosV5 message format. */
+    /**
+     * Specifies that Kerberos V5 authentication is required. See AuthenticationKerberosV5 message format.
+     */
     static final byte AUTH_KRB5 = 2;
 
-    /** Specifies that a clear-text password is required. See AuthenticationCleartextPassword message format. */
+    /**
+     * Specifies that a clear-text password is required. See AuthenticationCleartextPassword message format.
+     */
     static final byte AUTH_CLEAR_TEXT = 3;
 
-    /** Specifies that an MD5-encrypted password is required. See AuthenticationMD5Password message format. */
+    /**
+     * Specifies that an MD5-encrypted password is required. See AuthenticationMD5Password message format.
+     */
     static final byte AUTH_MD5 = 5;
 
-    /** Specifies that an SCM credentials message is required. See AuthenticationSCMCredential message format. */
+    /**
+     * Specifies that an SCM credentials message is required. See AuthenticationSCMCredential message format.
+     */
     static final byte AUTH_SCM = 6;
 
-    /** Specifies that GSSAPI authentication is required. See AuthenticationGSS message format. */
+    /**
+     * Specifies that GSSAPI authentication is required. See AuthenticationGSS message format.
+     */
     static final byte AUTH_GSS = 7;
 
-    /** Specifies that this message contains GSSAPI or SSPI data. See AuthenticationGSSContinue message format. */
+    /**
+     * Specifies that this message contains GSSAPI or SSPI data. See AuthenticationGSSContinue message format.
+     */
     static final byte AUTH_GSS_CONTINUE = 8;
 
-    /** Specifies that SSPI authentication is required. See AuthenticationSSPI message format. */
+    /**
+     * Specifies that SSPI authentication is required. See AuthenticationSSPI message format.
+     */
     static final byte AUTH_SSPI = 9;
 
-    /** Specifies that SASL authentication is required. See AuthenticationSASL message format. */
+    /**
+     * Specifies that SASL authentication is required. See AuthenticationSASL message format.
+     */
     static final byte AUTH_SASL = 10;
 
-    /** Specifies that this message contains a SASL challenge. See AuthenticationSASLContinue message format. */
+    /**
+     * Specifies that this message contains a SASL challenge. See AuthenticationSASLContinue message format.
+     */
     static final byte AUTH_SASL_CONTINUE = 11;
 
-    /** Specifies that SASL authentication has completed. See AuthenticationSASLFinal message format. */
+    /**
+     * Specifies that SASL authentication has completed. See AuthenticationSASLFinal message format.
+     */
     static final byte AUTH_SASL_FINAL = 12;
 
 
@@ -283,12 +311,11 @@ abstract class Messages {
     }
 
 
-    static ResultSetStatus getResultSetStatus(ByteBuf cumulateBuffer) {
+    static ResultSetStatus getResultSetStatus(final ByteBuf cumulateBuffer) {
         final int originalIndex = cumulateBuffer.readerIndex();
         final int currentMsgType = cumulateBuffer.getByte(originalIndex);
         if (!hasOneMessage(cumulateBuffer) || (currentMsgType != C && currentMsgType != I)) {
-            String m = String.format("Current message[%s] Non-CommandComplete."
-                    , (char) cumulateBuffer.getByte(originalIndex));
+            String m = String.format("Current message[%s] Non-CommandComplete.", (char) currentMsgType);
             throw new IllegalArgumentException(m);
         }
         cumulateBuffer.readByte();
@@ -297,10 +324,7 @@ abstract class Messages {
         ResultSetStatus status = ResultSetStatus.MORE_CUMULATE;
         loop:
         while (hasOneMessage(cumulateBuffer)) {
-            final int msgStartIndex = cumulateBuffer.readerIndex();
-            final int msgType = cumulateBuffer.readByte();
-            final int nextMsgIndex = msgStartIndex + 1 + cumulateBuffer.readInt();
-            switch (msgType) {
+            switch (cumulateBuffer.readByte()) {
                 case T:// RowDescription message
                 case I:// EmptyQueryResponse message
                 case C:// CommandComplete message
@@ -312,7 +336,7 @@ abstract class Messages {
                     break loop;
                 default: {
                     // here maybe NoticeResponse message / BindComplete
-                    cumulateBuffer.readerIndex(nextMsgIndex);
+                    cumulateBuffer.skipBytes(cumulateBuffer.readInt() - 4);
                 }
             }
         }
@@ -375,9 +399,9 @@ abstract class Messages {
         return paramTypeList;
     }
 
-    static void skipOneMessage(ByteBuf message) {
+    static void skipOneMessage(final ByteBuf message) {
         message.readByte();
-        message.skipBytes(message.getInt(message.readerIndex()));
+        message.skipBytes(message.readInt() - 4);
     }
 
     /**

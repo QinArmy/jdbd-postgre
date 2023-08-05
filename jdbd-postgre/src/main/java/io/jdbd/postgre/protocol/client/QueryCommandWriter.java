@@ -27,6 +27,10 @@ import java.util.Map;
  * <p>
  * This class is writer of postgre simple query protocol.
  * </p>
+ * <p>
+ * following is chinese signature:<br/>
+ * 当你在阅读这段代码时,我才真正在写这段代码,你阅读到哪里,我便写到哪里.
+ * </p>
  *
  * @see SimpleQueryTask
  * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Query</a>
