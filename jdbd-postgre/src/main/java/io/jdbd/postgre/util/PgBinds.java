@@ -7,6 +7,7 @@ import io.jdbd.type.Interval;
 import io.jdbd.type.Point;
 import io.jdbd.type.geometry.Circle;
 import io.jdbd.vendor.stmt.ParamValue;
+import io.jdbd.vendor.stmt.Value;
 import io.jdbd.vendor.util.JdbdArrays;
 import io.jdbd.vendor.util.JdbdBinds;
 import io.jdbd.vendor.util.JdbdExceptions;
@@ -320,6 +321,51 @@ public abstract class PgBinds extends JdbdBinds {
                 formatCode = 0; // all array type is text format
         }
         return formatCode;
+    }
+
+    public static String bindToPostgreDate(final int batchIndex, final Value paramValue) {
+        final Object source = paramValue.getValue();
+        String value;
+        if (!(source instanceof String)) {
+            value = bindToLocalDate(batchIndex, paramValue).toString();
+        } else if (PgConstant.INFINITY.equalsIgnoreCase((String) source)) {
+            value = PgConstant.INFINITY;
+        } else if (PgConstant.NEG_INFINITY.equalsIgnoreCase((String) source)) {
+            value = PgConstant.NEG_INFINITY;
+        } else {
+            value = bindToLocalDate(batchIndex, paramValue).toString();
+        }
+        return value;
+    }
+
+    public static String bindToPostgreTimestamp(final int batchIndex, final Value paramValue) {
+        final Object source = paramValue.getValue();
+        String value;
+        if (!(source instanceof String)) {
+            value = bindToLocalDateTime(batchIndex, paramValue).format(PgTimes.DATETIME_FORMATTER_6);
+        } else if (PgConstant.INFINITY.equalsIgnoreCase((String) source)) {
+            value = PgConstant.INFINITY;
+        } else if (PgConstant.NEG_INFINITY.equalsIgnoreCase((String) source)) {
+            value = PgConstant.NEG_INFINITY;
+        } else {
+            value = bindToLocalDateTime(batchIndex, paramValue).format(PgTimes.DATETIME_FORMATTER_6);
+        }
+        return value;
+    }
+
+    public static String bindToPostgreTimestampTz(final int batchIndex, final Value paramValue) {
+        final Object source = paramValue.getValue();
+        String value;
+        if (!(source instanceof String)) {
+            value = bindToOffsetDateTime(batchIndex, paramValue).format(PgTimes.OFFSET_DATETIME_FORMATTER_6);
+        } else if (PgConstant.INFINITY.equalsIgnoreCase((String) source)) {
+            value = PgConstant.INFINITY;
+        } else if (PgConstant.NEG_INFINITY.equalsIgnoreCase((String) source)) {
+            value = PgConstant.NEG_INFINITY;
+        } else {
+            value = bindToOffsetDateTime(batchIndex, paramValue).format(PgTimes.OFFSET_DATETIME_FORMATTER_6);
+        }
+        return value;
     }
 
     public static String bindToBooleanArray(final int batchIndex, final ParamValue paramValue) throws JdbdException {

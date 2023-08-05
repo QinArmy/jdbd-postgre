@@ -21,7 +21,7 @@ abstract class Messages {
 
     static final byte STRING_TERMINATOR = '\0';
 
-    static final byte LENGTH_BYTES = 4;
+    static final byte LENGTH_SIZE = 4;
 
     /**
      * <ul>
@@ -427,10 +427,7 @@ abstract class Messages {
 
 
     static void writeLength(final ByteBuf message) {
-        final int length = message.readableBytes() - 1, writerIndex = message.writerIndex();
-        message.writerIndex(message.readerIndex() + 1);
-        message.writeInt(length);
-        message.writerIndex(writerIndex);
+        message.setInt(message.readerIndex() + 1, message.readableBytes() - 1);
     }
 
 

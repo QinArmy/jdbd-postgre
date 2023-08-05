@@ -226,7 +226,7 @@ final class DefaultCopyOperationHandler implements CopyOperationHandler {
         final byte[] bytes = errorInfo.getBytes(this.adjutant.clientCharset());
         final ByteBuf message = this.adjutant.allocator().buffer(6 + bytes.length);
         message.writeByte(Messages.f);
-        message.writeZero(Messages.LENGTH_BYTES);// placeholder
+        message.writeZero(Messages.LENGTH_SIZE);// placeholder
         message.writeBytes(bytes);
         message.writeByte(Messages.STRING_TERMINATOR);
 
@@ -307,7 +307,7 @@ final class DefaultCopyOperationHandler implements CopyOperationHandler {
             message = allocator.buffer((int) Math.min(maxMessageLen, headerLength + restSize));
 
             message.writeByte(Messages.d);
-            message.writeZero(Messages.LENGTH_BYTES);
+            message.writeZero(Messages.LENGTH_SIZE);
 
             while (channel.read(buffer) > 0) {
                 buffer.flip();
@@ -320,7 +320,7 @@ final class DefaultCopyOperationHandler implements CopyOperationHandler {
                     sink.next(message);
                     message = allocator.buffer((int) Math.min(maxMessageLen, headerLength + restSize));
                     message.writeByte(Messages.d);
-                    message.writeZero(Messages.LENGTH_BYTES);
+                    message.writeZero(Messages.LENGTH_SIZE);
                 }
             }
 
@@ -612,7 +612,7 @@ final class DefaultCopyOperationHandler implements CopyOperationHandler {
             if (cumulateBuffer.readByte() != Messages.d) {// CopyData message
                 throw new IllegalArgumentException("Not CopyData message.");
             }
-            int restLength = cumulateBuffer.readInt() - Messages.LENGTH_BYTES;
+            int restLength = cumulateBuffer.readInt() - Messages.LENGTH_SIZE;
             final byte[] bufferArray = buffer.array(); // buffer must be created by ByteBuffer.wrap(bufferArray);
             while (restLength > 0) {
                 final int readLength = Math.min(restLength, bufferArray.length);
@@ -685,7 +685,7 @@ final class DefaultCopyOperationHandler implements CopyOperationHandler {
                         case Messages.d: {// CopyData message
                             if (subscriber != null && this.cancel != 1) {
                                 cumulateBuffer.readByte();// skip msg type byte
-                                final byte[] rowBytes = new byte[cumulateBuffer.readInt() - Messages.LENGTH_BYTES];
+                                final byte[] rowBytes = new byte[cumulateBuffer.readInt() - Messages.LENGTH_SIZE];
                                 cumulateBuffer.readBytes(rowBytes);
                                 subscriber.onNext(rowBytes);
                             }

@@ -78,7 +78,7 @@ abstract class MySQLStatement<S extends Statement> implements Statement, StmtOpt
             error = MySQLExceptions.dontSupportJavaType(name, value, MY_SQL);
         } else if (value != null && (dataType == JdbdType.NULL || dataType == MySQLType.NULL)) {
             error = MySQLExceptions.nonNullBindValueOf(dataType);
-        } else if ((type = MySQLBinds.handleDataType(dataType)) == null) {
+        } else if ((type = MySQLBinds.mapDataType(dataType)) == null) {
             error = MySQLExceptions.dontSupportDataType(dataType, MY_SQL);
         } else {
             Map<String, NamedValue> map = this.queryAttrMap;

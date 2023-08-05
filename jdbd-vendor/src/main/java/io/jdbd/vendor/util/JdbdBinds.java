@@ -70,6 +70,7 @@ public abstract class JdbdBinds {
 //
 //            case CHAR:
 //            case VARCHAR:
+//            case ENUM:
 //            case TINYTEXT:
 //            case MEDIUMTEXT:
 //            case TEXT:
@@ -107,6 +108,9 @@ public abstract class JdbdBinds {
     public static <T extends SQLType> Map<String, T> createSqlTypeMap(final T[] valueArray) {
         final Map<String, T> map = JdbdCollections.hashMap((int) (valueArray.length / 0.75f));
         for (T value : valueArray) {
+            if (value.isUnknown()) {
+                continue;
+            }
             map.put(value.typeName(), value);
         }
         return JdbdCollections.unmodifiableMap(map);
@@ -518,20 +522,20 @@ public abstract class JdbdBinds {
 
 
     public static LocalDate bindToLocalDate(final int batchIndex, final Value paramValue) {
-        final Object nonNull = paramValue.getValue();
+        final Object source = paramValue.getValue();
         final LocalDate value;
-        if (nonNull instanceof LocalDate) {
-            value = (LocalDate) nonNull;
-        } else if (nonNull instanceof String) {
-            value = LocalDate.parse((String) nonNull);
-        } else if (nonNull instanceof YearMonth) {
-            final YearMonth v = (YearMonth) nonNull;
+        if (source instanceof LocalDate) {
+            value = (LocalDate) source;
+        } else if (source instanceof String) {
+            value = LocalDate.parse((String) source);
+        } else if (source instanceof YearMonth) {
+            final YearMonth v = (YearMonth) source;
             value = LocalDate.of(v.getYear(), v.getMonthValue(), 1);
-        } else if (nonNull instanceof MonthDay) {
-            final MonthDay v = (MonthDay) nonNull;
+        } else if (source instanceof MonthDay) {
+            final MonthDay v = (MonthDay) source;
             value = LocalDate.of(1970, v.getMonthValue(), v.getDayOfMonth());
-        } else if (nonNull instanceof Year) {
-            value = LocalDate.of(((Year) nonNull).getValue(), 1, 1);
+        } else if (source instanceof Year) {
+            value = LocalDate.of(((Year) source).getValue(), 1, 1);
         } else {
             throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, paramValue);
         }

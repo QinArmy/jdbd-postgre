@@ -1,7 +1,6 @@
 package io.jdbd.postgre;
 
 
-import io.jdbd.meta.BooleanMode;
 import io.jdbd.meta.JdbdType;
 import io.jdbd.meta.SQLType;
 import io.jdbd.type.Interval;
@@ -225,17 +224,17 @@ public enum PgType implements SQLType {
 
     @Override
     public final boolean isArray() {
-        return this.jdbcType == JdbdType.ARRAY;
+        return this.jdbdType == JdbdType.ARRAY;
     }
 
     @Override
-    public boolean isUnknown() {
+    public final boolean isUnknown() {
+        return this == UNSPECIFIED;
+    }
+
+    @Override
+    public final boolean isUserDefined() {
         return false;
-    }
-
-    @Override
-    public BooleanMode isUserDefined() {
-        return null;
     }
 
 

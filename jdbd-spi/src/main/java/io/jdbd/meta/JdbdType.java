@@ -114,6 +114,11 @@ public enum JdbdType implements DataType {
      */
     VARCHAR,
 
+    /**
+     * Identifies the generic SQL type {@code ENUM}.
+     */
+    ENUM,
+
     TINYTEXT,
     MEDIUMTEXT,
     TEXT,
@@ -295,8 +300,8 @@ public enum JdbdType implements DataType {
     }
 
     @Override
-    public final BooleanMode isUserDefined() {
-        return BooleanMode.UNKNOWN;
+    public final boolean isUserDefined() {
+        return false;
     }
 
     /**

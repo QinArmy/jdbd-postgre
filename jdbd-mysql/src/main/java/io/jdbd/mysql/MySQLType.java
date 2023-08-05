@@ -1,6 +1,5 @@
 package io.jdbd.mysql;
 
-import io.jdbd.meta.BooleanMode;
 import io.jdbd.meta.JdbdType;
 import io.jdbd.meta.SQLType;
 import io.jdbd.mysql.protocol.Constants;
@@ -586,9 +585,9 @@ public enum MySQLType implements SQLType {
     }
 
     @Override
-    public final BooleanMode isUserDefined() {
+    public final boolean isUserDefined() {
         //MySQL don't support user defined type
-        return BooleanMode.FALSE;
+        return false;
     }
 
 

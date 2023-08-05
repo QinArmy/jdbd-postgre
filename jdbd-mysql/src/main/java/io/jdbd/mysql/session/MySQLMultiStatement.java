@@ -111,7 +111,7 @@ final class MySQLMultiStatement extends MySQLStatement<MultiStatement> implement
             error = MySQLExceptions.dataTypeIsNull();
         } else if (value != null && (dataType == JdbdType.NULL || dataType == MySQLType.NULL)) {
             error = MySQLExceptions.nonNullBindValueOf(dataType);
-        } else if ((type = MySQLBinds.handleDataType(dataType)) == null) {
+        } else if ((type = MySQLBinds.mapDataType(dataType)) == null) {
             error = MySQLExceptions.dontSupportDataType(dataType, MY_SQL);
         } else {
             error = null;

@@ -45,6 +45,6 @@ public interface DataType {
 
     boolean isUnknown();
 
-    BooleanMode isUserDefined();
+    boolean isUserDefined();
 
 }

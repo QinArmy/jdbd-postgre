@@ -1,5 +1,6 @@
 package io.jdbd.postgre.protocol.client;
 
+import io.jdbd.JdbdException;
 import io.jdbd.postgre.PgConstant;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.util.*;
@@ -16,6 +17,23 @@ import java.util.BitSet;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 
+/**
+ * <p>
+ * This class is base class of following :
+ *     <ul>
+ *         <li>{@link QueryCommandWriter}</li>
+ *         <li>{@link PgExtendedCommandWriter}</li>
+ *     </ul>
+ * </p>
+ * <p>
+ * following is chinese signature:<br/>
+ * 当你在阅读这段代码时,我才真正在写这段代码,你阅读到哪里,我便写到哪里.
+ * </p>
+ *
+ * @see <a href="https://www.postgresql.org/docs/current/datatype.html">Data Types</a>
+ * @see <a href="https://www.postgresql.org/docs/current/arrays.html">Arrays Types</a>
+ * @since 1.0
+ */
 abstract class CommandWriter {
 
     final TaskAdjutant adjutant;
@@ -32,7 +50,12 @@ abstract class CommandWriter {
     }
 
 
-    final void writeArrayObject(final int batchIndex, final ParamValue paramValue, final ByteBuf message) {
+    /**
+     * @return the dimension of array.
+     * @see <a href="https://www.postgresql.org/docs/current/datatype.html">Data Types</a>
+     * @see <a href="https://www.postgresql.org/docs/current/arrays.html">Arrays Types</a>
+     */
+    final int writeArrayObject(final int batchIndex, final ParamValue paramValue, final ByteBuf message) {
         final Object arrayValue = paramValue.getNonNullValue();
         final Class<?> arrayClass = arrayValue.getClass();
         final Class<?> componentType;
@@ -120,21 +143,27 @@ abstract class CommandWriter {
             }
             break;
             case DATE_ARRAY: {
-                if (componentType != LocalDate.class) {
+                if (componentType != LocalDate.class
+                        && componentType != String.class
+                        && componentType != Object.class) {
                     throw PgExceptions.nonSupportBindSqlTypeError(batchIndex, paramValue);
                 }
                 consumer = this::writeLocalDate;
             }
             break;
             case TIMESTAMP_ARRAY: {
-                if (componentType != LocalDateTime.class) {
+                if (componentType != LocalDateTime.class
+                        && componentType != String.class
+                        && componentType != Object.class) {
                     throw PgExceptions.nonSupportBindSqlTypeError(batchIndex, paramValue);
                 }
                 consumer = this::writeLocalDateTime;
             }
             break;
             case TIMESTAMPTZ_ARRAY: {
-                if (componentType != OffsetDateTime.class) {
+                if (componentType != OffsetDateTime.class
+                        && componentType != String.class
+                        && componentType != Object.class) {
                     throw PgExceptions.nonSupportBindSqlTypeError(batchIndex, paramValue);
                 }
                 consumer = this::writeOffsetDateTime;
@@ -228,8 +257,17 @@ abstract class CommandWriter {
             oneDimension = dimension == 1;
         }
 
-        if (componentType == String.class) {
-            message.writeByte('E');
+        switch (pgType) {
+            case DATE_ARRAY:
+            case TIMESTAMP_ARRAY:
+            case TIMESTAMPTZ_ARRAY:
+                // no-op
+                break;
+            default: {
+                if (componentType == String.class) {
+                    message.writeByte('E');
+                }
+            }
         }
         message.writeByte(PgConstant.QUOTE);
         if (oneDimension) {
@@ -239,6 +277,7 @@ abstract class CommandWriter {
         }
         message.writeByte(PgConstant.QUOTE);
 
+        return pgType == PgType.BYTEA_ARRAY ? (dimension - 1) : dimension;
     }
 
     /**
@@ -249,6 +288,8 @@ abstract class CommandWriter {
         final int length = array.length;
 
         message.writeByte(PgConstant.LEFT_BRACKET);
+        Object element;
+        byte[] nullBytes = null;
         for (int i = 0; i < length; i++) {
             if (i > 0) {
                 if (pgType == PgType.BOX_ARRAY) {
@@ -257,7 +298,16 @@ abstract class CommandWriter {
                     message.writeByte(PgConstant.COMMA);
                 }
             }
-            consumer.accept(array[i], message);
+            element = array[i];
+            if (element == null) {
+                if (nullBytes == null) {
+                    nullBytes = PgConstant.NULL.getBytes(this.clientCharset);
+                }
+                message.writeBytes(nullBytes);
+            } else {
+                consumer.accept(element, message);
+            }
+
         }
         message.writeByte(PgConstant.RIGHT_BRACKET);
     }
@@ -450,32 +500,80 @@ abstract class CommandWriter {
 
     /**
      * @see #writeArrayObject(int, ParamValue, ByteBuf)
+     * @see <a href="https://www.postgresql.org/docs/current/datatype-datetime.html#DATATYPE-DATETIME-DATE-TABLE">Date Input</a>
+     * @see <a href="https://www.postgresql.org/docs/current/datatype-datetime.html#DATATYPE-DATETIME-SPECIAL-TABLE">Special Values</a>
      */
     private void writeLocalDate(final Object element, final ByteBuf message) {
+        final String value;
+        if (element instanceof LocalDate) {
+            value = element.toString();
+        } else if (!(element instanceof String)) {
+            String m = String.format("%s don't support element javaType[%s]", PgType.DATE_ARRAY,
+                    PgClasses.safeClassName(element));
+            throw new JdbdException(m);
+        } else if (PgConstant.INFINITY.equalsIgnoreCase((String) element)) {
+            value = PgConstant.INFINITY;
+        } else if (PgConstant.NEG_INFINITY.equalsIgnoreCase((String) element)) {
+            value = PgConstant.NEG_INFINITY;
+        } else {
+            String m = String.format("%s don't support element %s", PgType.DATE_ARRAY, element);
+            throw new JdbdException(m);
+        }
+
         message.writeByte(PgConstant.DOUBLE_QUOTE);
-        message.writeBytes(((LocalDate) element).toString().getBytes(this.clientCharset));
+        message.writeBytes(value.getBytes(this.clientCharset));
         message.writeByte(PgConstant.DOUBLE_QUOTE);
     }
 
     /**
      * @see #writeArrayObject(int, ParamValue, ByteBuf)
+     * @see <a href="https://www.postgresql.org/docs/current/datatype-datetime.html#DATATYPE-DATETIME-SPECIAL-TABLE">Special Values</a>
      */
     private void writeLocalDateTime(final Object element, final ByteBuf message) {
+        final String value;
+        if (element instanceof LocalDateTime) {
+            value = ((LocalDateTime) element).format(PgTimes.DATETIME_FORMATTER_6);
+        } else if (!(element instanceof String)) {
+            String m = String.format("%s don't support element javaType[%s]", PgType.TIMESTAMP_ARRAY,
+                    PgClasses.safeClassName(element));
+            throw new JdbdException(m);
+        } else if (PgConstant.INFINITY.equalsIgnoreCase((String) element)) {
+            value = PgConstant.INFINITY;
+        } else if (PgConstant.NEG_INFINITY.equalsIgnoreCase((String) element)) {
+            value = PgConstant.NEG_INFINITY;
+        } else {
+            String m = String.format("%s don't support element %s", PgType.TIMESTAMP_ARRAY, element);
+            throw new JdbdException(m);
+        }
+
         message.writeByte(PgConstant.DOUBLE_QUOTE);
-        message.writeBytes(
-                ((LocalDateTime) element).format(PgTimes.DATETIME_FORMATTER_6).getBytes(this.clientCharset)
-        );
+        message.writeBytes(value.getBytes(this.clientCharset));
         message.writeByte(PgConstant.DOUBLE_QUOTE);
     }
 
     /**
      * @see #writeArrayObject(int, ParamValue, ByteBuf)
+     * @see <a href="https://www.postgresql.org/docs/current/datatype-datetime.html#DATATYPE-DATETIME-SPECIAL-TABLE">Special Values</a>
      */
     private void writeOffsetDateTime(final Object element, final ByteBuf message) {
+        final String value;
+        if (element instanceof OffsetDateTime) {
+            value = ((OffsetDateTime) element).format(PgTimes.OFFSET_DATETIME_FORMATTER_6);
+        } else if (!(element instanceof String)) {
+            String m = String.format("%s don't support element javaType[%s]", PgType.TIMESTAMPTZ_ARRAY,
+                    PgClasses.safeClassName(element));
+            throw new JdbdException(m);
+        } else if (PgConstant.INFINITY.equalsIgnoreCase((String) element)) {
+            value = PgConstant.INFINITY;
+        } else if (PgConstant.NEG_INFINITY.equalsIgnoreCase((String) element)) {
+            value = PgConstant.NEG_INFINITY;
+        } else {
+            String m = String.format("%s don't support element %s", PgType.TIMESTAMPTZ_ARRAY, element);
+            throw new JdbdException(m);
+        }
+
         message.writeByte(PgConstant.DOUBLE_QUOTE);
-        message.writeBytes(
-                ((OffsetDateTime) element).format(PgTimes.OFFSET_DATETIME_FORMATTER_6).getBytes(this.clientCharset)
-        );
+        message.writeBytes(value.getBytes(this.clientCharset));
         message.writeByte(PgConstant.DOUBLE_QUOTE);
     }
 

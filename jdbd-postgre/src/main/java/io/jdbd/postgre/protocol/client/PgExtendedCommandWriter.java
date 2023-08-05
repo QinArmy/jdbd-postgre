@@ -36,7 +36,7 @@ import java.util.Objects;
 /**
  * @see ExtendedQueryTask
  */
-final class PgExtendedCommandWriter implements ExtendedCommandWriter {
+final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCommandWriter {
 
     static PgExtendedCommandWriter create(ExtendedStmtTask stmtTask) throws SQLException {
         return new PgExtendedCommandWriter(stmtTask);
@@ -230,7 +230,7 @@ final class PgExtendedCommandWriter implements ExtendedCommandWriter {
         final ByteBuf message = this.adjutant.allocator().buffer(1024, Integer.MAX_VALUE);
         //  write Parse message
         message.writeByte(Messages.P);
-        message.writeZero(Messages.LENGTH_BYTES); // placeholder of length
+        message.writeZero(Messages.LENGTH_SIZE); // placeholder of length
         final String statementName = this.statementName;
         if (PgStrings.hasText(statementName)) {
             message.writeBytes(statementName.getBytes(charset)); //definite statement name for caching statement
@@ -313,7 +313,7 @@ final class PgExtendedCommandWriter implements ExtendedCommandWriter {
      */
     private void writeSyncMessage(ByteBuf message) {
         message.writeByte(Messages.S);
-        message.writeInt(Messages.LENGTH_BYTES); // length
+        message.writeInt(Messages.LENGTH_SIZE); // length
     }
 
     /**
@@ -350,7 +350,7 @@ final class PgExtendedCommandWriter implements ExtendedCommandWriter {
         final Charset clientCharset = this.adjutant.clientCharset();
         final ByteBuf message = this.adjutant.allocator().buffer(1024);
         message.writeByte(Messages.B);
-        message.writeZero(Messages.LENGTH_BYTES);//placeholder of length
+        message.writeZero(Messages.LENGTH_SIZE);//placeholder of length
         // The name of the destination portal (an empty string selects the unnamed portal).
         if (supportFetch()) {
             final String portalName = Objects.requireNonNull(this.portalName, "this.portalName");
@@ -1223,7 +1223,7 @@ final class PgExtendedCommandWriter implements ExtendedCommandWriter {
         private ParameterSubscriber(ByteBuf message, final int batchIndex, int paramIndex
                 , PgType pgType, FluxSink<ByteBuf> channelSInk) {
             this.valueLengthIndex = message.writerIndex();
-            message.writeZero(Messages.LENGTH_BYTES); // placeholder parameter value length
+            message.writeZero(Messages.LENGTH_SIZE); // placeholder parameter value length
 
             this.message = message;
             this.batchIndex = batchIndex;
@@ -1288,7 +1288,7 @@ final class PgExtendedCommandWriter implements ExtendedCommandWriter {
                 // write value length
                 final int valueEndIndex = message.writerIndex();
                 message.writerIndex(this.valueLengthIndex);
-                message.writeInt(valueEndIndex - this.valueLengthIndex - Messages.LENGTH_BYTES);
+                message.writeInt(valueEndIndex - this.valueLengthIndex - Messages.LENGTH_SIZE);
                 message.writerIndex(valueEndIndex);
 
                 final int nextIndex = this.paramIndex + 1;

@@ -4,29 +4,20 @@ import io.jdbd.JdbdException;
 import io.jdbd.meta.DataType;
 import io.jdbd.postgre.PgConstant;
 import io.jdbd.postgre.PgType;
-import io.jdbd.postgre.stmt.BindValue;
 import io.jdbd.postgre.syntax.PgParser;
 import io.jdbd.postgre.syntax.PgStatement;
 import io.jdbd.postgre.util.*;
 import io.jdbd.vendor.stmt.*;
 import io.jdbd.vendor.util.JdbdNumbers;
 import io.netty.buffer.ByteBuf;
-import io.qinarmy.util.Pair;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
-import java.nio.charset.CharsetDecoder;
-import java.nio.charset.CharsetEncoder;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
-import java.sql.SQLException;
-import java.time.*;
+import java.time.LocalTime;
+import java.time.OffsetTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -54,7 +45,7 @@ final class QueryCommandWriter extends CommandWriter {
         message = adjutant.allocator().buffer(capacity);
 
         message.writeByte(Messages.Q);
-        message.writeZero(Messages.LENGTH_BYTES); // placeholder
+        message.writeZero(Messages.LENGTH_SIZE); // placeholder
         message.writeBytes(sqlBytes);
         message.writeByte(Messages.STRING_TERMINATOR);
 
@@ -69,7 +60,7 @@ final class QueryCommandWriter extends CommandWriter {
         final int groupSize = sqlGroup.size();
         final ByteBuf message = adjutant.allocator().buffer(groupSize * 50, Integer.MAX_VALUE);
         message.writeByte(Messages.Q);
-        message.writeZero(Messages.LENGTH_BYTES); // placeholder of length
+        message.writeZero(Messages.LENGTH_SIZE); // placeholder of length
         try {
             final Charset charset = adjutant.clientCharset();
             final byte[] semicolonBytes = PgConstant.SPACE_SEMICOLON_SPACE.getBytes(charset);
@@ -112,7 +103,7 @@ final class QueryCommandWriter extends CommandWriter {
         try {
             QueryCommandWriter writer = new QueryCommandWriter(adjutant);
             final ByteBuf message;
-            message = writer.writeBatchBindCommand(stmt);
+            message = writer.writeParamBatchCommand(stmt);
             return Mono.just(message);
         } catch (Throwable e) {
             throw PgExceptions.wrapForMessage(e);
@@ -148,19 +139,26 @@ final class QueryCommandWriter extends CommandWriter {
         pgStmt = adjutant.parse(sql);
         final List<String> sqlPartList = pgStmt.sqlPartList();
 
+        int capacity = sql.length() + (sqlPartList.size() << 3);
+        if (capacity < 0) {
+            capacity = Integer.MAX_VALUE - 128;
+        }
+        final ByteBuf message = adjutant.allocator().buffer(capacity, Integer.MAX_VALUE);
 
-        final ByteBuf message = adjutant.allocator()
-                .buffer(sql.length() + (sqlPartList.size() * 10), Integer.MAX_VALUE);
+        try {
+            message.writeByte(Messages.Q);
+            message.writeZero(Messages.LENGTH_SIZE); // placeholder
 
-        message.writeByte(Messages.Q);
-        message.writeZero(Messages.LENGTH_BYTES); // placeholder
+            writeStatement(-1, sqlPartList, stmt.getBindGroup(), message);
 
-        writeStatement(-1, pgStmt, stmt.getBindGroup(), message);
+            message.writeByte(Messages.STRING_TERMINATOR);
 
-        message.writeByte(Messages.STRING_TERMINATOR);
-
-        Messages.writeLength(message);
-        return message;
+            Messages.writeLength(message);
+            return message;
+        } catch (Throwable e) {
+            message.release();
+            throw PgExceptions.wrapForMessage(e);
+        }
     }
 
 
@@ -168,13 +166,13 @@ final class QueryCommandWriter extends CommandWriter {
         final TaskAdjutant adjutant = this.adjutant;
         int capacity = stmtList.size() << 7;
         if (capacity < 0) {
-            capacity = Integer.MAX_VALUE;
+            capacity = Integer.MAX_VALUE - 128;
         }
         final ByteBuf message = adjutant.allocator().buffer(capacity, Integer.MAX_VALUE);
 
         try {
             message.writeByte(Messages.Q);
-            message.writeZero(Messages.LENGTH_BYTES); // placeholder
+            message.writeZero(Messages.LENGTH_SIZE); // placeholder
 
             final PgParser sqlParser = adjutant.sqlParser();
             PgStatement statement;
@@ -184,60 +182,67 @@ final class QueryCommandWriter extends CommandWriter {
                 stmt = stmtList.get(i);
                 statement = sqlParser.parse(stmt.getSql());
                 if (i > 0) {
-                    message.writeByte(PgConstant.SEMICOLON_BYTE);
+                    message.writeByte(PgConstant.SPACE); // because jdbd-postgre support only the charset that ASCII is one byte
+                    message.writeByte(PgConstant.SEMICOLON);
+                    message.writeByte(PgConstant.SPACE);
                 }
-                writeStatement(i, statement, stmt.getBindGroup(), message);
+                writeStatement(i, statement.sqlPartList(), stmt.getBindGroup(), message);
             }
 
             message.writeByte(Messages.STRING_TERMINATOR);
 
             Messages.writeLength(message);
-
             return message;
         } catch (Throwable e) {
             message.release();
-            throw e;
+            throw PgExceptions.wrapForMessage(e);
         }
     }
 
-    /**
-     * @see #createBindableBatchCommand(BindBatchStmt, TaskAdjutant)
-     */
-    private ByteBuf writeBatchBindCommand(final BindBatchStmt stmt) throws SQLException {
+
+    private ByteBuf writeParamBatchCommand(final ParamBatchStmt stmt) throws JdbdException {
         final TaskAdjutant adjutant = this.adjutant;
         final String sql = stmt.getSql();
-        final List<List<BindValue>> groupList = stmt.getGroupList();
+        final List<List<ParamValue>> groupList = stmt.getGroupList();
         final int stmtCount = groupList.size();
 
         int capacity = (sql.length() + 40) * stmtCount;
         if (capacity < 0) {
-            capacity = Integer.MAX_VALUE;
+            capacity = Integer.MAX_VALUE - 128;
         }
+
+        final List<String> sqlPartList;
+        sqlPartList = adjutant.parse(sql).sqlPartList();
+
         final ByteBuf message = adjutant.allocator().buffer(capacity, Integer.MAX_VALUE);
         try {
             message.writeByte(Messages.Q);
-            message.writeZero(Messages.LENGTH_BYTES); // placeholder
+            message.writeZero(Messages.LENGTH_SIZE); // placeholder
 
-            final PgStatement statement;
-            statement = adjutant.sqlParser().parse(sql);
             for (int i = 0; i < stmtCount; i++) {
                 if (i > 0) {
-                    message.writeByte(PgConstant.SEMICOLON_BYTE);
+                    message.writeByte(PgConstant.SPACE); // because jdbd-postgre support only the charset that ASCII is one byte
+                    message.writeByte(PgConstant.SEMICOLON);
+                    message.writeByte(PgConstant.SPACE);
                 }
-                writeStatement(i, statement, groupList.get(i), message);
+                writeStatement(i, sqlPartList, groupList.get(i), message);
             }
 
             message.writeByte(Messages.STRING_TERMINATOR);
-
             Messages.writeLength(message);
             return message;
         } catch (Throwable e) {
             message.release();
-            throw e;
+            throw PgExceptions.wrapForMessage(e);
         }
+
     }
 
-
+    /**
+     * @see #writeParamStmt(ParamStmt)
+     * @see #writeParamBatchCommand(ParamBatchStmt)
+     * @see #writeMultiBindCommand(List)
+     */
     private void writeStatement(final int stmtIndex, final List<String> sqlPartList, final List<ParamValue> valueList,
                                 final ByteBuf message) throws JdbdException {
 
@@ -289,7 +294,7 @@ final class QueryCommandWriter extends CommandWriter {
     }
 
     /**
-     * @see <a href="https://www.postgresql.org/docs/current/datatype-numeric.html#DATATYPE-INT">Numeric Types</a>
+     * @see <a href="https://www.postgresql.org/docs/current/datatype.html">Data Types</a>
      */
     private void bindBuildInType(final int batchIndex, final ParamValue bindValue, final ByteBuf message)
             throws JdbdException {
@@ -438,35 +443,36 @@ final class QueryCommandWriter extends CommandWriter {
             }
             break;
             case DATE: {
-                final LocalDate value;
-                value = PgBinds.bindToLocalDate(batchIndex, bindValue);
+
+                final String value;
+                value = PgBinds.bindToPostgreDate(batchIndex, bindValue);
 
                 message.writeBytes("DATE ".getBytes(clientCharset));
 
                 message.writeByte(PgConstant.QUOTE);
-                message.writeBytes(value.toString().getBytes(clientCharset));
+                message.writeBytes(value.getBytes(clientCharset));
                 message.writeByte(PgConstant.QUOTE);
             }
             break;
             case TIMESTAMP: {
-                final LocalDateTime value;
-                value = PgBinds.bindToLocalDateTime(batchIndex, bindValue);
+                final String value;
+                value = PgBinds.bindToPostgreTimestamp(batchIndex, bindValue);
 
                 message.writeBytes("TIMESTAMP ".getBytes(clientCharset));
 
                 message.writeByte(PgConstant.QUOTE);
-                message.writeBytes(value.format(PgTimes.DATETIME_FORMATTER_6).getBytes(clientCharset));
+                message.writeBytes(value.getBytes(clientCharset));
                 message.writeByte(PgConstant.QUOTE);
             }
             break;
             case TIMESTAMPTZ: {
-                final OffsetDateTime value;
-                value = PgBinds.bindToOffsetDateTime(batchIndex, bindValue);
+                final String value;
+                value = PgBinds.bindToPostgreTimestampTz(batchIndex, bindValue);
 
                 message.writeBytes("TIMESTAMPTZ ".getBytes(clientCharset));
 
                 message.writeByte(PgConstant.QUOTE);
-                message.writeBytes(value.format(PgTimes.OFFSET_DATETIME_FORMATTER_6).getBytes(clientCharset));
+                message.writeBytes(value.getBytes(clientCharset));
                 message.writeByte(PgConstant.QUOTE);
             }
             break;
@@ -521,30 +527,25 @@ final class QueryCommandWriter extends CommandWriter {
     private void bindArrayObject(final int batchIndex, final ParamValue paramValue, final ByteBuf message)
             throws JdbdException {
 
+        // 1. write array value
+        final int dimension;
+        dimension = writeArrayObject(batchIndex, paramValue, message);
 
-        message.writeByte('E');
-        message.writeByte(PgConstant.QUOTE);
-        final byte[] bytes = v.getBytes(this.clientCharset);
-        writeWithEscape(message, bytes, bytes.length);
-        message.writeByte(PgConstant.QUOTE);
+        // 2. write type suffix
+        final PgType pgType = ((PgType) paramValue.getType()).elementType();
+        assert pgType != null;
 
-        if (paramValue.getType() == PgType.MONEY_ARRAY) {
-            // decimal array must append type converting or result error.
-            final Pair<Class<?>, Integer> pair = PgArrays.getArrayDimensions(paramValue.getNonNull().getClass());
-            if (pair.getFirst() == BigDecimal.class) {
-                final int dimension = pair.getSecond();
-                final StringBuilder builder = new StringBuilder(16 + (dimension << 2));
-                builder.append("::decimal");
-                for (int i = 0; i < dimension; i++) {
-                    builder.append("[]");
-                }
-                builder.append("::money");
-                for (int i = 0; i < dimension; i++) {
-                    builder.append("[]");
-                }
-                message.writeBytes(builder.toString().getBytes(this.clientCharset));
-            }
+        final String typeName = pgType.typeName();
+        final StringBuilder builder = new StringBuilder(typeName.length() + 2 + (dimension << 1));
+        builder.append("::")
+                .append(typeName);
+
+        for (int i = 0; i < dimension; i++) {
+            builder.append("[]");
         }
+
+        message.writeBytes(builder.toString().getBytes(this.clientCharset));
+
 
     }
 
@@ -677,206 +678,6 @@ final class QueryCommandWriter extends CommandWriter {
 
         if (followChar != PgConstant.NUL) {
             message.setByte(startIndex, 'E');
-        }
-
-    }
-
-
-
-    /**
-     * @see #bindParameter(int, BindValue, ByteBuf)
-     */
-    private void bindNonNullToLocalDate(final int batchIndex, BindValue bindValue, ByteBuf message)
-            throws SQLException {
-        if (bindValue.getNonNull() instanceof String
-                && tryWriteDateOrTimestampSpecialValue(bindValue, message)) {
-            return;
-        }
-
-        final LocalDate value;
-        value = PgBinds.bindToLocalDate(batchIndex, bindValue.getType(), bindValue);
-        try {
-            message.writeByte(PgConstant.QUOTE);
-            message.writeBytes(value.format(PgTimes.PG_ISO_LOCAL_DATE_FORMATTER).getBytes(this.clientCharset));
-            message.writeByte(PgConstant.QUOTE);
-        } catch (DateTimeException e) {
-            throw PgExceptions.outOfTypeRange(batchIndex, bindValue.getType(), bindValue);
-        }
-
-    }
-
-
-    /**
-     * @see #bindParameter(int, BindValue, ByteBuf)
-     */
-    private void bindNonNullToOffsetTime(final int batchIndex, BindValue bindValue, ByteBuf message)
-            throws SQLException {
-        final OffsetTime value;
-        value = PgBinds.bindToOffsetTime(batchIndex, bindValue.getType(), bindValue);
-        message.writeByte(PgConstant.QUOTE);
-        message.writeBytes(value.format(PgTimes.ISO_OFFSET_TIME_FORMATTER).getBytes(this.clientCharset));
-        message.writeByte(PgConstant.QUOTE);
-    }
-
-    /**
-     * @see #bindParameter(int, BindValue, ByteBuf)
-     */
-    private void bindNonNullToOffsetDateTime(final int batchIndex, BindValue bindValue, ByteBuf message)
-            throws SQLException {
-
-        if (bindValue.getNonNull() instanceof String
-                && tryWriteDateOrTimestampSpecialValue(bindValue, message)) {
-            return;
-        }
-
-        final OffsetDateTime value;
-        value = PgBinds.bindToOffsetDateTime(batchIndex, bindValue.getType(), bindValue);
-        try {
-            message.writeByte(PgConstant.QUOTE);
-            message.writeBytes(value.format(PgTimes.PG_ISO_OFFSET_DATETIME_FORMATTER).getBytes(this.clientCharset));
-            message.writeByte(PgConstant.QUOTE);
-        } catch (DateTimeException e) {
-            throw PgExceptions.outOfTypeRange(batchIndex, bindValue.getType(), bindValue);
-        }
-
-    }
-
-
-    /**
-     * @see #bindParameter(int, BindValue, ByteBuf)
-     */
-    private void bindNonNullToLocalDateTime(final int batchIndex, BindValue bindValue, ByteBuf message)
-            throws SQLException {
-        if (bindValue.getNonNull() instanceof String
-                && tryWriteDateOrTimestampSpecialValue(bindValue, message)) {
-            return;
-        }
-
-        final LocalDateTime value;
-        value = PgBinds.bindToLocalDateTime(batchIndex, bindValue.getType(), bindValue);
-
-        message.writeByte(PgConstant.QUOTE);
-        try {
-            message.writeBytes(value.format(PgTimes.PG_ISO_LOCAL_DATETIME_FORMATTER).getBytes(this.clientCharset));
-        } catch (DateTimeException e) {
-            throw PgExceptions.outOfTypeRange(batchIndex, bindValue.getType(), bindValue);
-        }
-        message.writeByte(PgConstant.QUOTE);
-    }
-
-    /**
-     * @return true : bindValue is special value and write complete.
-     */
-    private boolean tryWriteDateOrTimestampSpecialValue(BindValue bindValue, ByteBuf message) {
-        switch (bindValue.getType()) {
-            case TIMESTAMP:
-            case DATE:
-            case TIMESTAMPTZ:
-//            case TIMESTAMP_ARRAY:
-//            case DATE_ARRAY:
-//            case TIMESTAMPTZ_ARRAY:
-                break;
-            default:
-                throw new IllegalArgumentException("bind value error");
-        }
-        final String textValue = ((String) bindValue.getNonNull()).toLowerCase();
-        switch (textValue) {
-            case PgConstant.INFINITY:
-            case PgConstant.NEG_INFINITY: {
-                message.writeByte(PgConstant.QUOTE);
-                message.writeBytes(textValue.getBytes(this.clientCharset));
-                message.writeByte(PgConstant.QUOTE);
-            }
-            return true; // write complete
-            default:
-        }
-        return false;
-    }
-
-
-    /**
-     * @see #bindNonNullToString(int, BindValue, ByteBuf)
-     */
-    private void writeTextPathWithEscapes(final int batchIndex, BindValue bindValue, ByteBuf message) {
-        final Path path = (Path) bindValue.getNonNull();
-        try (FileChannel channel = FileChannel.open(path, StandardOpenOption.READ)) {
-            message.writeByte('E');
-            message.writeByte(PgConstant.QUOTE);
-
-            final byte[] bufferArray = new byte[2048];
-            final ByteBuffer buffer = ByteBuffer.wrap(bufferArray);
-
-            final CharsetDecoder decoder;
-            final CharsetEncoder encoder;
-
-            if (this.clientUtf8) {
-                decoder = null;
-                encoder = null;
-            } else {
-                decoder = StandardCharsets.UTF_8.newDecoder();
-                encoder = this.clientCharset.newEncoder();
-            }
-            while (channel.read(buffer) > 0) {
-                buffer.flip();
-                if (decoder == null) {
-                    writeWithEscape(message, bufferArray, buffer.remaining());
-                } else {
-                    final ByteBuffer bf = encoder.encode(decoder.decode(buffer));
-                    final byte[] encodedBytes;
-                    final int length = bf.remaining();
-                    if (bf.hasArray()) {
-                        encodedBytes = bf.array();
-                    } else {
-                        encodedBytes = new byte[length];
-                        bf.get(encodedBytes);
-                    }
-                    writeWithEscape(message, encodedBytes, length);
-                }
-                buffer.clear();
-            }
-
-            message.writeByte(PgConstant.QUOTE);
-        } catch (Throwable e) {
-            String msg = String.format("batch[%s] parameter[%s] read text path[%s] occur error."
-                    , batchIndex, bindValue.getIndex(), path);
-            throw new LongDataReadException(msg, e);
-        }
-
-    }
-
-
-    /**
-     * @see #bindNonNullToString(int, BindValue, ByteBuf)
-     * @see #bindToBytea(int, BindValue, ByteBuf)
-     * @see #writeBinaryPathWithEscapes(int, BindValue, ByteBuf)
-     */
-    private void writeWithEscape(ByteBuf message, final byte[] bytes, final int length) {
-        if (length < 0 || length > bytes.length) {
-            throw new IllegalArgumentException(String.format(
-                    "length[%s] and bytes.length[%s] not match.", length, bytes.length));
-        }
-        int lastWritten = 0;
-        byte b;
-        for (int i = 0; i < length; i++) {
-            b = bytes[i];
-            if (b == PgConstant.QUOTE) {
-                if (i > lastWritten) {
-                    message.writeBytes(bytes, lastWritten, i - lastWritten);
-                }
-                message.writeByte(PgConstant.QUOTE);
-                lastWritten = i;
-            } else if (b == PgConstant.BACK_SLASH_BYTE) {
-                if (i > lastWritten) {
-                    message.writeBytes(bytes, lastWritten, i - lastWritten);
-                }
-                message.writeByte(PgConstant.BACK_SLASH_BYTE);
-                lastWritten = i;
-            }
-
-        }
-
-        if (lastWritten < length) {
-            message.writeBytes(bytes, lastWritten, length - lastWritten);
         }
 
     }

@@ -21,9 +21,11 @@ public abstract class MySQLBinds extends JdbdBinds {
     private static final Map<String, MySQLType> MYSQL_TYPE_MAP = createSqlTypeMap(MySQLType.values());
 
     @Nullable
-    public static MySQLType handleDataType(final DataType dataType) {
+    public static MySQLType mapDataType(final DataType dataType) {
         final MySQLType type;
-        if (dataType instanceof MySQLType) {
+        if (dataType == MySQLType.UNKNOWN) {
+            type = null;
+        } else if (dataType instanceof MySQLType) {
             type = (MySQLType) dataType;
         } else if (!(dataType instanceof JdbdType)) {
             type = MYSQL_TYPE_MAP.get(dataType.typeName().toUpperCase(Locale.ROOT));
@@ -127,6 +129,9 @@ public abstract class MySQLBinds extends JdbdBinds {
             case VARCHAR:
                 type = MySQLType.VARCHAR;
                 break;
+            case ENUM:
+                type = MySQLType.ENUM;
+                break;
             case TINYTEXT:
                 type = MySQLType.TINYTEXT;
                 break;
@@ -150,14 +155,13 @@ public abstract class MySQLBinds extends JdbdBinds {
             case LINE_STRING:
             case LINE:
             case LINEAR_RING:
-            case MULTI_POINT:
-            case MULTI_POLYGON:
-            case MULTI_LINE_STRING:
             case POLYGON:
+            case MULTI_POINT:
+            case MULTI_LINE_STRING:
+            case MULTI_POLYGON:
             case GEOMETRY_COLLECTION:
                 type = MySQLType.GEOMETRY;
                 break;
-
             case REF:
             case XML:
             case ARRAY:
