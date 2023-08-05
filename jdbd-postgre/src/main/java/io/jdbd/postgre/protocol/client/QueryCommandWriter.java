@@ -4,7 +4,6 @@ import io.jdbd.JdbdException;
 import io.jdbd.meta.DataType;
 import io.jdbd.postgre.PgConstant;
 import io.jdbd.postgre.PgType;
-import io.jdbd.postgre.syntax.PgParser;
 import io.jdbd.postgre.syntax.PgStatement;
 import io.jdbd.postgre.util.*;
 import io.jdbd.vendor.stmt.*;
@@ -178,13 +177,12 @@ final class QueryCommandWriter extends CommandWriter {
             message.writeByte(Messages.Q);
             message.writeZero(Messages.LENGTH_SIZE); // placeholder
 
-            final PgParser sqlParser = adjutant.sqlParser();
             PgStatement statement;
             ParamStmt stmt;
             final int stmtCount = stmtList.size();
             for (int i = 0; i < stmtCount; i++) {
                 stmt = stmtList.get(i);
-                statement = sqlParser.parse(stmt.getSql());
+                statement = adjutant.parse(stmt.getSql());
                 if (i > 0) {
                     message.writeByte(PgConstant.SPACE); // because jdbd-postgre support only the charset that ASCII is one byte
                     message.writeByte(PgConstant.SEMICOLON);
@@ -373,6 +371,7 @@ final class QueryCommandWriter extends CommandWriter {
 
             case JSON:
             case JSONB:
+            case JSONPATH:
             case XML:
 
             case POINT:

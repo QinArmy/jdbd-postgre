@@ -3,13 +3,17 @@ package io.jdbd.postgre;
 
 import io.jdbd.meta.JdbdType;
 import io.jdbd.meta.SQLType;
+import io.jdbd.postgre.util.PgCollections;
 import io.jdbd.type.Interval;
 import io.jdbd.type.Point;
 import reactor.util.annotation.Nullable;
 
 import java.math.BigDecimal;
 import java.time.*;
-import java.util.*;
+import java.util.BitSet;
+import java.util.Collections;
+import java.util.Map;
+import java.util.UUID;
 
 /**
  * <p>
@@ -66,6 +70,9 @@ public enum PgType implements SQLType {
 
     JSON(PgConstant.TYPE_JSON, JdbdType.JSON, String.class),
     JSONB(PgConstant.TYPE_JSONB, JdbdType.JSONB, String.class),
+
+    JSONPATH(PgConstant.TYPE_JSONPATH, JdbdType.DIALECT_TYPE, String.class),
+
     MACADDR(PgConstant.TYPE_MAC_ADDR, JdbdType.DIALECT_TYPE, String.class),
     MACADDR8(PgConstant.TYPE_MAC_ADDR8, JdbdType.DIALECT_TYPE, String.class),
     INET(PgConstant.TYPE_INET, JdbdType.DIALECT_TYPE, String.class),
@@ -125,6 +132,7 @@ public enum PgType implements SQLType {
     XML_ARRAY(PgConstant.TYPE_XML_ARRAY, XML),
     JSON_ARRAY(PgConstant.TYPE_JSON_ARRAY, JSON),
     JSONB_ARRAY(PgConstant.TYPE_JSONB_ARRAY, JSONB),
+    JSONPATH_ARRAY(PgConstant.TYPE_JSONPATH_ARRAY, JSONPATH),
 
     TSVECTOR_ARRAY(PgConstant.TYPE_TSVECTOR_ARRAY, TSVECTOR),
     TSQUERY_ARRAY(PgConstant.TYPE_TSQUERY_ARRAY, TSQUERY),
@@ -171,24 +179,30 @@ public enum PgType implements SQLType {
 
     private final short typeOid;
 
+    private final String typeName;
+
     private final JdbdType jdbdType;
 
     private final Class<?> javaType;
 
     private final PgType elementType;
 
+
     PgType(short typeOid, JdbdType jdbdType, Class<?> javaType) {
         if (jdbdType == JdbdType.ARRAY) {
             throw new IllegalArgumentException(String.format("jdbcType[%s] error", jdbdType));
         }
         this.typeOid = typeOid;
+        this.typeName = this.name();
         this.jdbdType = jdbdType;
         this.javaType = javaType;
+
         this.elementType = null;
     }
 
     PgType(short typeOid, PgType elementType) {
         this.typeOid = typeOid;
+        this.typeName = elementType.name() + "[]";
         this.jdbdType = JdbdType.ARRAY;
         this.javaType = Object.class;
         this.elementType = elementType;
@@ -196,14 +210,13 @@ public enum PgType implements SQLType {
 
 
     @Override
-    public String typeName() {
-        return null;
+    public final String typeName() {
+        return this.typeName;
     }
 
-
     @Override
-    public JdbdType jdbdType() {
-        return null;
+    public final JdbdType jdbdType() {
+        return this.jdbdType;
     }
 
     @Override
@@ -212,7 +225,8 @@ public enum PgType implements SQLType {
     }
 
     @Override
-    public Class<?> secondJavaType() {
+    public final Class<?> secondJavaType() {
+        //TODO
         return null;
     }
 
@@ -240,42 +254,7 @@ public enum PgType implements SQLType {
 
     @Override
     public final String vendor() {
-        return PgType.class.getPackage().getName();
-    }
-
-
-    /**
-     *
-     */
-    private String getNonArrayTypeName() {
-        final String name;
-        switch (this) {
-            case TIMESTAMPTZ:
-                name = "TIMESTAMP WITH TIME ZONE";
-                break;
-            case TIMETZ:
-                name = "TIME WITH TIME ZONE";
-                break;
-            default:
-                name = toActualTypeName();
-        }
-        return name;
-    }
-
-    /**
-     * @see #getNonArrayTypeName()
-     */
-    private String toActualTypeName() {
-        final String name = this.name();
-        final char[] array = name.toCharArray();
-        boolean replace = false;
-        for (int i = 0; i < array.length; i++) {
-            if (array[i] == '_') {
-                array[i] = ' ';
-                replace = true;
-            }
-        }
-        return replace ? new String(array) : name;
+        return PgDriver.DRIVER_VENDOR;
     }
 
 
@@ -301,10 +280,11 @@ public enum PgType implements SQLType {
 
     /**
      * @return a unmodified map.
+     * @see #CODE_TO_TYPE_MAP
      */
     private static Map<Short, PgType> createCodeToTypeMap() {
         final PgType[] values = PgType.values();
-        Map<Short, PgType> map = new HashMap<>((int) (values.length / 0.75f));
+        Map<Short, PgType> map = PgCollections.hashMap((int) (values.length / 0.75f));
         for (PgType type : PgType.values()) {
             if (map.containsKey(type.typeOid)) {
                 throw new IllegalStateException(String.format("Type[%s] oid[%s] duplication.", type, type.typeOid));

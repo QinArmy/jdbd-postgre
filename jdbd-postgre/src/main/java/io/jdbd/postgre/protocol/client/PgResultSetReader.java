@@ -173,7 +173,7 @@ final class PgResultSetReader implements ResultSetReader {
         final byte[] bytes = new byte[valueLength];
         cumulateBuffer.readBytes(bytes);
         final Object value;
-        if (meta.sqlType == PgType.BYTEA) {
+        if (meta.dataType == PgType.BYTEA) {
             if (bytes.length > 1 && bytes[0] == '\\' && bytes[1] == 'x') {
                 byte[] v = Arrays.copyOfRange(bytes, 2, bytes.length);
                 value = LongBinaries.fromArray(JdbdBuffers.decodeHex(v, v.length));

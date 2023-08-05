@@ -764,7 +764,7 @@ public class TaskTestAdvice extends AbstractTaskTests {
 
             assertNull(meta.getColumnName(index), "columnName");
             assertEquals(meta.getKeyMode(index), KeyMode.UNKNOWN, "keyMode");
-            assertFalse(meta.isAutoIncrement(index), "autoIncrement");
+            assertFalse(meta.getAutoIncrementMode(index), "autoIncrement");
 
         } catch (Throwable e) {
             throw new RuntimeException(meta.getColumnLabel(index), e);

@@ -1,7 +1,10 @@
 package io.jdbd.postgre.protocol.client;
 
+import io.jdbd.meta.DataType;
 import io.jdbd.postgre.PgConstant;
 import io.jdbd.postgre.PgType;
+import io.jdbd.postgre.util.PgStrings;
+import io.jdbd.vendor.result.ColumnMeta;
 import io.netty.buffer.ByteBuf;
 
 import java.nio.charset.Charset;
@@ -10,11 +13,11 @@ import java.nio.charset.Charset;
  * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">RowDescription</a>
  * @see <a href="https://www.postgresql.org/docs/current/datatype-datetime.html">Date/Time Types</a>
  */
-final class PgColumnMeta {
+final class PgColumnMeta implements ColumnMeta {
 
     static final PgColumnMeta[] EMPTY = new PgColumnMeta[0];
 
-    final int index;
+    final int columnIndex;
 
     final String columnLabel;
 
@@ -30,35 +33,46 @@ final class PgColumnMeta {
 
     final boolean textFormat;
 
-    final PgType sqlType;
+    final DataType dataType;
 
 
-    private PgColumnMeta(int index, String columnLabel, int tableOid
-            , short columnAttrNum, int columnTypeOid
-            , short columnTypeSize, int columnModifier
-            , boolean textFormat, PgType sqlType) {
+    /**
+     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">RowDescription</a>
+     * @see <a href="https://www.postgresql.org/docs/current/datatype-datetime.html">Date/Time Types</a>
+     */
+    private PgColumnMeta(int columnIndex, final ByteBuf cumulateBuffer, final Charset charset,
+                         final TaskAdjutant adjutant) {
 
-        this.index = index;
+        this.columnIndex = columnIndex;
 
-        this.columnLabel = columnLabel;
-        this.tableOid = tableOid;
-        this.columnAttrNum = columnAttrNum;
-        this.columnTypeOid = columnTypeOid;
+        this.columnLabel = Messages.readString(cumulateBuffer, charset);
+        this.tableOid = cumulateBuffer.readInt();
+        this.columnAttrNum = cumulateBuffer.readShort();
+        this.columnTypeOid = cumulateBuffer.readInt();
 
-        this.columnTypeSize = columnTypeSize;
-        this.columnModifier = columnModifier;
-        this.textFormat = textFormat;
-        this.sqlType = sqlType;
+        this.columnTypeSize = cumulateBuffer.readShort();
+        this.columnModifier = cumulateBuffer.readInt();
+        this.textFormat = cumulateBuffer.readShort() == 0;
+
+        final PgType pgType;
+        pgType = PgType.from(this.columnTypeOid);
+        if (pgType == PgType.UNSPECIFIED) {
+            this.dataType = adjutant.handleUnknownType(this.columnTypeOid);
+        } else {
+            this.dataType = pgType;
+        }
     }
 
+
     @Override
-    public final String toString() {
-        return new StringBuilder(PgColumnMeta.class.getSimpleName())
+    public String toString() {
+        return PgStrings.builder()
+                .append(PgColumnMeta.class.getSimpleName())
                 .append("{")
                 .append("\ncolumnLabel=")
                 .append(this.columnLabel)
                 .append("\npgType=")
-                .append(this.sqlType)
+                .append(this.dataType)
                 .append("\ncolumnTypeId=")
                 .append(this.columnTypeOid)
                 .append("\ntableOid=")
@@ -76,14 +90,43 @@ final class PgColumnMeta {
     }
 
 
-    final int getScale() {
-        final int scale;
-        switch (this.sqlType) {
+    @Override
+    public int getColumnIndex() {
+        return this.columnIndex;
+    }
+
+    @Override
+    public DataType getDataType() {
+        return this.dataType;
+    }
+
+    @Override
+    public String getColumnLabel() {
+        return this.columnLabel;
+    }
+
+    @Override
+    public boolean isUnsigned() {
+        // postgre don't support unsigned
+        return false;
+    }
+
+    @Override
+    public boolean isBit() {
+        return this.dataType == PgType.BIT || this.dataType == PgType.VARBIT;
+    }
+
+    int getScale() {
+        final DataType dataType = this.dataType;
+        if (!(dataType instanceof PgType)) {
+            return -1;
+        }
+        final int scale, modifier = this.columnModifier;
+        switch ((PgType) dataType) {
             case DECIMAL:
-            case DECIMAL_ARRAY: {
-                scale = this.columnModifier == -1 ? 0 : ((this.columnModifier - 4) & 0xFFFF);
-            }
-            break;
+            case DECIMAL_ARRAY:
+                scale = modifier == -1 ? 0 : ((modifier - 4) & 0xFFFF);
+                break;
             case TIME:
             case TIMETZ:
             case TIMESTAMP:
@@ -92,24 +135,28 @@ final class PgColumnMeta {
             case TIMETZ_ARRAY:
             case TIMESTAMP_ARRAY:
             case TIMESTAMPTZ_ARRAY: {
-                scale = this.columnModifier == -1 ? 6 : this.columnModifier;
+                scale = modifier == -1 ? 6 : modifier;
             }
             break;
             case INTERVAL:
             case INTERVAL_ARRAY: {
-                scale = this.columnModifier == -1 ? 6 : (this.columnModifier & 0xFFFF);
+                scale = modifier == -1 ? 6 : (modifier & 0xFFFF);
             }
             break;
             default:
-                scale = 0;
+                scale = -1;
 
         }
         return scale;
     }
 
-    final int getPrecision() {
-        final int precision;
-        switch (this.sqlType) {
+    int getPrecision() {
+        final DataType dataType = this.dataType;
+        if (!(dataType instanceof PgType)) {
+            return -1;
+        }
+        final int precision, modifier = this.columnModifier;
+        switch ((PgType) dataType) {
             case SMALLINT:
             case SMALLINT_ARRAY:
                 precision = 2;
@@ -134,29 +181,29 @@ final class PgColumnMeta {
             case TIMESTAMPTZ_ARRAY:
                 precision = 8;
                 break;
+            case TIMETZ:
+            case TIMETZ_ARRAY:
+                precision = 12;
+                break;
             case DECIMAL:
             case DECIMAL_ARRAY:
-                precision = this.columnModifier == -1 ? 0 : (((this.columnModifier - 4) & 0xFFFF0000) >> 16);
+                precision = modifier == -1 ? 0 : (((modifier - 4) & 0xFFFF0000) >> 16);
                 break;
             case CHAR:
             case CHAR_ARRAY: {
                 switch (this.columnTypeOid) {
                     case PgConstant.TYPE_CHAR:
                     case PgConstant.TYPE_CHAR_ARRAY:
-                        precision = this.columnModifier == -1 ? 1 : (this.columnModifier - 4);
+                        precision = modifier == -1 ? 1 : (modifier - 4);
                         break;
                     default:
-                        precision = this.columnModifier - 4;
+                        precision = modifier - 4;
                 }
             }
             break;
             case VARCHAR:
             case VARCHAR_ARRAY:
-                precision = this.columnModifier - 4;
-                break;
-            case TIMETZ:
-            case TIMETZ_ARRAY:
-                precision = 12;
+                precision = modifier - 4;
                 break;
             case INTERVAL:
             case INTERVAL_ARRAY:
@@ -184,10 +231,10 @@ final class PgColumnMeta {
             case BIT_ARRAY:
             case VARBIT:
             case VARBIT_ARRAY:
-                precision = this.columnModifier;
+                precision = modifier;
                 break;
             default:
-                precision = 0;
+                precision = -1;
         }
         return precision;
     }
@@ -196,15 +243,15 @@ final class PgColumnMeta {
     /**
      * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">RowDescription</a>
      */
-    static PgColumnMeta[] read(final ByteBuf message, final TaskAdjutant adjutant) {
-        if (message.readByte() != Messages.T) {
+    static PgColumnMeta[] read(final ByteBuf cumulateBuffer, final TaskAdjutant adjutant) {
+        if (cumulateBuffer.readByte() != Messages.T) {
             throw new IllegalArgumentException("Not RowDescription message.");
         }
-        final int bodyIndex = message.readerIndex(), length = message.readInt();
-        final int columnCount = message.readShort(), nextMsgIndex = bodyIndex + length;
+        final int bodyIndex = cumulateBuffer.readerIndex(), length = cumulateBuffer.readInt();
+        final int columnCount = cumulateBuffer.readShort(), nextMsgIndex = bodyIndex + length;
 
         if (columnCount == 0) {
-            message.readerIndex(nextMsgIndex);//avoid tail filler
+            cumulateBuffer.readerIndex(nextMsgIndex);//avoid tail filler
             return EMPTY;
         }
 
@@ -213,23 +260,10 @@ final class PgColumnMeta {
 
         for (int i = 0; i < columnCount; i++) {
 
-            String columnAlias = Messages.readString(message, charset);
-            int tableOid = message.readInt();
-            short columnAttrNum = message.readShort();
-            int columnTypeOid = message.readInt();
-
-            short columnTypeSize = message.readShort();
-            int columnModifier = message.readInt();
-            boolean textFormat = message.readShort() == 0;
-
-            columnMetas[i] = new PgColumnMeta(i
-                    , columnAlias, tableOid
-                    , columnAttrNum, columnTypeOid
-                    , columnTypeSize, columnModifier
-                    , textFormat, PgType.from(columnTypeOid));
+            columnMetas[i] = new PgColumnMeta(i, cumulateBuffer, charset, adjutant);
         }
 
-        message.readerIndex(nextMsgIndex);//avoid tail filler
+        cumulateBuffer.readerIndex(nextMsgIndex);//avoid tail filler
         return columnMetas;
     }
 

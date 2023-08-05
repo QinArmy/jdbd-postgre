@@ -51,9 +51,9 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
             throws UnsupportedConvertingException {
         final PgColumnMeta meta = this.rowMeta.columnMetaArray[indexBaseZero];
         final List<T> value;
-        if (!(nonNull instanceof byte[]) && nonNull.getClass().isArray() && meta.sqlType.isArray()) {
+        if (!(nonNull instanceof byte[]) && nonNull.getClass().isArray() && meta.dataType.isArray()) {
             final Pair<Class<?>, Integer> pair = JdbdArrays.getArrayDimensions(nonNull.getClass());
-            final PgType elementType = Objects.requireNonNull(meta.sqlType.elementType());
+            final PgType elementType = Objects.requireNonNull(meta.dataType.elementType());
             if (pair.getFirst() == elementType.firstJavaType() && pair.getSecond() == 1) {
                 value = convertOneDimensionArrayToList(nonNull, elementClass);
             } else {
@@ -78,7 +78,7 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
             return false;
         }
         final boolean need;
-        switch (meta.sqlType) {
+        switch (meta.dataType) {
             case BYTEA://This types that from text protocol have parsed by {@link io.jdbd.postgre.protocol.client.ResultSetReader}.
                 need = false;
                 break;
@@ -97,7 +97,7 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
             }
             break;
             default: {
-                if (meta.sqlType.isArray()) {
+                if (meta.dataType.isArray()) {
                     need = columnClass != null && columnClass != String.class;
                 } else {
                     need = columnClass != String.class;
@@ -120,7 +120,7 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
                 Class<?> arrayType = pair.getFirst();
                 if (arrayType == byte.class) {
                     if (pair.getSecond() < 2) {
-                        throw createNotSupportedException(meta.index, columnClass);
+                        throw createNotSupportedException(meta.columnIndex, columnClass);
                     }
                     arrayType = byte[].class;
                 }
@@ -176,7 +176,7 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
             , final Class<?> targetArrayClass)
             throws IllegalArgumentException {
         final Object value;
-        switch (meta.sqlType) {
+        switch (meta.dataType) {
             case BOOLEAN_ARRAY: {
                 value = ColumnArrays.readBooleanArray(textValue, meta, targetArrayClass);
             }
@@ -208,7 +208,7 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
             break;
             case TIME_ARRAY: {
                 if (targetArrayClass != LocalTime.class) {
-                    throw createNotSupportedException(meta.index, targetArrayClass);
+                    throw createNotSupportedException(meta.columnIndex, targetArrayClass);
                 }
                 value = ColumnArrays.readTimeArray(textValue, meta);
             }
@@ -223,7 +223,7 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
             break;
             case TIMETZ_ARRAY: {
                 if (targetArrayClass != OffsetTime.class) {
-                    throw createNotSupportedException(meta.index, targetArrayClass);
+                    throw createNotSupportedException(meta.columnIndex, targetArrayClass);
                 }
                 value = ColumnArrays.readTimeTzArray(textValue, meta);
             }
@@ -309,13 +309,13 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
             break;
             case REF_CURSOR_ARRAY: {
                 if (LOG.isTraceEnabled()) {
-                    LOG.trace("read array type {}", meta.sqlType);
+                    LOG.trace("read array type {}", meta.dataType);
                 }
                 value = textValue;
             }
             break;
             default: {
-                if (targetArrayClass.isEnum() && meta.sqlType == PgType.UNSPECIFIED) {
+                if (targetArrayClass.isEnum() && meta.dataType == PgType.UNSPECIFIED) {
                     value = ColumnArrays.readTextArray(textValue, meta, targetArrayClass);
                 } else {
                     value = textValue;
@@ -331,7 +331,7 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
             , @Nullable final Class<?> columnClass)
             throws IllegalArgumentException {
         final Object value;
-        switch (meta.sqlType) {
+        switch (meta.dataType) {
             case SMALLINT: {
                 value = Short.parseShort(textValue);
             }
@@ -466,7 +466,7 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
             }
             break;
             case BYTEA: {
-                throw new IllegalArgumentException(String.format("%s have parsed.", meta.sqlType));
+                throw new IllegalArgumentException(String.format("%s have parsed.", meta.dataType));
             }
             default: {
                 // unknown type
@@ -539,7 +539,7 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
             }
             return (BigDecimal) value;
         } catch (Throwable e) {
-            final PgType pgType = meta.sqlType;
+            final PgType pgType = meta.dataType;
             final String columnLabel = meta.columnLabel;
             String m;
             m = String.format("Column[%s] postgre %s type convert to  java type BigDecimal failure."
@@ -561,10 +561,10 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
 
     static UnsupportedConvertingException notSupportConverting(PgColumnMeta meta, Class<?> targetClass) {
         String message = String.format("Not support convert from (index[%s] label[%s] and sql type[%s]) to %s.",
-                meta.index, meta.columnLabel
-                , meta.sqlType, targetClass.getName());
+                meta.columnIndex, meta.columnLabel
+                , meta.dataType, targetClass.getName());
 
-        return new UnsupportedConvertingException(message, meta.sqlType, targetClass);
+        return new UnsupportedConvertingException(message, meta.dataType, targetClass);
     }
 
     static JdbdSQLException createResponseTextColumnValueError(@Nullable Throwable cause, PgColumnMeta meta
@@ -581,12 +581,12 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
         String format;
         format = "Column[index:%s,label:%s] %s.getCurrencyInstance(Locale) method don't return %s instance,so can't convert postgre %s type to java type BigDecimal,jdbd-postgre need to upgrade.";
         String msg = String.format(format
-                , meta.index
+                , meta.columnIndex
                 , meta.columnLabel
                 , NumberFormat.class.getName()
                 , DecimalFormat.class.getName()
-                , meta.sqlType);
-        return new UnsupportedConvertingException(msg, meta.sqlType, BigDecimal.class);
+                , meta.dataType);
+        return new UnsupportedConvertingException(msg, meta.dataType, BigDecimal.class);
     }
 
 

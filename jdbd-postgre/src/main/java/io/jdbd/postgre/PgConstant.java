@@ -17,11 +17,6 @@ public interface PgConstant {
     String SPACE_SEMICOLON_SPACE = " ; ";
 
     byte BACK_SLASH_BYTE = '\\';
-    byte QUOTE_BYTE = '\'';
-    byte SEMICOLON_BYTE = ';';
-    byte NUL_BYTE = '\0';
-
-    byte SPACE_BYTE = ' ';
 
     char NUL = '\0';
 
@@ -41,15 +36,15 @@ public interface PgConstant {
 
     char BACK_SLASH = '\\';
 
-    short TYPE_UNSPECIFIED = 0;
-    short TYPE_INT2 = 21;
+    byte TYPE_UNSPECIFIED = 0;
+    byte TYPE_INT2 = 21;
     short TYPE_INT2_ARRAY = 1005;
-    short TYPE_INT4 = 23;
+    byte TYPE_INT4 = 23;
 
     short TYPE_INT4_ARRAY = 1007;
-    short TYPE_INT8 = 20;
+    byte TYPE_INT8 = 20;
     short TYPE_INT8_ARRAY = 1016;
-    short TYPE_TEXT = 25;
+    byte TYPE_TEXT = 25;
 
     short TYPE_TEXT_ARRAY = 1009;
     short TYPE_NUMERIC = 1700;
@@ -59,7 +54,7 @@ public interface PgConstant {
     short TYPE_FLOAT4_ARRAY = 1021;
     short TYPE_FLOAT8 = 701;
     short TYPE_FLOAT8_ARRAY = 1022;
-    short TYPE_BOOLEAN = 16;
+    byte TYPE_BOOLEAN = 16;
 
     short TYPE_BOOLEAN_ARRAY = 1000;
     short TYPE_DATE = 1082;
@@ -74,12 +69,12 @@ public interface PgConstant {
     short TYPE_TIMESTAMP_ARRAY = 1115;
     short TYPE_TIMESTAMPTZ = 1184;
     short TYPE_TIMESTAMPTZ_ARRAY = 1185;
-    short TYPE_BYTEA = 17;
+    byte TYPE_BYTEA = 17;
 
     short TYPE_BYTEA_ARRAY = 1001;
     short TYPE_VARCHAR = 1043;
     short TYPE_VARCHAR_ARRAY = 1015;
-    short TYPE_OID = 26;
+    byte TYPE_OID = 26;
 
     short TYPE_INT4RANGE = 3904;
 
@@ -109,7 +104,7 @@ public interface PgConstant {
     short TYPE_MONEY = 790;
 
     short TYPE_MONEY_ARRAY = 791;
-    short TYPE_NAME = 19;
+    byte TYPE_NAME = 19;
     short TYPE_NAME_ARRAY = 1003;
     short TYPE_BIT = 1560;
 
@@ -118,7 +113,7 @@ public interface PgConstant {
     short TYPE_INTERVAL = 1186;
     short TYPE_INTERVAL_ARRAY = 1187;
 
-    short TYPE_CHAR = 18; // This is not char(N), this is "char" a single byte type.
+    byte TYPE_CHAR = 18; // This is not char(N), this is "char" a single byte type.
     short TYPE_CHAR_ARRAY = 1002;
     short TYPE_VARBIT = 1562;
     short TYPE_VARBIT_ARRAY = 1563;
@@ -139,6 +134,10 @@ public interface PgConstant {
     short TYPE_BOX = 603;
 
     short TYPE_JSONB = 3802;
+
+    short TYPE_JSONPATH = 4072;
+
+    short TYPE_JSONPATH_ARRAY = 4073;
     short TYPE_JSONB_ARRAY = 3807;
     short TYPE_JSON = 114;
     short TYPE_JSON_ARRAY = 199;

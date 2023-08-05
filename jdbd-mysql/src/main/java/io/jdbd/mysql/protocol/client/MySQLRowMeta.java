@@ -89,10 +89,6 @@ final class MySQLRowMeta extends VendorResultRowMeta {
         return rowMeta;
     }
 
-    @Deprecated
-    static MySQLRowMeta from(MySQLColumnMeta[] mySQLColumnMetas, Map<Integer, Charsets.CustomCollation> customCollationMap) {
-        throw new UnsupportedOperationException();
-    }
 
 
     final MySQLColumnMeta[] columnMetaArray;
@@ -117,14 +113,13 @@ final class MySQLRowMeta extends VendorResultRowMeta {
 
     private MySQLRowMeta(final MySQLColumnMeta[] columnMetaArray, StmtTask stmtTask) {
         super(stmtTask.nextResultIndex());
-        if (this.resultIndex < 0) {
+        if (this.resultNo < 0) {
             throw new IllegalArgumentException("resultIndex must great than -1");
         }
         this.columnMetaArray = columnMetaArray;
         final TaskAdjutant adjutant = stmtTask.adjutant();
         this.customCollationMap = adjutant.obtainCustomCollationMap();
         this.serverZone = adjutant.serverZone();
-
     }
 
     @Override
@@ -158,7 +153,7 @@ final class MySQLRowMeta extends VendorResultRowMeta {
     }
 
     @Override
-    public boolean isAutoIncrement(int indexBasedZero) throws JdbdException {
+    public boolean getAutoIncrementMode(int indexBasedZero) throws JdbdException {
         return false;
     }
 
@@ -202,18 +197,14 @@ final class MySQLRowMeta extends VendorResultRowMeta {
         return null;
     }
 
+
     @Override
-    public boolean isReadOnly(int indexBasedZero) throws JdbdException {
-        return false;
+    public Class<?> getFirstJavaType(int indexBasedZero) throws JdbdException {
+        return null;
     }
 
     @Override
-    public boolean isWritable(int indexBasedZero) throws JdbdException {
-        return false;
-    }
-
-    @Override
-    public Class<?> getOutputJavaType(int indexBasedZero) throws JdbdException {
+    public Class<?> getSecondJavaType(int indexBasedZero) throws JdbdException {
         return null;
     }
 

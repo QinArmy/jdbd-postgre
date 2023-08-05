@@ -45,7 +45,7 @@ abstract class MySQLRow extends VendorRow {
 
     @Override
     public final int getResultNo() {
-        return this.rowMeta.resultIndex;
+        return this.rowMeta.resultNo;
     }
 
     @Override

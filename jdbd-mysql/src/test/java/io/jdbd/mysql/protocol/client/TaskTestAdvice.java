@@ -233,7 +233,7 @@ public class TaskTestAdvice extends AbstractTaskSuiteTests {
         assertEquals(rowMeta.getDataType("id"), MySQLType.BIGINT, "id mysql type");
         assertFalse(rowMeta.getJdbdType("id").isUnsigned(), "id isUnsigned");
         assertEquals(rowMeta.getNullMode("id"), NullMode.NON_NULL, "id null mode.");
-        assertTrue(rowMeta.isAutoIncrement("id"), "id isAutoIncrement");
+        assertTrue(rowMeta.getAutoIncrementMode("id"), "id isAutoIncrement");
 
 
         final LocalDateTime createTime = row.get("createTime", LocalDateTime.class);

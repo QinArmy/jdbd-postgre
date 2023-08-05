@@ -79,7 +79,7 @@ abstract class PgCommandTask extends PgTask implements StmtTask {
     }
 
     @Override
-    public final boolean readResultStateWithReturning(ByteBuf cumulateBuffer, Supplier<Integer> resultIndexes) {
+    public final boolean readResultStateWithReturning(ByteBuf cumulateBuffer, IntSupplier resultIndexes) {
         return readCommandComplete(cumulateBuffer, true, resultIndexes);
     }
 

@@ -1020,7 +1020,7 @@ abstract class ColumnArrays {
         if (dimension < 2) {
             throw new IllegalArgumentException("dimension error");
         }
-        final char delim = meta.sqlType == PgType.BOX_ARRAY ? ';' : COMMA;
+        final char delim = meta.dataType == PgType.BOX_ARRAY ? ';' : COMMA;
 
         final Stack<List<Object>> arrayStack = new FastStack<>();
         arrayStack.push(new LinkedList<>());
@@ -1243,7 +1243,7 @@ abstract class ColumnArrays {
         if (charArray[index] != LEFT_PAREN) {
             throw new IllegalArgumentException("index error.");
         }
-        final char delim = meta.sqlType == PgType.BOX_ARRAY ? ';' : COMMA;
+        final char delim = meta.dataType == PgType.BOX_ARRAY ? ';' : COMMA;
         int endIndex = index;
         char ch;
         for (int i = index + 1, from, to; i < charArray.length; i++) {
@@ -1340,7 +1340,7 @@ abstract class ColumnArrays {
 
     private static PgJdbdException arrayFormatError(final PgColumnMeta meta) {
         throw new JdbdException(String.format("Postgre server response %s value error,couldn't parse,ColumnMeta[%s]"
-                , meta.sqlType, meta));
+                , meta.dataType, meta));
     }
 
     private static IllegalArgumentException dateInfinityException(Object parsedValue, Class<?> arrayClass
@@ -1357,10 +1357,10 @@ abstract class ColumnArrays {
 
     static UnsupportedConvertingException notSupportSubScript(PgColumnMeta meta, Class<?> targetClass) {
         String message = String.format("Not support convert from (index[%s] label[%s] and sql type[%s]) to %s ,because subscript of array less than 1.",
-                meta.index, meta.columnLabel
-                , meta.sqlType, targetClass.getName());
+                meta.columnIndex, meta.columnLabel
+                , meta.dataType, targetClass.getName());
 
-        return new UnsupportedConvertingException(message, meta.sqlType, targetClass);
+        return new UnsupportedConvertingException(message, meta.dataType, targetClass);
     }
 
     private static final class ArrayPair {

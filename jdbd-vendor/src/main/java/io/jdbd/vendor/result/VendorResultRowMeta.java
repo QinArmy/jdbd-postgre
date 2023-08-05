@@ -1,40 +1,28 @@
 package io.jdbd.vendor.result;
 
 import io.jdbd.JdbdException;
-import io.jdbd.meta.DataType;
-import io.jdbd.meta.JdbdType;
-import io.jdbd.meta.KeyMode;
-import io.jdbd.meta.NullMode;
+import io.jdbd.meta.*;
 import io.jdbd.result.FieldType;
 import io.jdbd.result.ResultRowMeta;
 
-import java.util.Collections;
-import java.util.Map;
-
 public abstract class VendorResultRowMeta implements ResultRowMeta {
 
-    protected static final Map<String, Integer> EMPTY_LABEL_INDEX_MAP = Collections.emptyMap();
 
-    public final int resultIndex;
+    public final int resultNo;
 
 
-    protected VendorResultRowMeta(int resultIndex) {
-        this.resultIndex = resultIndex;
+    protected VendorResultRowMeta(int resultNo) {
+        this.resultNo = resultNo;
     }
 
     @Override
     public final int getResultNo() {
-        return this.resultIndex;
+        return this.resultNo;
     }
 
     @Override
     public final DataType getDataType(String columnLabel) {
         return this.getDataType(this.getColumnIndex(columnLabel));
-    }
-
-    @Override
-    public final String getTypeName(String columnLabel) {
-        return this.getTypeName(this.getColumnIndex(columnLabel));
     }
 
     @Override
@@ -68,19 +56,18 @@ public abstract class VendorResultRowMeta implements ResultRowMeta {
     }
 
     @Override
-    public final boolean isAutoIncrement(String columnLabel) throws JdbdException {
-        return this.isAutoIncrement(this.getColumnIndex(columnLabel));
+    public final BooleanMode getAutoIncrementMode(String columnLabel) throws JdbdException {
+        return this.getAutoIncrementMode(this.getColumnIndex(columnLabel));
     }
 
     @Override
-    public final Class<?> getOutputJavaType(String columnLabel) throws JdbdException {
-        return this.getOutputJavaType(this.getColumnIndex(columnLabel));
+    public final Class<?> getFirstJavaType(String columnLabel) throws JdbdException {
+        return this.getFirstJavaType(this.getColumnIndex(columnLabel));
     }
 
-
     @Override
-    public final boolean isSigned(String columnLabel) throws JdbdException {
-        return this.isSigned(this.getColumnIndex(columnLabel));
+    public final Class<?> getSecondJavaType(String columnLabel) throws JdbdException {
+        return this.getSecondJavaType(this.getColumnIndex(columnLabel));
     }
 
     @Override
@@ -101,16 +88,6 @@ public abstract class VendorResultRowMeta implements ResultRowMeta {
     @Override
     public final String getColumnName(String columnLabel) throws JdbdException {
         return this.getColumnName(this.getColumnIndex(columnLabel));
-    }
-
-    @Override
-    public final boolean isReadOnly(String columnLabel) throws JdbdException {
-        return this.isReadOnly(this.getColumnIndex(columnLabel));
-    }
-
-    @Override
-    public final boolean isWritable(String columnLabel) throws JdbdException {
-        return this.isWritable(this.getColumnIndex(columnLabel));
     }
 
 

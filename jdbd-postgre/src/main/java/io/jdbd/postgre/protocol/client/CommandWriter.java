@@ -209,6 +209,7 @@ abstract class CommandWriter {
             case TEXT_ARRAY:
             case JSON_ARRAY:
             case JSONB_ARRAY:
+            case JSONPATH_ARRAY:
             case XML_ARRAY:
             case TSQUERY_ARRAY:
             case TSVECTOR_ARRAY:

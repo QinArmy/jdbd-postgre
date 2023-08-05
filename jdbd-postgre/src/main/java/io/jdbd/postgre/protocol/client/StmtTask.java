@@ -3,7 +3,7 @@ package io.jdbd.postgre.protocol.client;
 import io.jdbd.result.Result;
 import io.netty.buffer.ByteBuf;
 
-import java.util.function.Supplier;
+import java.util.function.IntSupplier;
 
 interface StmtTask {
 
@@ -20,7 +20,7 @@ interface StmtTask {
     /**
      * @return true: read CommandComplete message end , false : more cumulate.
      */
-    boolean readResultStateWithReturning(ByteBuf cumulateBuffer, Supplier<Integer> resultIndexes);
+    boolean readResultStateWithReturning(ByteBuf cumulateBuffer, IntSupplier resultIndexes);
 
     int getAndIncrementResultIndex();
 

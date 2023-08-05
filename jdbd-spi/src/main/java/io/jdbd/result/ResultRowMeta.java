@@ -2,10 +2,7 @@ package io.jdbd.result;
 
 import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
-import io.jdbd.meta.DataType;
-import io.jdbd.meta.JdbdType;
-import io.jdbd.meta.KeyMode;
-import io.jdbd.meta.NullMode;
+import io.jdbd.meta.*;
 
 import java.util.List;
 
@@ -25,19 +22,11 @@ public interface ResultRowMeta extends Result {
 
     /**
      * @see #getJdbdType(int)
-     * @see #getTypeName(int)
      */
     DataType getDataType(int indexBasedZero) throws JdbdException;
 
     /**
      * @see #getDataType(int)
-     * @see #getJdbdType(int)
-     */
-    String getTypeName(int indexBasedZero) throws JdbdException;
-
-    /**
-     * @see #getDataType(int)
-     * @see #getTypeName(int)
      */
     JdbdType getJdbdType(int indexBasedZero) throws JdbdException;
 
@@ -50,15 +39,7 @@ public interface ResultRowMeta extends Result {
      * @throws JdbdException if a database access error occurs
      * @see #getColumnIndex(String)
      */
-    boolean isSigned(int indexBasedZero) throws JdbdException;
-
-
-    /**
-     * @param indexBasedZero base 0,the first column is 0, the second is 1, ...
-     * @throws JdbdException if a database access error occurs
-     * @see #getColumnIndex(String)
-     */
-    boolean isAutoIncrement(int indexBasedZero) throws JdbdException;
+    BooleanMode getAutoIncrementMode(int indexBasedZero) throws JdbdException;
 
 
     /**
@@ -146,26 +127,6 @@ public interface ResultRowMeta extends Result {
 
 
     /**
-     * Indicates whether the designated column is definitely not writable.
-     *
-     * @param indexBasedZero base 0,the first column is 0, the second is 1, ..
-     * @return <code>true</code> if so; <code>false</code> otherwise
-     * @throws JdbdException if a database access error occurs
-     * @see #getColumnIndex(String)
-     */
-    boolean isReadOnly(int indexBasedZero) throws JdbdException;
-
-
-    /**
-     * Indicates whether it is possible for a write on the designated column to succeed.
-     *
-     * @param indexBasedZero base 0,the first column is 0, the second is 1, ..
-     * @return <code>true</code> if so; <code>false</code> otherwise
-     * @throws JdbdException if a database access error occurs
-     */
-    boolean isWritable(int indexBasedZero) throws JdbdException;
-
-    /**
      * <p>Returns the fully-qualified name of the Java class whose instances
      * are manufactured if the method <code>ResultSet.getObject</code>
      * is called to retrieve a value
@@ -180,7 +141,10 @@ public interface ResultRowMeta extends Result {
      * @throws JdbdException if a database access error occurs
      * @see #getColumnIndex(String)
      */
-    Class<?> getOutputJavaType(int indexBasedZero) throws JdbdException;
+    Class<?> getFirstJavaType(int indexBasedZero) throws JdbdException;
+
+    @Nullable
+    Class<?> getSecondJavaType(int indexBasedZero) throws JdbdException;
 
 
     /*-------------------below column label method-------------------*/
@@ -188,16 +152,11 @@ public interface ResultRowMeta extends Result {
 
     DataType getDataType(String columnLabel) throws JdbdException;
 
-    /**
-     * @return data type name in database. If support ,upper case precedence.
-     */
-    String getTypeName(String columnLabel) throws JdbdException;
-
 
     JdbdType getJdbdType(String columnLabel) throws JdbdException;
 
 
-     FieldType getFieldType(String columnLabel) throws JdbdException;
+    FieldType getFieldType(String columnLabel) throws JdbdException;
 
 
     /**
@@ -219,17 +178,9 @@ public interface ResultRowMeta extends Result {
 
 
     /**
-     * @see #isAutoIncrement(int)
+     * @see #getAutoIncrementMode(int)
      */
-    boolean isAutoIncrement(String columnLabel) throws JdbdException;
-
-
-    /**
-     * @param columnLabel base 0,the first column is 0, the second is 1, ...
-     * @throws JdbdException if a database access error occurs
-     * @see #getColumnIndex(String)
-     */
-    boolean isSigned(String columnLabel) throws JdbdException;
+    BooleanMode getAutoIncrementMode(String columnLabel) throws JdbdException;
 
 
     /**
@@ -270,28 +221,10 @@ public interface ResultRowMeta extends Result {
     String getColumnName(String columnLabel) throws JdbdException;
 
 
-    Class<?> getOutputJavaType(String columnLabel) throws JdbdException;
+    Class<?> getFirstJavaType(String columnLabel) throws JdbdException;
 
-
-    /**
-     * Indicates whether the designated column is definitely not writable.
-     *
-     * @param columnLabel base 0,the first column is 0, the second is 1, ..
-     * @return <code>true</code> if so; <code>false</code> otherwise
-     * @throws JdbdException if a database access error occurs
-     * @see #getColumnIndex(String)
-     */
-    boolean isReadOnly(String columnLabel) throws JdbdException;
-
-
-    /**
-     * Indicates whether it is possible for a write on the designated column to succeed.
-     *
-     * @param columnLabel base 0,the first column is 0, the second is 1, ..
-     * @return <code>true</code> if so; <code>false</code> otherwise
-     * @throws JdbdException if a database access error occurs
-     */
-    boolean isWritable(String columnLabel) throws JdbdException;
+    @Nullable
+    Class<?> getSecondJavaType(String columnLabel) throws JdbdException;
 
     /*-------------------below column label end-------------------*/
 
@@ -317,9 +250,13 @@ public interface ResultRowMeta extends Result {
 
 
     /**
+     * <p>
+     * Get column index , if columnLabel duplication ,then return last index that have same columnLabel.
+     * </p>
+     *
      * @param columnLabel column alias
      * @return index base 0,the first column is 0, the second is 1, ..
-     * @throws JdbdSQLException if a database access error occurs
+     * @throws JdbdException if a database access error occurs
      */
     int getColumnIndex(String columnLabel) throws JdbdException;
 

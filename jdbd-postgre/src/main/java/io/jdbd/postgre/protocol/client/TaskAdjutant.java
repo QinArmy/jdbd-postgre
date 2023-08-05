@@ -1,5 +1,6 @@
 package io.jdbd.postgre.protocol.client;
 
+import io.jdbd.meta.DataType;
 import io.jdbd.postgre.Server;
 import io.jdbd.postgre.env.PgHost;
 import io.jdbd.postgre.syntax.PgParser;
@@ -37,10 +38,8 @@ interface TaskAdjutant extends ITaskAdjutant, PgParser {
     @Deprecated
     ZoneOffset clientOffset();
 
-    /**
-     * @return maybe different instance
-     */
-    PgParser sqlParser();
+
+    DataType handleUnknownType(int typeOid);
 
     /**
      * @return maybe different instance

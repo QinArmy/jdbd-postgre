@@ -1,23 +1,25 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.meta.NullMode;
-import io.jdbd.meta.SQLType;
+import io.jdbd.JdbdException;
+import io.jdbd.lang.Nullable;
+import io.jdbd.meta.*;
 import io.jdbd.postgre.PgType;
+import io.jdbd.postgre.util.PgCollections;
 import io.jdbd.postgre.util.PgNumbers;
 import io.jdbd.result.FieldType;
-import io.jdbd.result.ResultRowMeta;
+import io.jdbd.vendor.result.VendorResultRowMeta;
 import io.netty.buffer.ByteBuf;
-import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
-import java.sql.SQLException;
 import java.text.DecimalFormat;
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 /**
  * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">RowDescription</a>
  */
-final class PgRowMeta implements ResultRowMeta {
+final class PgRowMeta extends VendorResultRowMeta {
 
     /**
      * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">RowDescription</a>
@@ -48,11 +50,12 @@ final class PgRowMeta implements ResultRowMeta {
     // don't need volatile
     private List<String> labelList;
 
-    private PgRowMeta(int resultIndex, final PgColumnMeta[] columnMetaArray, TaskAdjutant adjutant) {
-        this.resultIndex = resultIndex;
+    private PgRowMeta(int resultNo, final PgColumnMeta[] columnMetaArray, TaskAdjutant adjutant) {
+        super(resultNo);
+        this.resultIndex = resultNo;
         this.columnMetaArray = columnMetaArray;
 
-        if (columnMetaArray.length < 30) {
+        if (columnMetaArray.length < 6) {
             this.labelToIndexMap = Collections.emptyMap();
         } else {
             this.labelToIndexMap = createLabelToIndexMap(columnMetaArray);
@@ -62,32 +65,21 @@ final class PgRowMeta implements ResultRowMeta {
     }
 
     @Override
-    public final int getResultNo() {
-        final int resultIndex = this.resultIndex;
-        if (resultIndex < 0) {
-            throw new UnsupportedOperationException("Only used by session bind parameters.");
-        }
-        return resultIndex;
-    }
-
-    @Override
-    public final int getColumnCount() {
+    public int getColumnCount() {
         return this.columnMetaArray.length;
     }
 
     @Override
-    public final FieldType getFieldType(int indexBaseZero) {
-        // have to return UNKNOWN,because postgre RowDescription message can't return table name ,column name etc.
-        return FieldType.UNKNOWN;
+    public FieldType getFieldType(final int indexBasedZero) {
+        if (this.columnMetaArray[checkIndex(indexBasedZero)].tableOid == 0) {
+            return FieldType.EXPRESSION;
+        }
+        return FieldType.FIELD;
     }
 
-    @Override
-    public final FieldType getFieldType(String columnLabel) {
-        return getFieldType(getColumnIndex(columnLabel));
-    }
 
     @Override
-    public final List<String> getColumnLabelList() {
+    public List<String> getColumnLabelList() {
         List<String> labelList = this.labelList;
         if (labelList != null) {
             return labelList;
@@ -96,7 +88,7 @@ final class PgRowMeta implements ResultRowMeta {
         if (columnMetaArray.length == 1) {
             labelList = Collections.singletonList(columnMetaArray[0].columnLabel);
         } else {
-            labelList = new ArrayList<>(columnMetaArray.length);
+            labelList = PgCollections.arrayList(columnMetaArray.length);
             for (PgColumnMeta meta : columnMetaArray) {
                 labelList.add(meta.columnLabel);
             }
@@ -107,15 +99,13 @@ final class PgRowMeta implements ResultRowMeta {
     }
 
     @Override
-    public final String getColumnLabel(int indexBaseZero) throws JdbdSQLException {
-        return this.columnMetaArray[checkIndex(indexBaseZero)].columnLabel;
+    public String getColumnLabel(final int indexBasedZero) throws JdbdException {
+        return this.columnMetaArray[checkIndex(indexBasedZero)].columnLabel;
     }
 
     @Override
-    public final int getColumnIndex(final String columnLabel) throws JdbdSQLException {
-        Objects.requireNonNull(columnLabel, "columnLabel");
-
-        if (!this.labelToIndexMap.isEmpty()) {
+    public int getColumnIndex(final String columnLabel) throws JdbdException {
+        if (this.labelToIndexMap.size() > 0) {
             final Integer columnIndex = this.labelToIndexMap.get(columnLabel);
             if (columnIndex == null) {
                 throw createNotFoundIndexException(columnLabel);
@@ -123,114 +113,127 @@ final class PgRowMeta implements ResultRowMeta {
             return columnIndex;
         }
 
-        int indexBaseZero = -1;
+        int indexBasedZero = -1;
         final PgColumnMeta[] columnMetaArray = this.columnMetaArray;
         for (int i = 0; i < columnMetaArray.length; i++) {
             if (columnLabel.equals(columnMetaArray[i].columnLabel)) {
-                indexBaseZero = i;
+                indexBasedZero = i;
                 break;
             }
         }
-        if (indexBaseZero < 0) {
+        if (indexBasedZero < 0) {
             throw createNotFoundIndexException(columnLabel);
         }
-        return indexBaseZero;
+        return indexBasedZero;
+    }
+
+
+    @Override
+    public DataType getDataType(final int indexBasedZero) throws JdbdException {
+        return this.columnMetaArray[checkIndex(indexBasedZero)].dataType;
     }
 
     @Override
-    public final PgType getSQLType(int indexBaseZero) throws JdbdSQLException {
-        return this.columnMetaArray[checkIndex(indexBaseZero)].sqlType;
+    public JdbdType getJdbdType(final int indexBasedZero) throws JdbdException {
+        final DataType dataType;
+        dataType = this.columnMetaArray[checkIndex(indexBasedZero)].dataType;
+        if (dataType instanceof PgType) {
+            return ((PgType) dataType).jdbdType();
+        }
+        return ((PgUserType) dataType).jdbdType;
+    }
+
+
+    @Override
+    public KeyMode getKeyMode(final int indexBasedZero) throws JdbdException {
+        return KeyMode.UNKNOWN;
     }
 
     @Override
-    public SQLType getSQLType(String columnAlias) throws JdbdSQLException {
-        return getSQLType(getColumnIndex(columnAlias));
+    public Class<?> getFirstJavaType(final int indexBasedZero) throws JdbdException {
+        final DataType dataType;
+        dataType = getDataType(indexBasedZero);
+        if (dataType instanceof PgType) {
+            return ((PgType) dataType).firstJavaType();
+        }
+        return String.class;
     }
 
     @Override
-    public final NullMode getNullMode(int indexBaseZero) throws JdbdSQLException {
+    public Class<?> getSecondJavaType(int indexBasedZero) throws JdbdException {
+        final DataType dataType;
+        dataType = getDataType(indexBasedZero);
+        if (dataType instanceof PgType) {
+            return ((PgType) dataType).secondJavaType();
+        }
+        return null;
+    }
+
+    @Override
+    public NullMode getNullMode(int indexBasedZero) throws JdbdException {
         return NullMode.UNKNOWN;
     }
 
+
     @Override
-    public final NullMode getNullMode(String columnAlias) throws JdbdSQLException {
-        return NullMode.UNKNOWN;
+    public int getPrecision(final int indexBasedZero) throws JdbdException {
+        return this.columnMetaArray[checkIndex(indexBasedZero)].getPrecision();
+    }
+
+    @Override
+    public int getScale(final int indexBasedZero) throws JdbdException {
+        return this.columnMetaArray[checkIndex(indexBasedZero)].getScale();
+    }
+
+    @Override
+    public BooleanMode getAutoIncrementMode(int indexBasedZero) throws JdbdException {
+        return BooleanMode.UNKNOWN;
     }
 
 
     @Override
-    public final int getPrecision(final int indexBaseZero) throws JdbdSQLException {
-        return this.columnMetaArray[checkIndex(indexBaseZero)].getPrecision();
+    public String getCatalogName(int indexBasedZero) throws JdbdException {
+        //always null
+        return null;
     }
 
-    @Override
-    public final int getPrecision(String columnAlias) throws JdbdSQLException {
-        return getPrecision(getColumnIndex(columnAlias));
-    }
 
     @Override
-    public final int getScale(final int indexBaseZero) throws JdbdSQLException {
-        return this.columnMetaArray[checkIndex(indexBaseZero)].getScale();
-    }
-
-    @Override
-    public final int getScale(String columnAlias) throws JdbdSQLException {
-        return getScale(getColumnIndex(columnAlias));
-    }
-
-    @Override
-    public final boolean isAutoIncrement(int indexBaseZero) throws JdbdSQLException {
-        return false;
-    }
-
-    @Override
-    public final boolean isAutoIncrement(String columnAlias) throws JdbdSQLException {
-        return isAutoIncrement(getColumnIndex(columnAlias));
-    }
-
-    @Nullable
-    @Override
-    public final String getCatalogName(int indexBaseZero) throws JdbdSQLException {
+    public String getSchemaName(int indexBasedZero) throws JdbdException {
+        //always null
         return null;
     }
 
     @Nullable
     @Override
-    public final String getSchemaName(int indexBaseZero) throws JdbdSQLException {
+    public String getTableName(int indexBasedZero) throws JdbdException {
+        //always null
         return null;
     }
 
     @Nullable
     @Override
-    public final String getTableName(int indexBaseZero) throws JdbdSQLException {
-        return null;
-    }
-
-    @Nullable
-    @Override
-    public final String getColumnName(int indexBaseZero) throws JdbdSQLException {
+    public String getColumnName(int indexBasedZero) throws JdbdException {
+        //always null
         return null;
     }
 
     private int checkIndex(final int indexBasedZero) {
         if (indexBasedZero < 0 || indexBasedZero >= this.columnMetaArray.length) {
-            String m = String.format("Invalid column index[%s] ,should be [0,%s)."
-                    , indexBasedZero, this.columnMetaArray.length);
-            throw new JdbdSQLException(new SQLException(m));
+            String m = String.format("Invalid column index[%s] ,should be [0,%s).",
+                    indexBasedZero, this.columnMetaArray.length);
+            throw new JdbdException(m);
         }
         return indexBasedZero;
     }
 
     /*################################## blow packet method ##################################*/
 
-    final PgColumnMeta obtainMeta(final int indexBaseZero) {
-        return this.columnMetaArray[indexBaseZero];
-    }
     /*################################## blow private static method ##################################*/
 
-    private static JdbdSQLException createNotFoundIndexException(final String columnLabel) {
+    private static JdbdException createNotFoundIndexException(final String columnLabel) {
         String m = String.format("Not found column index for column label[%s]", columnLabel);
-        return new JdbdSQLException(new SQLException(m));
+        return new JdbdException(m);
     }
 
     /**
@@ -241,9 +244,9 @@ final class PgRowMeta implements ResultRowMeta {
         if (columnMetaArray.length == 1) {
             map = Collections.singletonMap(columnMetaArray[0].columnLabel, 0);
         } else {
-            Map<String, Integer> tempMap = new HashMap<>((int) (columnMetaArray.length / 0.75f));
+            Map<String, Integer> tempMap = PgCollections.hashMap((int) (columnMetaArray.length / 0.75f));
             for (int i = 0; i < columnMetaArray.length; i++) {
-                tempMap.putIfAbsent(columnMetaArray[i].columnLabel, i);
+                tempMap.put(columnMetaArray[i].columnLabel, i); // override , if duplication
             }
             map = Collections.unmodifiableMap(tempMap);
         }
@@ -251,11 +254,11 @@ final class PgRowMeta implements ResultRowMeta {
     }
 
     @Nullable
-    private static DecimalFormat createMoneyFormatIfNeed(final PgColumnMeta[] columnMetaArray
-            , final TaskAdjutant adjutant) {
+    private static DecimalFormat createMoneyFormatIfNeed(final PgColumnMeta[] columnMetaArray,
+                                                         final TaskAdjutant adjutant) {
         DecimalFormat format = null;
         for (PgColumnMeta meta : columnMetaArray) {
-            if (meta.sqlType != PgType.MONEY && meta.sqlType != PgType.MONEY_ARRAY) {
+            if (meta.dataType != PgType.MONEY && meta.dataType != PgType.MONEY_ARRAY) {
                 continue;
             }
             format = PgNumbers.getMoneyFormat(adjutant.server().moneyLocal());
