@@ -58,10 +58,10 @@ public enum PgType implements SQLType {
     UUID(PgConstant.TYPE_UUID, JdbdType.DIALECT_TYPE, UUID.class),
     XML(PgConstant.TYPE_XML, JdbdType.XML, String.class),
 
-    POINT(PgConstant.TYPE_POINT, JdbdType.POINT, Point.class),
+    POINT(PgConstant.TYPE_POINT, JdbdType.GEOMETRY, Point.class),
     CIRCLE(PgConstant.TYPE_CIRCLE, JdbdType.DIALECT_TYPE, String.class),
     LSEG(PgConstant.TYPE_LSEG, JdbdType.DIALECT_TYPE, String.class),
-    PATH(PgConstant.TYPE_PATH, JdbdType.LINE_STRING, String.class),
+    PATH(PgConstant.TYPE_PATH, JdbdType.DIALECT_TYPE, String.class),
 
     // below Geometries use ResultRow.get(int,Class)
     BOX(PgConstant.TYPE_BOX, JdbdType.DIALECT_TYPE, String.class),

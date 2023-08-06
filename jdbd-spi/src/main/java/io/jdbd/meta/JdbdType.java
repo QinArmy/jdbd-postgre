@@ -215,12 +215,6 @@ public enum JdbdType implements DataType {
     JSON,
 
     JSONB,
-
-    /**
-     * Identifies the generic SQL type {@code REF}.
-     */
-    REF,
-
     /**
      * Identifies the generic SQL type {@code REF_CURSOR}.
      */
@@ -231,50 +225,6 @@ public enum JdbdType implements DataType {
      */
     GEOMETRY,
 
-    /**
-     * @see <a href="https://www.ogc.org/standards/sfa">Simple Feature Access - Part 1: Common Architecture PDF</a>
-     */
-    POINT,
-
-    /**
-     * @see <a href="https://www.ogc.org/standards/sfa">Simple Feature Access - Part 1: Common Architecture PDF</a>
-     */
-    LINE_STRING,
-
-    /**
-     * @see <a href="https://www.ogc.org/standards/sfa">Simple Feature Access - Part 1: Common Architecture PDF</a>
-     */
-    LINE,
-
-    /**
-     * @see <a href="https://www.ogc.org/standards/sfa">Simple Feature Access - Part 1: Common Architecture PDF</a>
-     */
-    LINEAR_RING,
-
-    /**
-     * @see <a href="https://www.ogc.org/standards/sfa">Simple Feature Access - Part 1: Common Architecture PDF</a>
-     */
-    POLYGON,
-
-    /**
-     * @see <a href="https://www.ogc.org/standards/sfa">Simple Feature Access - Part 1: Common Architecture PDF</a>
-     */
-    GEOMETRY_COLLECTION,
-
-    /**
-     * @see <a href="https://www.ogc.org/standards/sfa">Simple Feature Access - Part 1: Common Architecture PDF</a>
-     */
-    MULTI_POINT,
-
-    /**
-     * @see <a href="https://www.ogc.org/standards/sfa">Simple Feature Access - Part 1: Common Architecture PDF</a>
-     */
-    MULTI_LINE_STRING,
-
-    /**
-     * @see <a href="https://www.ogc.org/standards/sfa">Simple Feature Access - Part 1: Common Architecture PDF</a>
-     */
-    MULTI_POLYGON,
 
     /**
      * Indicates that the dialect SQL type  , this enum instance is only returned by {@link io.jdbd.result.ResultRowMeta#getJdbdType(int)}.

@@ -371,7 +371,8 @@ abstract class ColumnArrays {
                             && text.regionMatches(true, startIndex, PgConstant.NULL, 0, 4)
                             && (tailIndex == i || PgStrings.isWhitespace(text, tailIndex, i))) {
                         if (nonNull) {
-                            throw new IllegalArgumentException("element must be non-null");
+                            String m = String.format("%s element must be non-null,but server return null", dataType);
+                            throw new JdbdException(m);
                         }
                         Array.set(array, arrayIndex++, null);
                     } else if (Character.isWhitespace(preChar)) {

@@ -152,25 +152,14 @@ public abstract class MySQLBinds extends JdbdBinds {
                 break;
 
             case GEOMETRY:
-            case POINT:
-            case LINE_STRING:
-            case LINE:
-            case LINEAR_RING:
-            case POLYGON:
-            case MULTI_POINT:
-            case MULTI_LINE_STRING:
-            case MULTI_POLYGON:
-            case GEOMETRY_COLLECTION:
                 type = MySQLType.GEOMETRY;
                 break;
-            case REF:
             case XML:
             case ARRAY:
             case ROWID:
             case PERIOD:
             case INTERVAL:
             case DATALINK:
-            case REF_CURSOR:
             case DIALECT_TYPE:
             case UNKNOWN:
             default:

@@ -34,6 +34,8 @@ public final class Option<T> {
 
     public static final Option<Boolean> IN_TRANSACTION = Option.from("IN TRANSACTION", Boolean.class);
 
+    public static final Option<String> CURSOR_NAME = Option.from("CURSOR NAME", String.class);
+
     private final String name;
 
     private final Class<T> javaType;

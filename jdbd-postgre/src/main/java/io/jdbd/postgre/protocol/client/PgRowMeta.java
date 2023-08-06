@@ -7,6 +7,7 @@ import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.util.PgCollections;
 import io.jdbd.postgre.util.PgNumbers;
 import io.jdbd.result.FieldType;
+import io.jdbd.session.Option;
 import io.jdbd.vendor.result.VendorResultRowMeta;
 import io.netty.buffer.ByteBuf;
 
@@ -220,6 +221,13 @@ final class PgRowMeta extends VendorResultRowMeta {
     @Override
     public String getColumnName(int indexBasedZero) throws JdbdException {
         //always null
+        return null;
+    }
+
+    @Override
+    public <T> T getOf(final int indexBasedZero, final Option<T> option) throws JdbdException {
+        checkIndex(indexBasedZero);
+        //TODO
         return null;
     }
 

@@ -3,6 +3,9 @@ package io.jdbd.vendor.result;
 import io.jdbd.JdbdException;
 import io.jdbd.result.CurrentRow;
 import io.jdbd.result.JdbdRow;
+import io.jdbd.result.OrderedFlux;
+import io.jdbd.result.ResultStates;
+import io.jdbd.vendor.stmt.Stmts;
 import io.jdbd.vendor.task.ITaskAdjutant;
 import io.jdbd.vendor.util.JdbdCollections;
 import io.jdbd.vendor.util.JdbdExceptions;
@@ -12,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.IntFunction;
 
 /**
@@ -72,6 +76,22 @@ public abstract class VendorRow implements JdbdRow {
         return this.getMap(indexBasedZero, keyClass, valueClass, JdbdCollections::hashMap);
     }
 
+    @Override
+    public final <T> Publisher<T> getResult(int indexBasedZero, Function<CurrentRow, T> function) {
+        return getResult(indexBasedZero, 0, function, Stmts.IGNORE_RESULT_STATES);
+    }
+
+    @Override
+    public final <T> Publisher<T> getResult(int indexBasedZero, int fetchSize, Function<CurrentRow, T> function) {
+        return getResult(indexBasedZero, fetchSize, function, Stmts.IGNORE_RESULT_STATES);
+    }
+
+    @Override
+    public final OrderedFlux getFlux(int indexBasedZero) {
+        return getFlux(indexBasedZero, 0);
+    }
+
+    /*-------------------below columnLabel method-------------------*/
 
     @Override
     public final Object get(String columnLabel) throws JdbdException {
@@ -131,6 +151,34 @@ public abstract class VendorRow implements JdbdRow {
     public final <T> Publisher<T> getPublisher(String columnLabel, Class<T> valueClass) throws JdbdException {
         return this.getPublisher(getRowMeta().getColumnIndex(columnLabel), valueClass);
     }
+
+    @Override
+    public final <T> Publisher<T> getResult(String columnLabel, Function<CurrentRow, T> function) throws JdbdException {
+        return getResult(getRowMeta().getColumnIndex(columnLabel), 0, function, Stmts.IGNORE_RESULT_STATES);
+    }
+
+    @Override
+    public final <T> Publisher<T> getResult(String columnLabel, int fetchSize, Function<CurrentRow, T> function)
+            throws JdbdException {
+        return getResult(getRowMeta().getColumnIndex(columnLabel), fetchSize, function, Stmts.IGNORE_RESULT_STATES);
+    }
+
+    @Override
+    public final <T> Publisher<T> getResult(String columnLabel, int fetchSize, Function<CurrentRow, T> function,
+                                            Consumer<ResultStates> consumer) throws JdbdException {
+        return getResult(getRowMeta().getColumnIndex(columnLabel), fetchSize, function, consumer);
+    }
+
+    @Override
+    public final OrderedFlux getFlux(String columnLabel) throws JdbdException {
+        return getFlux(getRowMeta().getColumnIndex(columnLabel), 0);
+    }
+
+    @Override
+    public final OrderedFlux getFlux(String columnLabel, int fetchSize) throws JdbdException {
+        return getFlux(getRowMeta().getColumnIndex(columnLabel), fetchSize);
+    }
+
 
     @Override
     public final String toString() {

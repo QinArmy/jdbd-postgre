@@ -4,6 +4,7 @@ import io.jdbd.JdbdException;
 import io.jdbd.meta.*;
 import io.jdbd.result.FieldType;
 import io.jdbd.result.ResultRowMeta;
+import io.jdbd.session.Option;
 
 public abstract class VendorResultRowMeta implements ResultRowMeta {
 
@@ -19,6 +20,18 @@ public abstract class VendorResultRowMeta implements ResultRowMeta {
     public final int getResultNo() {
         return this.resultNo;
     }
+
+    @Override
+    public final <T> T getNonNullOf(int indexBasedZero, Option<T> option) throws JdbdException, NullPointerException {
+        final T value;
+        value = getOf(indexBasedZero, option);
+        if (value == null) {
+            String m = String.format("the value of %s is null", option);
+            throw new NullPointerException(m);
+        }
+        return value;
+    }
+
 
     @Override
     public final DataType getDataType(String columnLabel) {
@@ -88,6 +101,16 @@ public abstract class VendorResultRowMeta implements ResultRowMeta {
     @Override
     public final String getColumnName(String columnLabel) throws JdbdException {
         return this.getColumnName(this.getColumnIndex(columnLabel));
+    }
+
+    @Override
+    public final <T> T getOf(String columnLabel, Option<T> option) throws JdbdException {
+        return getOf(this.getColumnIndex(columnLabel), option);
+    }
+
+    @Override
+    public final <T> T getNonNullOf(String columnLabel, Option<T> option) throws JdbdException, NullPointerException {
+        return getNonNullOf(this.getColumnIndex(columnLabel), option);
     }
 
 

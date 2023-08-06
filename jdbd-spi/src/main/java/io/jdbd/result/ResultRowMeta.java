@@ -3,6 +3,7 @@ package io.jdbd.result;
 import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.*;
+import io.jdbd.session.Option;
 
 import java.util.List;
 
@@ -156,6 +157,17 @@ public interface ResultRowMeta extends ResultItem {
     Class<?> getSecondJavaType(int indexBasedZero) throws JdbdException;
 
 
+    /**
+     * @return null if value is null or option isn't supported driver.
+     * @throws JdbdException throw when indexBasedZero error.
+     */
+    @Nullable
+    <T> T getOf(int indexBasedZero, Option<T> option) throws JdbdException;
+
+
+    <T> T getNonNullOf(int indexBasedZero, Option<T> option) throws JdbdException, NullPointerException;
+
+
     /*-------------------below column label method-------------------*/
 
 
@@ -268,6 +280,12 @@ public interface ResultRowMeta extends ResultItem {
      * @throws JdbdException if a database access error occurs
      */
     int getColumnIndex(String columnLabel) throws JdbdException;
+
+    @Nullable
+    <T> T getOf(String columnLabel, Option<T> option) throws JdbdException;
+
+
+    <T> T getNonNullOf(String columnLabel, Option<T> option) throws JdbdException, NullPointerException;
 
 
 }

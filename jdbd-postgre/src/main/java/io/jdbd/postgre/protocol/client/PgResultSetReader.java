@@ -7,9 +7,7 @@ import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.type.PgGeometries;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PgTimes;
-import io.jdbd.result.CurrentRow;
-import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultRowMeta;
+import io.jdbd.result.*;
 import io.jdbd.type.Point;
 import io.jdbd.vendor.result.ColumnConverts;
 import io.jdbd.vendor.result.ColumnMeta;
@@ -27,6 +25,7 @@ import java.nio.file.Paths;
 import java.time.*;
 import java.util.*;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.IntFunction;
 
 final class PgResultSetReader implements ResultSetReader {
@@ -557,6 +556,12 @@ final class PgResultSetReader implements ResultSetReader {
         }
 
         @Override
+        public final boolean isBigRow() {
+            // always false,because postgre protocol don't need.
+            return false;
+        }
+
+        @Override
         public final Object get(final int indexBasedZero) throws JdbdException {
             final PgRowMeta rowMeta = this.rowMeta;
             final Object source;
@@ -665,6 +670,16 @@ final class PgResultSetReader implements ResultSetReader {
             return null;
         }
 
+        @Override
+        public final <T> Publisher<T> getResult(int indexBasedZero, int fetchSize, Function<CurrentRow, T> function,
+                                                Consumer<ResultStates> consumer) {
+            return null;
+        }
+
+        @Override
+        public final OrderedFlux getFlux(int indexBasedZero, int fetchSize) {
+            return null;
+        }
 
         @Override
         protected final ColumnMeta getColumnMeta(int safeIndex) {
@@ -791,11 +806,6 @@ final class PgResultSetReader implements ResultSetReader {
             super(currentRow);
         }
 
-        @Override
-        public final boolean isBigRow() {
-            // always false,because postgre protocol don't need.
-            return false;
-        }
 
         @Override
         public final ResultRow asResultRow() {
@@ -853,16 +863,9 @@ final class PgResultSetReader implements ResultSetReader {
 
     private static final class PgResultRow extends PgDataRow implements ResultRow {
 
-        private final boolean bigRow;
 
         private PgResultRow(PgCurrentRow currentRow) {
             super(currentRow);
-            this.bigRow = currentRow.isBigRow();
-        }
-
-        @Override
-        public boolean isBigRow() {
-            return this.bigRow;
         }
 
 
