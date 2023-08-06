@@ -68,7 +68,7 @@ public abstract class PgTestUtils {
         assertFalse(state.hasColumn(), "returningColumn");
         assertFalse(state.hasMoreResult(), "moreResult");
 
-        assertEquals(state.getRowCount(), 0L, "rowCount");
+        assertEquals(state.rowCount(), 0L, "rowCount");
         assertFalse(state.hasMoreFetch(), "moreFetch");
         return state;
     }

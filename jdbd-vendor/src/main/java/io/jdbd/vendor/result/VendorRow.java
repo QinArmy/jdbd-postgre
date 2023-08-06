@@ -3,6 +3,7 @@ package io.jdbd.vendor.result;
 import io.jdbd.JdbdException;
 import io.jdbd.result.CurrentRow;
 import io.jdbd.result.JdbdRow;
+import io.jdbd.vendor.task.ITaskAdjutant;
 import io.jdbd.vendor.util.JdbdCollections;
 import io.jdbd.vendor.util.JdbdExceptions;
 import org.reactivestreams.Publisher;
@@ -10,8 +11,22 @@ import org.reactivestreams.Publisher;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.IntFunction;
 
+/**
+ * <p>
+ * This class is base class of the implementation of {@link JdbdRow}.
+ * If you use following method:
+ * <ul>
+ *     <li>{@link MultiResults#asMulti(ITaskAdjutant, Consumer)}</li>
+ *     <li>{@link MultiResults#batchQuery(ITaskAdjutant, Consumer)}</li>
+ * </ul>
+ * then you must extend this class,because {@link #copyCurrentRowIfNeed()} perhaps is invoked.
+ * </p>
+ *
+ * @since 1.0
+ */
 public abstract class VendorRow implements JdbdRow {
 
 
@@ -140,6 +155,13 @@ public abstract class VendorRow implements JdbdRow {
     /**
      * <p>
      * This method is implemented by the sub class of {@link CurrentRow}.
+     * <ul>
+     *     This method is designed for the cache (perhaps occur) of following :
+     *     <ul>
+     *         <li>{@link io.jdbd.result.BatchQuery}</li>
+     *         <li>{@link io.jdbd.result.MultiResult}</li>
+     *     </ul>
+     * </ul>
      * <ul>
      *     <li>If this current row is mutable,always copy this instance.</li>
      *     <li>Else return this</li>

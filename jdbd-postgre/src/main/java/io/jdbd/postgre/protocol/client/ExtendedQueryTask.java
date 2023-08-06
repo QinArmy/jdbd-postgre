@@ -637,7 +637,7 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
         }
 
         @Override
-        public void next(Result result) {
+        public void next(ResultItem result) {
             final ResultSink resultSink = this.resultSink;
             if (resultSink == null) {
                 throw createNoFluxResultSinkError();

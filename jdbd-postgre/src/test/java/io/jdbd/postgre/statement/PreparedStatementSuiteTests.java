@@ -77,7 +77,7 @@ public class PreparedStatementSuiteTests extends AbstractStatementTests {
 
         ResultStates states = statesHolder.get();
         assertNotNull(states, "ResultStates");
-        assertEquals(states.getRowCount(), 1, "rowCount");
+        assertEquals(states.rowCount(), 1, "rowCount");
 
         closeSession(session);
     }
@@ -231,7 +231,7 @@ public class PreparedStatementSuiteTests extends AbstractStatementTests {
 
         assertEquals(states.getAffectedRows(), 0L, "affectedRows");
         assertEquals(states.getInsertId(), 0L, "insertId");
-        assertEquals(states.getRowCount(), 1L, "rowCount");
+        assertEquals(states.rowCount(), 1L, "rowCount");
 
         closeSession(session);
     }

@@ -4,11 +4,13 @@ import io.jdbd.JdbdException;
 import io.jdbd.meta.DataType;
 import io.jdbd.postgre.PgConstant;
 import io.jdbd.postgre.PgType;
+import io.jdbd.postgre.type.PgGeometries;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PgTimes;
 import io.jdbd.result.CurrentRow;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultRowMeta;
+import io.jdbd.type.Point;
 import io.jdbd.vendor.result.ColumnConverts;
 import io.jdbd.vendor.result.ColumnMeta;
 import io.jdbd.vendor.result.VendorRow;
@@ -607,6 +609,9 @@ final class PgResultSetReader implements ResultSetReader {
                     case UUID:
                         columnValue = UUID.fromString((String) source);
                         break;
+                    case POINT:
+                        columnValue = PgGeometries.point((String) source);
+                        break;
                     default:
                         columnValue = source;
                 }
@@ -637,11 +642,11 @@ final class PgResultSetReader implements ResultSetReader {
                         throw PgExceptions.cannotConvertColumnValue(meta, source, columnClass, null);
                     }
                     columnValue = parseArray((String) source, meta, rowMeta.serverEnv, columnClass);
-                } else if (!(dataType instanceof PgType)) {
+                } else if (dataType instanceof PgType) {
+                    columnValue = convertSimpleColumn((PgType) dataType, source, meta, columnClass);
+                } else {
                     //TODO add convertor for Composite Types
                     columnValue = ColumnConverts.convertToTarget(meta, source, columnClass, rowMeta.serverEnv.serverZone());
-                } else {
-                    columnValue = convertSimpleColumn((PgType) dataType, source, meta, columnClass);
                 }
                 return columnValue;
             } catch (JdbdException e) {
@@ -770,6 +775,16 @@ final class PgResultSetReader implements ResultSetReader {
                     }
                 }
                 break;
+                case POINT: {
+                    if (columnClass == String.class) {
+                        columnValue = source;
+                    } else if (columnClass == Point.class) {
+                        columnValue = PgGeometries.point((String) source);
+                    } else {
+                        throw JdbdExceptions.cannotConvertColumnValue(meta, source, columnClass, null);
+                    }
+                }
+                break;
                 default:
                     columnValue = ColumnConverts.convertToTarget(meta, source, columnClass, null);
             }
@@ -777,7 +792,7 @@ final class PgResultSetReader implements ResultSetReader {
         }
 
 
-    }//PgRow
+    }//PgDataRow
 
 
     private static abstract class PgCurrentRow extends PgDataRow implements CurrentRow {

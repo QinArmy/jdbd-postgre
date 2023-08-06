@@ -7,9 +7,18 @@ import io.jdbd.meta.*;
 import java.util.List;
 
 /**
+ * <p>
+ * This interface representing the meta data of data row of query result (eg: SELECT command).
+ * </p>
+ * <p>
+ * The instance of this interface always is the first item of the {@link OrderedFlux} of same query result.
+ * </p>
+ *
  * @see ResultRow
+ * @see ResultStates
+ * @since 1.0
  */
-public interface ResultRowMeta extends Result {
+public interface ResultRowMeta extends ResultItem {
 
 
     /**

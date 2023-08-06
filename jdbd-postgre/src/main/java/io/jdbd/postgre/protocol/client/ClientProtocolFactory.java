@@ -7,7 +7,7 @@ import io.jdbd.postgre.session.SessionAdjutant;
 import io.jdbd.postgre.syntax.PgStatement;
 import io.jdbd.postgre.util.PgCollections;
 import io.jdbd.postgre.util.PgStrings;
-import io.jdbd.result.Result;
+import io.jdbd.result.ResultItem;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultRowMeta;
 import io.jdbd.vendor.env.Properties;
@@ -176,10 +176,10 @@ public final class ClientProtocolFactory extends FixedEnv {
          * @return a unmodified map
          * @see #initializing()
          */
-        private Map<String, String> readInitializedParamResult(final List<Result> resultList) {
+        private Map<String, String> readInitializedParamResult(final List<ResultItem> resultList) {
             final Map<String, String> map = new HashMap<>((int) (resultList.size() / 0.75F));
 
-            for (Result result : resultList) {
+            for (ResultItem result : resultList) {
                 if (result instanceof ResultRow) {
                     ResultRow row = (ResultRow) result;
                     ResultRowMeta rowMeta = row.getRowMeta();

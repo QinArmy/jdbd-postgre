@@ -47,7 +47,7 @@ final class UpdateResultSubscriber extends JdbdResultSubscriber {
     }
 
     @Override
-    public final void onNext(final Result result) {
+    public final void onNext(final ResultItem result) {
         // this method invoker in EventLoop
         if (hasError()) {
             return;

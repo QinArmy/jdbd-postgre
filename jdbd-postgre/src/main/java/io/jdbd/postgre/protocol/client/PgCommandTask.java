@@ -4,7 +4,7 @@ import io.jdbd.JdbdException;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.syntax.PgParser;
 import io.jdbd.postgre.util.PgArrays;
-import io.jdbd.result.Result;
+import io.jdbd.result.ResultItem;
 import io.jdbd.result.ResultRowMeta;
 import io.jdbd.vendor.result.ResultSink;
 import io.jdbd.vendor.stmt.SingleStmt;
@@ -102,7 +102,7 @@ abstract class PgCommandTask extends PgTask implements StmtTask {
     }
 
     @Override
-    public final void next(final Result result) {
+    public final void next(final ResultItem result) {
         this.sink.next(result);
     }
 

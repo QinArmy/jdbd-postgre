@@ -1,6 +1,6 @@
 package io.jdbd.vendor.result;
 
-import io.jdbd.result.Result;
+import io.jdbd.result.ResultItem;
 import io.jdbd.result.ResultStates;
 import io.jdbd.result.ResultStatusConsumerException;
 import io.jdbd.vendor.ResultType;
@@ -108,7 +108,7 @@ abstract class JdbdResultSubscriber implements ResultSubscriber {
     }
 
 
-    static IllegalArgumentException createUnknownTypeError(Result result) {
+    static IllegalArgumentException createUnknownTypeError(ResultItem result) {
         return new IllegalArgumentException(String.format("Unknown type[%s]", result.getClass().getName()));
     }
 

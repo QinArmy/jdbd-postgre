@@ -214,7 +214,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         sqlList.add(String.format("UPDATE my_types AS t SET my_boolean = TRUE WHERE t.id = %s RETURNING t.id AS id ", bindId++));
         sqlList.add("UPDATE my_types AS t SET my_boolean = TRUE WHERE t.id = " + bindId);
 
-        final List<Result> resultList;
+        final List<ResultItem> resultList;
         resultList = Flux.from(SimpleQueryTask.batchAsFlux(PgStmts.batch(sqlList), adjutant))
                 .switchIfEmpty(PgTestUtils.updateNoResponse())
 
@@ -226,7 +226,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
         assertNotNull(resultList, "resultList");
         assertEquals(resultList.size(), 6, "resultList size");
-        Result result;
+        ResultItem result;
         ResultStates state;
         ResultRow row;
 
@@ -661,7 +661,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
         }
 
-        final List<Result> resultList;
+        final List<ResultItem> resultList;
         resultList = Flux.from(SimpleQueryTask.paramBatchAsFlux(PgStmts.bindBatch(sql, groupList), adjutant))
 
                 .concatWith(releaseConnection(protocol))
@@ -810,7 +810,7 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         valueList.add(BindValue.wrap(2, PgType.BIGINT, bindId));
         stmtList.add(PgStmts.bind(sql, valueList));
 
-        final List<Result> resultList;
+        final List<ResultItem> resultList;
         resultList = Flux.from(SimpleQueryTask.multiStmtAsFlux(PgStmts.multi(stmtList), adjutant))
                 .switchIfEmpty(PgTestUtils.queryNoResponse())
 

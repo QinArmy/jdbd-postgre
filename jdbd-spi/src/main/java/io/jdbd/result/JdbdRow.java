@@ -19,10 +19,14 @@ import java.util.function.IntFunction;
  *         <li>{@link CurrentRow}</li>
  *     </ul>
  * </p>
+ * <p>
+ * The {@link #getResultNo()} of this interface always return same value with {@link ResultRowMeta} in same query result.
+ * See {@link #getRowMeta()}
+ * </p>
  *
  * @since 1.0
  */
-public interface JdbdRow extends Result {
+public interface JdbdRow extends ResultItem {
 
 
     ResultRowMeta getRowMeta();
@@ -60,7 +64,7 @@ public interface JdbdRow extends Result {
      * Get the value of output of column.
      * </p>
      *
-     * @return <ol>
+     * @return must be one of following : <ol>
      * <li>null</li>
      * <li>the instance of {@link ResultRowMeta#getFirstJavaType(int) }</li>
      * <li>the instance of {@link ResultRowMeta#getSecondJavaType(int)}</li>

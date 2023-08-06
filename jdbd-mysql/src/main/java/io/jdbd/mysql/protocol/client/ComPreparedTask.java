@@ -1188,7 +1188,7 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
         }
 
         @Override
-        public void next(Result result) {
+        public void next(ResultItem result) {
             final ResultSink sink = this.sink;
             if (sink == null) {
                 throw new IllegalStateException("this.sink is null");

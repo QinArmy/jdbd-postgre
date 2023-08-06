@@ -37,9 +37,9 @@ final class MultiResultSubscriber extends JdbdResultSubscriber {
         return new ReactorMultiResultImpl(adjutant, result);
     }
 
-    private final Publisher<Result> source;
+    private final Publisher<ResultItem> source;
 
-    private final Queue<Result> resultQueue = new LinkedList<>();
+    private final Queue<ResultItem> resultQueue = new LinkedList<>();
 
     private final Queue<SinkWrapper> sinkQueue = new LinkedList<>();
 
@@ -48,7 +48,7 @@ final class MultiResultSubscriber extends JdbdResultSubscriber {
     private boolean done;
 
 
-    private MultiResultSubscriber(Publisher<Result> source) {
+    private MultiResultSubscriber(Publisher<ResultItem> source) {
         this.source = source;
     }
 
@@ -65,7 +65,7 @@ final class MultiResultSubscriber extends JdbdResultSubscriber {
     }
 
     @Override
-    public void onNext(final Result result) {
+    public void onNext(final ResultItem result) {
         // this method invoker in EventLoop
         if (!hasError()) {
             this.resultQueue.offer(result);
@@ -124,10 +124,10 @@ final class MultiResultSubscriber extends JdbdResultSubscriber {
             throw new IllegalStateException("has error ,reject drain result.");
         }
         final Queue<SinkWrapper> sinkQueue = this.sinkQueue;
-        final Queue<Result> resultQueue = this.resultQueue;
+        final Queue<ResultItem> resultQueue = this.resultQueue;
 
         SinkWrapper sink;
-        Result currentResult;
+        ResultItem currentResult;
         ResultType nonExpectedType = null;
 
         while ((sink = sinkQueue.peek()) != null) {
@@ -229,7 +229,7 @@ final class MultiResultSubscriber extends JdbdResultSubscriber {
 
         private final MultiResultSubscriber subscriber;
 
-        private ReactorMultiResultImpl(ITaskAdjutant adjutant, Publisher<Result> source) {
+        private ReactorMultiResultImpl(ITaskAdjutant adjutant, Publisher<ResultItem> source) {
             this.adjutant = adjutant;
             this.subscriber = new MultiResultSubscriber(source);
         }

@@ -1,9 +1,23 @@
 package io.jdbd.result;
 
 
+import java.util.function.Consumer;
+import java.util.function.Function;
+
 /**
  * <p>
- * This representing row reader that read row from database client protocol.
+ * This interface representing the current row that result set reader have read from database client protocol.
+ * This interface is designed for reducing the instance of {@link ResultRow} in following methods:
+ * <ul>
+ *     <li>{@link io.jdbd.statement.StaticStatementSpec#executeQuery(String, Function, Consumer)}</li>
+ *     <li>{@link io.jdbd.statement.BindSingleStatement#executeQuery(Function, Consumer)}</li>
+ *     <li>{@link MultiResult#nextQuery(Function, Consumer)}</li>
+ *     <li>{@link BatchQuery#nextQuery(Function, Consumer)}</li>
+ * </ul>
+ * </p>
+ * <p>
+ * The {@link #getResultNo()} of this interface always return same value with {@link ResultRowMeta} in same query result.
+ * See {@link #getRowMeta()}
  * </p>
  *
  * @see ResultRow
@@ -12,10 +26,15 @@ package io.jdbd.result;
 public interface CurrentRow extends JdbdRow {
 
     /**
-     * @return row number based 1 . the first value is 1 .
+     * @return the row number of current row, based 1 . The first value is 1 .
      */
     long rowNumber();
 
+    /**
+     * <p>
+     * Create one {@link ResultRow} with coping all column data.
+     * </p>
+     */
     ResultRow asResultRow();
 
 

@@ -10,7 +10,7 @@ import io.jdbd.statement.OutParameter;
  * @see OutParameter
  * @since 1.0
  */
-public interface OutResult extends Result {
+public interface OutResult extends ResultItem {
 
     /**
      * @return out parameter name of stored procedure

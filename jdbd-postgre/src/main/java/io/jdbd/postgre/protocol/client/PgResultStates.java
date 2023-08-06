@@ -71,7 +71,7 @@ abstract class PgResultStates implements ResultStates {
         }
 
         @Override
-        public final long getRowCount() {
+        public final long rowCount() {
             return 0L;
         }
 
@@ -152,7 +152,7 @@ abstract class PgResultStates implements ResultStates {
 
 
         @Override
-        public final long getRowCount() {
+        public final long rowCount() {
             return this.rowCount;
         }
 

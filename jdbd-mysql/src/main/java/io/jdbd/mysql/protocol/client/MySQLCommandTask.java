@@ -2,7 +2,7 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
-import io.jdbd.result.Result;
+import io.jdbd.result.ResultItem;
 import io.jdbd.vendor.result.ResultSink;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
@@ -69,7 +69,7 @@ abstract class MySQLCommandTask extends MySQLTask implements StmtTask {
     }
 
     @Override
-    public final void next(final Result result) {
+    public final void next(final ResultItem result) {
         this.sink.next(result);
     }
 

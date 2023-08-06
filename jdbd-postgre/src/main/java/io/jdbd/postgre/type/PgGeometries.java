@@ -1,5 +1,6 @@
 package io.jdbd.postgre.type;
 
+import io.jdbd.JdbdException;
 import io.jdbd.type.Point;
 import io.jdbd.type.geo.Line;
 import io.jdbd.type.geo.LineString;
@@ -228,8 +229,8 @@ public abstract class PgGeometries {
     }
 
 
-    protected static IllegalArgumentException createGeometricFormatError(String textValue) {
-        return new IllegalArgumentException(String.format("Geometric[%s] format error.", textValue));
+    protected static JdbdException createGeometricFormatError(String textValue) {
+        return new JdbdException(String.format("Geometric[%s] format error.", textValue));
     }
 
 

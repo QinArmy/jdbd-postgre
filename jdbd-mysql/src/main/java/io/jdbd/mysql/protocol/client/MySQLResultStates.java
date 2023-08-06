@@ -120,7 +120,7 @@ abstract class MySQLResultStates implements ResultStates {
         }
 
         @Override
-        public long getRowCount() {
+        public long rowCount() {
             return 0L;
         }
 
@@ -141,7 +141,7 @@ abstract class MySQLResultStates implements ResultStates {
         }
 
         @Override
-        public final long getRowCount() {
+        public final long rowCount() {
             return this.rowCount;
         }
 

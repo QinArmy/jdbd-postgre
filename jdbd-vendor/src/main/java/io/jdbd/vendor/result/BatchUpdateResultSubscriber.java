@@ -46,7 +46,7 @@ final class BatchUpdateResultSubscriber extends JdbdResultSubscriber {
     }
 
     @Override
-    public void onNext(final Result result) {
+    public void onNext(final ResultItem result) {
         // this method invoker in EventLoop
         if (hasError()) {
             return;

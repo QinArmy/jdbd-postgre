@@ -1,7 +1,7 @@
 package io.jdbd.vendor.result;
 
 import io.jdbd.result.OrderedFlux;
-import io.jdbd.result.Result;
+import io.jdbd.result.ResultItem;
 import io.jdbd.vendor.util.JdbdExceptions;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
@@ -29,7 +29,7 @@ final class FluxResult implements OrderedFlux {
     }
 
     @Override
-    public void subscribe(Subscriber<? super Result> actual) {
+    public void subscribe(Subscriber<? super ResultItem> actual) {
         ResultSinkImpl sink = new ResultSinkImpl(actual);
         actual.onSubscribe(sink.subscription);
 
@@ -44,11 +44,11 @@ final class FluxResult implements OrderedFlux {
 
     private static final class ResultSinkImpl implements ResultSink {
 
-        private final Subscriber<? super Result> subscriber;
+        private final Subscriber<? super ResultItem> subscriber;
 
         private final SubscriptionImpl subscription;
 
-        private ResultSinkImpl(Subscriber<? super Result> subscriber) {
+        private ResultSinkImpl(Subscriber<? super ResultItem> subscriber) {
             this.subscriber = subscriber;
             this.subscription = new SubscriptionImpl();
         }
@@ -73,7 +73,7 @@ final class FluxResult implements OrderedFlux {
         }
 
         @Override
-        public void next(Result result) {
+        public void next(ResultItem result) {
             // this method invoker in EventLoop
             this.subscriber.onNext(result);
         }

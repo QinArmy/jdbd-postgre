@@ -1,7 +1,6 @@
 package io.jdbd.postgre.type;
 
 import io.jdbd.type.Point;
-import io.jdbd.vendor.util.GeometryUtils;
 
 import java.util.Objects;
 
@@ -40,32 +39,23 @@ final class PgPont implements Point {
     }
 
     @Override
-    public final double getX() {
+    public double getX() {
         return this.x;
     }
 
     @Override
-    public final double getY() {
+    public double getY() {
         return this.y;
     }
 
-    @Override
-    public final byte[] toWkb() {
-        return GeometryUtils.pointToWkb(this, false);
-    }
 
     @Override
-    public final String toWkt() {
-        return GeometryUtils.pointToWkt(this);
-    }
-
-    @Override
-    public final int hashCode() {
+    public int hashCode() {
         return Objects.hash(this.x, this.y);
     }
 
     @Override
-    public final boolean equals(Object obj) {
+    public boolean equals(Object obj) {
         final boolean match;
         if (obj == this) {
             match = true;
@@ -80,7 +70,7 @@ final class PgPont implements Point {
     }
 
     @Override
-    public final String toString() {
+    public String toString() {
         return this.textValue;
     }
 
