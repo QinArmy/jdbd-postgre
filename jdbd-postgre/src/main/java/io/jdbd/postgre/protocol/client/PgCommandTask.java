@@ -69,7 +69,7 @@ abstract class PgCommandTask extends PgTask implements StmtTask {
     }
 
     @Override
-    public final int getAndIncrementResultIndex() {
+    public final int nextResultNo() {
         return this.resultIndex++;
     }
 
@@ -79,7 +79,7 @@ abstract class PgCommandTask extends PgTask implements StmtTask {
     }
 
     @Override
-    public final boolean readResultStateWithReturning(ByteBuf cumulateBuffer, IntSupplier resultIndexes) {
+    public final boolean readResultStateOfQuery(ByteBuf cumulateBuffer, IntSupplier resultIndexes) {
         return readCommandComplete(cumulateBuffer, true, resultIndexes);
     }
 
@@ -280,7 +280,7 @@ abstract class PgCommandTask extends PgTask implements StmtTask {
      * @return true: read CommandComplete message end , false : more cumulate.
      */
     final boolean readResultStateWithoutReturning(ByteBuf cumulateBuffer) {
-        return readCommandComplete(cumulateBuffer, false, this::getAndIncrementResultIndex);
+        return readCommandComplete(cumulateBuffer, false, this::nextResultNo);
     }
 
     /**
@@ -301,7 +301,7 @@ abstract class PgCommandTask extends PgTask implements StmtTask {
 
             final PgResultStates states;
             final boolean moreResult = status == ResultSetStatus.MORE_RESULT;
-            states = PgResultStates.empty(getAndIncrementResultIndex(), moreResult
+            states = PgResultStates.empty(nextResultNo(), moreResult
                     , this.adjutant.server().serverVersion());
             this.sink.next(states);
             cumulateBuffer.readerIndex(nextMsgIndex); // avoid tail filler

@@ -36,8 +36,16 @@ public enum JdbdType implements DataType {
 
     /**
      * Identifies the generic SQL type {@code BIT}, not boolean.
+     * {@code BIT} are strings of 1's and 0's. They can be used to store or visualize bit masks.
+     * {@code BIT} is similar to {@link #VARBIT}, except that must match fixed length.
      */
     BIT,
+
+    /**
+     * Identifies the generic SQL type {@code VARBIT}, not boolean.
+     * {@code VARBIT} are strings of 1's and 0's. They can be used to store or visualize bit masks.
+     */
+    VARBIT,
 
     /**
      * Identifies the generic SQL type {@code TINYINT}.

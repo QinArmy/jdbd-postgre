@@ -37,6 +37,7 @@ public abstract class MySQLBinds extends JdbdBinds {
                 type = MySQLType.BOOLEAN;
                 break;
             case BIT:
+            case VARBIT:
                 type = MySQLType.BIT;
                 break;
 

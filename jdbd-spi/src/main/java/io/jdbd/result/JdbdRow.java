@@ -2,7 +2,6 @@ package io.jdbd.result;
 
 import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
-import io.jdbd.meta.SQLType;
 import org.reactivestreams.Publisher;
 
 import java.nio.file.CopyOption;
@@ -52,15 +51,27 @@ public interface JdbdRow extends Result {
      *
      * @param indexBasedZero index based zero,the first value is 0 .
      * @return true : big column
+     * @throws JdbdException throw when indexBasedZero error
      */
-    boolean isBigColumn(int indexBasedZero);
+    boolean isBigColumn(int indexBasedZero) throws JdbdException;
 
     /**
-     * @see SQLType#firstJavaType()
+     * <p>
+     * Get the value of output of column.
+     * </p>
+     *
+     * @return <ol>
+     * <li>null</li>
+     * <li>the instance of {@link ResultRowMeta#getFirstJavaType(int) }</li>
+     * <li>the instance of {@link ResultRowMeta#getSecondJavaType(int)}</li>
+     * </ol>
+     * @see ResultRowMeta#getFirstJavaType(int)
+     * @see ResultRowMeta#getSecondJavaType(int)
      * @see #isBigColumn(int)
      */
     @Nullable
     Object get(int indexBasedZero) throws JdbdException;
+
 
     @Nullable
     <T> T get(int indexBasedZero, Class<T> columnClass) throws JdbdException;

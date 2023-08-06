@@ -3,6 +3,7 @@ package io.jdbd.postgre;
 /**
  * Known server parameters status.
  *
+ * @see <a href="https://www.postgresql.org/docs/current/runtime-config-client.html">Locale and Formatting</a>
  * @see <a href="https://www.postgresql.org/docs/current/protocol-flow.html#PROTOCOL-ASYNC">Asynchronous Operations</a>
  */
 public enum ServerParameter {

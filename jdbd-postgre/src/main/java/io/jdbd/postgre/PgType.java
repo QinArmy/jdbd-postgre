@@ -295,4 +295,56 @@ public enum PgType implements SQLType {
     }
 
 
+//            case CHAR:
+//            case VARCHAR:
+//            case TEXT:
+//            case TSQUERY:
+//            case TSVECTOR:
+//
+//            case TIME:
+//            case TIMETZ:
+//            case DATE:
+//            case TIMESTAMP:
+//            case TIMESTAMPTZ:
+//            case INTERVAL:
+//
+//            case INT4RANGE:
+//            case INT8RANGE:
+//            case NUMRANGE:
+//            case DATERANGE:
+//            case TSRANGE:
+//            case TSTZRANGE:
+//
+//            case INT4MULTIRANGE:
+//            case INT8MULTIRANGE:
+//            case NUMMULTIRANGE:
+//            case DATEMULTIRANGE:
+//            case TSMULTIRANGE:
+//            case TSTZMULTIRANGE:
+//
+//            case JSON:
+//            case JSONB:
+//            case JSONPATH:
+//            case XML:
+//
+//            case POINT:
+//            case LINE:
+//            case PATH:
+//            case CIRCLE:
+//            case BOX:
+//            case POLYGON:
+//            case LSEG:
+//
+//            case CIDR:
+//            case INET:
+//            case MACADDR:
+//            case MACADDR8:
+//
+//            case MONEY:
+//            case BIT:
+//            case VARBIT:
+//            case UNSPECIFIED:
+//            case REF_CURSOR:
+
+
 }

@@ -307,10 +307,10 @@ public abstract class PgBinds extends JdbdBinds {
         switch (type) {
             case SMALLINT:
             case INTEGER:
+            case BIGINT:
             case REAL:
             case FLOAT8:
             case OID:
-            case BIGINT:
             case BYTEA:
             case BOOLEAN:
                 formatCode = 1; // binary format code

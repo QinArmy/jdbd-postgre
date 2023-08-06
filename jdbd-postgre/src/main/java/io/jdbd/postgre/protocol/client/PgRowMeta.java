@@ -22,16 +22,18 @@ import java.util.Map;
 final class PgRowMeta extends VendorResultRowMeta {
 
     /**
-     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">RowDescription</a>
+     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">RowDescription (B)</a>
      */
-    static PgRowMeta read(ByteBuf message, StmtTask stmtTask) {
+    static PgRowMeta read(ByteBuf cumulateBuffer, StmtTask stmtTask) {
         TaskAdjutant adjutant = stmtTask.adjutant();
-        PgColumnMeta[] columnMetaArray = PgColumnMeta.read(message, adjutant);
-        return new PgRowMeta(stmtTask.getAndIncrementResultIndex(), columnMetaArray, adjutant);
+        final PgColumnMeta[] columnMetaArray;
+        columnMetaArray = PgColumnMeta.read(cumulateBuffer, adjutant);
+        return new PgRowMeta(stmtTask.nextResultNo(), columnMetaArray, adjutant);
     }
 
     static PgRowMeta readForPrepare(ByteBuf message, TaskAdjutant adjutant) {
-        PgColumnMeta[] columnMetaArray = PgColumnMeta.read(message, adjutant);
+        final PgColumnMeta[] columnMetaArray;
+        columnMetaArray = PgColumnMeta.read(message, adjutant);
         return new PgRowMeta(-1, columnMetaArray, adjutant);
     }
 
@@ -46,6 +48,8 @@ final class PgRowMeta extends VendorResultRowMeta {
 
     // cache client charset,because possibly is changed in multi-statement.
     final Charset clientCharset;
+
+    final ServerEnv serverEnv;
 
     // don't need volatile
     private List<String> labelList;
@@ -62,6 +66,7 @@ final class PgRowMeta extends VendorResultRowMeta {
         }
         this.moneyFormat = createMoneyFormatIfNeed(columnMetaArray, adjutant);
         this.clientCharset = adjutant.clientCharset();
+        this.serverEnv = adjutant.server();
     }
 
     @Override
@@ -218,7 +223,7 @@ final class PgRowMeta extends VendorResultRowMeta {
         return null;
     }
 
-    private int checkIndex(final int indexBasedZero) {
+    int checkIndex(final int indexBasedZero) {
         if (indexBasedZero < 0 || indexBasedZero >= this.columnMetaArray.length) {
             String m = String.format("Invalid column index[%s] ,should be [0,%s).",
                     indexBasedZero, this.columnMetaArray.length);

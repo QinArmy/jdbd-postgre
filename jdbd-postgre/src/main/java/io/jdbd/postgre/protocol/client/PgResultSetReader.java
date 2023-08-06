@@ -1,23 +1,31 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.JdbdException;
+import io.jdbd.meta.DataType;
 import io.jdbd.postgre.PgConstant;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PgTimes;
-import io.jdbd.vendor.type.LongBinaries;
-import io.jdbd.vendor.util.JdbdBuffers;
+import io.jdbd.result.CurrentRow;
+import io.jdbd.result.ResultRow;
+import io.jdbd.result.ResultRowMeta;
+import io.jdbd.vendor.result.ColumnConverts;
+import io.jdbd.vendor.result.ColumnMeta;
+import io.jdbd.vendor.result.VendorRow;
+import io.jdbd.vendor.util.JdbdExceptions;
+import io.jdbd.vendor.util.JdbdStrings;
 import io.netty.buffer.ByteBuf;
+import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.SQLException;
-import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
-import java.util.Arrays;
-import java.util.Objects;
+import java.math.BigDecimal;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.*;
+import java.util.*;
 import java.util.function.Consumer;
+import java.util.function.IntFunction;
 
 final class PgResultSetReader implements ResultSetReader {
 
@@ -26,6 +34,9 @@ final class PgResultSetReader implements ResultSetReader {
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(PgResultSetReader.class);
+
+    private static final Path TEMP_DIRECTORY = Paths.get(System.getProperty("java.io.tmpdir"), "jdbd/postgre/big_row")
+            .toAbsolutePath();
 
     // We can't use Long.MAX_VALUE or Long.MIN_VALUE for java.sql.date
     // because this would break the 'normalization contract' of the
@@ -45,6 +56,8 @@ final class PgResultSetReader implements ResultSetReader {
 
     private PgRowMeta rowMeta;
 
+    private MutableCurrentRow currentRow;
+
     private Phase phase = Phase.READ_ROW_META;
 
     private PgResultSetReader(StmtTask task) {
@@ -55,47 +68,83 @@ final class PgResultSetReader implements ResultSetReader {
     @Override
     public boolean read(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatesConsumer)
             throws JdbdException {
-        boolean resultSetEnd = false, continueRead = true;
-        while (continueRead) {
-            switch (this.phase) {
-                case READ_ROW_META: {
-                    final PgRowMeta rowMeta;
-                    rowMeta = PgRowMeta.read(cumulateBuffer, this.task);
-                    this.rowMeta = rowMeta;
-                    LOG.trace("Read ResultSet row meta data : {}", rowMeta);
-                    this.phase = Phase.READ_ROWS;
-                    continueRead = Messages.hasOneMessage(cumulateBuffer);
-                }
-                break;
-                case READ_ROWS: {
-                    if (readRowData(cumulateBuffer)) {
-                        this.phase = Phase.READ_RESULT_TERMINATOR;
-                        continueRead = Messages.hasOneMessage(cumulateBuffer);
-                    } else {
-                        continueRead = false;
-                    }
-                }
-                break;
-                case READ_RESULT_TERMINATOR: {
-                    final PgRowMeta rowMeta = Objects.requireNonNull(this.rowMeta, "this.rowMeta");
-                    resultSetEnd = this.task.readResultStateWithReturning(cumulateBuffer, rowMeta::getResultNo);
-                    continueRead = false;
-                }
-                break;
-                case END:
-                    throw new IllegalStateException(String.format("%s can't reuse.", this));
-                default:
-                    throw PgExceptions.createUnexpectedEnumException(this.phase);
-            }
+        MutableCurrentRow currentRow = this.currentRow;
+        if (currentRow == null) {
+            this.currentRow = currentRow = new MutableCurrentRow(PgRowMeta.read(cumulateBuffer, this.task));
         }
+        final boolean resultSetEnd;
+        resultSetEnd = readRowData(cumulateBuffer);
         if (resultSetEnd) {
-            if (this.task.hasError()) {
-                this.phase = Phase.END;
-            } else {
-                reset(); // for next result set
-            }
+            this.task.readResultStateOfQuery(cumulateBuffer, currentRow::getResultNo);
+            // reset this instance
+            this.currentRow = null;
         }
         return resultSetEnd;
+    }
+
+    /**
+     * @return true : read row data end.
+     * @see #read(ByteBuf, Consumer)
+     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">DataRow (B)</a>
+     */
+    private boolean readRowData(final ByteBuf cumulateBuffer) {
+        final MutableCurrentRow currentRow = this.currentRow;
+        assert currentRow != null;
+        final boolean traceEnabled = LOG.isTraceEnabled();
+        if (traceEnabled) {
+            LOG.trace("Read ResultSet row data for {}", currentRow);
+        }
+        final StmtTask sink = this.task;
+        final PgColumnMeta[] columnMetaArray = currentRow.rowMeta.columnMetaArray;
+        final Object[] columnArray = currentRow.columnArray;
+        final int columnCount = columnMetaArray.length;
+
+        boolean isCanceled = sink.isCancelled();
+        PgColumnMeta meta;
+        for (int msgIndex, nextMsgIndex; Messages.hasOneMessage(cumulateBuffer); ) {
+            msgIndex = cumulateBuffer.readerIndex();
+
+            if (cumulateBuffer.getByte(msgIndex) != Messages.D) {
+                if (traceEnabled) {
+                    LOG.trace("Read ResultSet end for result No : {}", currentRow.getResultNo());
+                }
+                return true;
+            }
+            cumulateBuffer.readByte(); // skip message type byte
+            nextMsgIndex = msgIndex + 1 + cumulateBuffer.readInt();
+
+            if (isCanceled) { // downstream cancel or occur error.
+                cumulateBuffer.readerIndex(nextMsgIndex);// skip row
+                continue;
+            }
+            if (cumulateBuffer.readShort() != columnCount) {
+                String m = String.format("Server RowData message column count[%s] and RowDescription[%s] not match.",
+                        cumulateBuffer.getShort(cumulateBuffer.readerIndex() - 2), columnCount);
+                throw new JdbdException(m);
+            }
+
+            for (int i = 0, valueLength; i < columnCount; i++) {
+                valueLength = cumulateBuffer.readInt();
+                if (valueLength == -1) {
+                    // -1 indicates a NULL column value.
+                    columnArray[i] = null;
+                    continue;
+                }
+                meta = columnMetaArray[i];
+                if (meta.textFormat) {
+                    columnArray[i] = readColumnFromText(cumulateBuffer, valueLength, rowMeta, meta);
+                } else {
+                    columnArray[i] = readColumnFromBinary(cumulateBuffer, valueLength, meta);
+                }
+            }
+
+            currentRow.rowCount++;
+            sink.next(currentRow);
+
+            cumulateBuffer.readerIndex(nextMsgIndex);// avoid to tailor filler.
+        }
+
+        return false;
     }
 
 
@@ -104,86 +153,125 @@ final class PgResultSetReader implements ResultSetReader {
         return String.format("Class[%s] phase[%s]", getClass().getSimpleName(), this.phase);
     }
 
-    private void reset() {
-        this.rowMeta = null;
-        this.phase = Phase.READ_ROW_META;
-    }
 
+    private Object readColumnFromText(final ByteBuf cumulateBuffer, final int valueLength, final PgRowMeta rowMeta,
+                                      final PgColumnMeta meta) {
 
-    /**
-     * @return true : read row data end.
-     * @see #read(ByteBuf, Consumer)
-     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">DataRow</a>
-     */
-    private boolean readRowData(final ByteBuf cumulateBuffer) {
+        final DataType dataType = meta.dataType;
 
-        final PgRowMeta rowMeta = Objects.requireNonNull(this.rowMeta, "this.rowMeta");
-        if (LOG.isTraceEnabled()) {
-            LOG.trace("Read ResultSet row data for meta :{}", rowMeta);
-        }
-
-        final PgColumnMeta[] columnMetaArray = rowMeta.columnMetaArray;
-        final StmtTask sink = this.task;
-        // if 'true' maybe user cancel or occur error
-        final boolean isCanceled = sink.isCancelled();
-        Object[] columnValueArray;
-        PgColumnMeta meta;
-        while (Messages.hasOneMessage(cumulateBuffer)) {
-            final int msgIndex = cumulateBuffer.readerIndex();
-            if (cumulateBuffer.getByte(msgIndex) != Messages.D) {
-                return true;
-            }
-            cumulateBuffer.readByte(); // skip message type byte
-            final int nextRowIndex = msgIndex + 1 + cumulateBuffer.readInt();
-
-            if (isCanceled) {
-                cumulateBuffer.readerIndex(nextRowIndex);// skip row
-                continue;
-            }
-            if (cumulateBuffer.readShort() != columnMetaArray.length) {
-                String m = String.format("Server RowData message column count[%s] and RowDescription[%s] not match."
-                        , cumulateBuffer.getShort(cumulateBuffer.readerIndex() - 2), columnMetaArray.length);
-                throw new JdbdException(m);
-            }
-
-            columnValueArray = new Object[columnMetaArray.length];
-            for (int i = 0, valueLength; i < columnMetaArray.length; i++) {
-                valueLength = cumulateBuffer.readInt();
-                if (valueLength == -1) {
-                    // -1 indicates a NULL column value.
-                    columnValueArray[i] = null;
-                    continue;
-                }
-                meta = columnMetaArray[i];
-                if (meta.textFormat) {
-                    columnValueArray[i] = parseTextColumn(cumulateBuffer, valueLength, rowMeta, meta);
-                } else {
-                    columnValueArray[i] = parseColumnFromBinary(cumulateBuffer, valueLength, meta);
-                }
-            }
-            sink.next(PgResultRow.create(rowMeta, columnValueArray, this.adjutant));
-            cumulateBuffer.readerIndex(nextRowIndex);//avoid tail filler
-        }
-
-        return false;
-    }
-
-    private static Object parseTextColumn(final ByteBuf cumulateBuffer, final int valueLength, final PgRowMeta rowMeta
-            , final PgColumnMeta meta) {
-        final byte[] bytes = new byte[valueLength];
-        cumulateBuffer.readBytes(bytes);
-        final Object value;
-        if (meta.dataType == PgType.BYTEA) {
-            if (bytes.length > 1 && bytes[0] == '\\' && bytes[1] == 'x') {
-                byte[] v = Arrays.copyOfRange(bytes, 2, bytes.length);
-                value = LongBinaries.fromArray(JdbdBuffers.decodeHex(v, v.length));
-            } else {
-                value = LongBinaries.fromArray(bytes);
-            }
+        int startIndex = cumulateBuffer.readerIndex();
+        final byte[] valueBytes;
+        if (dataType == PgType.BYTEA
+                && cumulateBuffer.getByte(startIndex++) == PgConstant.BACK_SLASH
+                && cumulateBuffer.getByte(startIndex) == 'x') {
+            valueBytes = new byte[valueLength - 2];
+            cumulateBuffer.skipBytes(2);
         } else {
-            value = new String(bytes, rowMeta.clientCharset);
+            valueBytes = new byte[valueLength];
         }
-        return value;
+
+        if (valueBytes.length != 0) {
+            cumulateBuffer.readBytes(valueBytes);
+        }
+
+
+        if (!(dataType instanceof PgType) || dataType.isArray()) {
+            return new String(valueBytes, rowMeta.clientCharset);
+        }
+
+        final Object columnValue;
+        switch ((PgType) dataType) {
+            case BOOLEAN: {
+                if (valueLength != 1) {
+                    throw columnValueError(meta);
+                }
+                columnValue = readBoolean(valueBytes[0], meta);
+            }
+            break;
+            case SMALLINT:
+                columnValue = Short.parseShort(new String(valueBytes, rowMeta.clientCharset));
+                break;
+            case INTEGER:
+                columnValue = Integer.parseInt(new String(valueBytes, rowMeta.clientCharset));
+                break;
+            case OID:
+            case BIGINT:
+                columnValue = Long.parseLong(new String(valueBytes, rowMeta.clientCharset));
+                break;
+            case DECIMAL:
+                columnValue = new BigDecimal(new String(valueBytes, rowMeta.clientCharset));
+                break;
+            case REAL:
+                columnValue = Float.parseFloat(new String(valueBytes, rowMeta.clientCharset));
+                break;
+            case FLOAT8:
+                columnValue = Double.parseDouble(new String(valueBytes, rowMeta.clientCharset));
+                break;
+
+            case BYTEA:
+                columnValue = valueBytes;
+                break;
+
+            case CHAR:
+            case VARCHAR:
+            case TEXT:
+            case TSQUERY:
+            case TSVECTOR:
+
+            case TIME:
+            case TIMETZ:
+            case DATE:
+            case TIMESTAMP:
+            case TIMESTAMPTZ:
+            case INTERVAL:
+
+            case INT4RANGE:
+            case INT8RANGE:
+            case NUMRANGE:
+            case DATERANGE:
+            case TSRANGE:
+            case TSTZRANGE:
+
+            case INT4MULTIRANGE:
+            case INT8MULTIRANGE:
+            case NUMMULTIRANGE:
+            case DATEMULTIRANGE:
+            case TSMULTIRANGE:
+            case TSTZMULTIRANGE:
+
+            case JSON:
+            case JSONB:
+            case JSONPATH:
+            case XML:
+
+            case POINT:
+            case LINE:
+            case PATH:
+            case CIRCLE:
+            case BOX:
+            case POLYGON:
+            case LSEG:
+
+            case CIDR:
+            case INET:
+            case MACADDR:
+            case MACADDR8:
+
+            case MONEY:
+            case UUID:
+
+            case BIT:
+            case VARBIT:
+
+            case UNSPECIFIED:
+                columnValue = new String(valueBytes, rowMeta.clientCharset);
+                break;
+            case REF_CURSOR:
+            default:
+                throw PgExceptions.unexpectedEnum((PgType) dataType);
+
+        }
+        return columnValue;
     }
 
 
@@ -191,132 +279,244 @@ final class PgResultSetReader implements ResultSetReader {
      * @see #readRowData(ByteBuf)
      * @see io.jdbd.postgre.util.PgBinds#decideFormatCode(PgType)
      */
-    private Object parseColumnFromBinary(final ByteBuf cumulateBuffer, final int valueLength, final PgColumnMeta meta) {
-        final Object value;
-        switch (meta.columnTypeOid) {
-            case PgConstant.TYPE_INT2: {
-                if (valueLength != 2) {
-                    throw createResponseBinaryColumnValueError(cumulateBuffer, valueLength, meta);
-                }
-                value = cumulateBuffer.readShort();
-            }
-            break;
-            case PgConstant.TYPE_INT4: {
-                if (valueLength != 4) {
-                    throw createResponseBinaryColumnValueError(cumulateBuffer, valueLength, meta);
-                }
-                value = cumulateBuffer.readInt();
-            }
-            break;
-            case PgConstant.TYPE_OID:
-            case PgConstant.TYPE_INT8: {
-                if (valueLength != 8) {
-                    throw createResponseBinaryColumnValueError(cumulateBuffer, valueLength, meta);
-                }
-                value = cumulateBuffer.readLong();
-            }
-            break;
-            case PgConstant.TYPE_FLOAT4: {
-                if (valueLength != 4) {
-                    throw createResponseBinaryColumnValueError(cumulateBuffer, valueLength, meta);
-                }
-                value = Float.intBitsToFloat(cumulateBuffer.readInt());
-            }
-            break;
-            case PgConstant.TYPE_FLOAT8: {
-                if (valueLength != 8) {
-                    throw createResponseBinaryColumnValueError(cumulateBuffer, valueLength, meta);
-                }
-                value = Double.longBitsToDouble(cumulateBuffer.readLong());
-            }
-            break;
-            case PgConstant.TYPE_BOOLEAN: {
+    private Object readColumnFromBinary(final ByteBuf cumulateBuffer, final int valueLength, final PgColumnMeta meta) {
+        final DataType dataType = meta.dataType;
+        if (!(dataType instanceof PgType)) {
+            throw unexpectedBinaryFormat(dataType);
+        }
+        final Object columnValue;
+        switch ((PgType) dataType) {
+            case BOOLEAN: {
                 if (valueLength != 1) {
-                    throw createResponseBinaryColumnValueError(cumulateBuffer, valueLength, meta);
+                    throw binaryFormatLengthError(dataType, valueLength);
                 }
-                value = cumulateBuffer.readByte() == 1;
+                columnValue = readBoolean(cumulateBuffer.readByte(), meta);
             }
             break;
-            default: {
-                // other not support. if change this ,change io.jdbd.postgre.util.PgBinds.decideFormatCode
-                final byte[] bytes = new byte[valueLength];
-                cumulateBuffer.readBytes(bytes);
-                value = bytes;
+            case SMALLINT: {
+                if (valueLength != 2) {
+                    throw binaryFormatLengthError(dataType, valueLength);
+                }
+                columnValue = cumulateBuffer.readShort();
             }
+            break;
+            case INTEGER: {
+                if (valueLength != 4) {
+                    throw binaryFormatLengthError(dataType, valueLength);
+                }
+                columnValue = cumulateBuffer.readInt();
+            }
+            break;
+            case BIGINT: {
+                if (valueLength != 8) {
+                    throw binaryFormatLengthError(dataType, valueLength);
+                }
+                columnValue = cumulateBuffer.readInt();
+            }
+            break;
+            case OID: {
+                switch (valueLength) {
+                    case 1:
+                        columnValue = (long) cumulateBuffer.readByte();
+                        break;
+                    case 2:
+                        columnValue = (long) cumulateBuffer.readShort();
+                        break;
+                    case 4:
+                        columnValue = (long) cumulateBuffer.readInt();
+                        break;
+                    case 8:
+                        columnValue = cumulateBuffer.readLong();
+                        break;
+                    default:
+                        throw binaryFormatLengthError(dataType, valueLength);
+                }
+            }
+            break;
+            case REAL: {
+                if (valueLength != 4) {
+                    throw binaryFormatLengthError(dataType, valueLength);
+                }
+                columnValue = Float.intBitsToFloat(cumulateBuffer.readInt());
+            }
+            break;
+            case FLOAT8: {
+                if (valueLength != 8) {
+                    throw binaryFormatLengthError(dataType, valueLength);
+                }
+                columnValue = Double.longBitsToDouble(cumulateBuffer.readLong());
+            }
+            break;
+            case BYTEA: {
+                final byte[] valueBytes = new byte[valueLength];
+                if (valueLength != 0) {
+                    cumulateBuffer.readBytes(valueBytes);
+                }
+                columnValue = valueBytes;
+            }
+            break;
+            default:
+                throw unexpectedBinaryFormat(dataType);
+        }
+        return columnValue;
+    }
 
+
+
+    /*-------------------below static method -------------------*/
+
+    /**
+     * @see #readColumnFromText(ByteBuf, int, PgRowMeta, PgColumnMeta)
+     * @see #readColumnFromBinary(ByteBuf, int, PgColumnMeta)
+     */
+    private static Boolean readBoolean(final byte valueByte, final PgColumnMeta meta) {
+        final Boolean value;
+        switch (valueByte) {
+            case 't':
+                value = Boolean.TRUE;
+                break;
+            case 'f':
+                value = Boolean.FALSE;
+                break;
+            default:
+                throw columnValueError(meta);
         }
         return value;
     }
 
 
     /**
-     * @see #parseColumnFromBinary(ByteBuf, int, PgColumnMeta)
+     * @see PgDataRow#get(int)
      */
-    private OffsetDateTime parseLocalDateTimeFromBinaryLong(final ByteBuf cumulateBuffer) {
-        final long seconds;
-        final int nanos;
-
-        final long time = cumulateBuffer.readLong();
-        if (time == Long.MAX_VALUE) {
-            seconds = DATE_POSITIVE_INFINITY / 1000;
-            nanos = 0;
-        } else if (time == Long.MIN_VALUE) {
-            seconds = DATE_NEGATIVE_INFINITY / 1000;
-            nanos = 0;
-        } else {
-            final int million = 1000_000;
-            long secondPart = time / million;
-            int nanoPart = (int) (time - secondPart * million);
-            if (nanoPart < 0) {
-                secondPart--;
-                nanoPart += million;
-            }
-            nanoPart *= 1000;
-
-            seconds = PgTimes.toJavaSeconds(secondPart);
-            nanos = nanoPart;
-        }
-        return OffsetDateTime.of(LocalDateTime.ofEpochSecond(seconds, nanos, ZoneOffset.UTC), ZoneOffset.UTC);
+    private static LocalTime parseLocalTime(final String source, final PgColumnMeta meta, final DateStyle style) {
+        // currently jdbd-postgre support only iso style,see io.jdbd.postgre.protocol.client.PgConnectionTask
+        return LocalTime.parse(source, PgTimes.TIME_FORMATTER_6);
     }
 
     /**
-     * @see #parseColumnFromBinary(ByteBuf, int, PgColumnMeta)
+     * @see PgDataRow#get(int)
      */
-    private OffsetDateTime parseLocalDateTimeFromBinaryDouble(final ByteBuf cumulateBuffer) {
-        final long seconds;
-        final int nanos;
+    private static OffsetTime parseOffsetTime(final String source, final PgColumnMeta meta, final DateStyle style) {
+        // currently jdbd-postgre support only iso style,see io.jdbd.postgre.protocol.client.PgConnectionTask
+        return OffsetTime.parse(source, PgTimes.OFFSET_TIME_FORMATTER_6);
+    }
 
-        final double time = Double.longBitsToDouble(cumulateBuffer.readLong());
-        if (time == Double.POSITIVE_INFINITY) {
-            seconds = DATE_POSITIVE_INFINITY / 1000;
-            nanos = 0;
-        } else if (time == Double.NEGATIVE_INFINITY) {
-            seconds = DATE_NEGATIVE_INFINITY / 1000;
-            nanos = 0;
-        } else {
-            final int million = 1000_000;
-            long secondPart = (long) time;
-            int nanoPart = (int) ((time - secondPart) * million);
-            if (nanoPart < 0) {
-                secondPart--;
-                nanoPart += million;
-            }
-            nanoPart *= 1000;
+    /**
+     * @see PgDataRow#get(int)
+     */
+    private static LocalDate parseLocalDate(final String source, final PgColumnMeta meta, final ServerEnv env) {
+        // currently jdbd-postgre support only iso style,see io.jdbd.postgre.protocol.client.PgConnectionTask
+        return LocalDate.parse(source);
+    }
 
-            seconds = PgTimes.toJavaSeconds(secondPart);
-            nanos = nanoPart;
-        }
-        return OffsetDateTime.of(LocalDateTime.ofEpochSecond(seconds, nanos, ZoneOffset.UTC), ZoneOffset.UTC);
+    /**
+     * @see PgDataRow#get(int)
+     */
+    private static LocalDateTime parseLocalDateTime(final String source, final PgColumnMeta meta, final ServerEnv env) {
+        // currently jdbd-postgre support only iso style,see io.jdbd.postgre.protocol.client.PgConnectionTask
+        return LocalDateTime.parse(source, PgTimes.DATETIME_FORMATTER_6);
+    }
+
+    /**
+     * @see PgDataRow#get(int, Class)
+     */
+    private static OffsetDateTime parseOffsetDateTime(final String source, final PgColumnMeta meta, final ServerEnv env) {
+        // currently jdbd-postgre support only iso style,see io.jdbd.postgre.protocol.client.PgConnectionTask
+        return OffsetDateTime.parse(source, PgTimes.OFFSET_DATETIME_FORMATTER_6);
+    }
+
+    /**
+     * @see PgDataRow#get(int, Class)
+     */
+    private static <T> T parseArray(final String source, final PgColumnMeta meta, final ServerEnv env,
+                                    Class<T> arrayClass) {
+        throw new UnsupportedOperationException();
     }
 
 
-    static JdbdSQLException createResponseBinaryColumnValueError(final ByteBuf cumulateBuffer
-            , final int valueLength, final PgColumnMeta meta) {
-        byte[] bytes = new byte[valueLength];
-        cumulateBuffer.readBytes(bytes);
-        String m = String.format("Server response binary value[%s] error for PgColumnMeta[%s]."
-                , Arrays.toString(bytes), meta);
-        return new JdbdSQLException(new SQLException(m));
+//    /**
+//     * @see #parseColumnFromBinary(ByteBuf, int, PgColumnMeta)
+//     */
+//    private OffsetDateTime parseLocalDateTimeFromBinaryLong(final ByteBuf cumulateBuffer) {
+//        final long seconds;
+//        final int nanos;
+//
+//        final long time = cumulateBuffer.readLong();
+//        if (time == Long.MAX_VALUE) {
+//            seconds = DATE_POSITIVE_INFINITY / 1000;
+//            nanos = 0;
+//        } else if (time == Long.MIN_VALUE) {
+//            seconds = DATE_NEGATIVE_INFINITY / 1000;
+//            nanos = 0;
+//        } else {
+//            final int million = 1000_000;
+//            long secondPart = time / million;
+//            int nanoPart = (int) (time - secondPart * million);
+//            if (nanoPart < 0) {
+//                secondPart--;
+//                nanoPart += million;
+//            }
+//            nanoPart *= 1000;
+//
+//            seconds = PgTimes.toJavaSeconds(secondPart);
+//            nanos = nanoPart;
+//        }
+//        return OffsetDateTime.of(LocalDateTime.ofEpochSecond(seconds, nanos, ZoneOffset.UTC), ZoneOffset.UTC);
+//    }
+
+//    /**
+//     * @see #parseColumnFromBinary(ByteBuf, int, PgColumnMeta)
+//     */
+//    private OffsetDateTime parseLocalDateTimeFromBinaryDouble(final ByteBuf cumulateBuffer) {
+//        final long seconds;
+//        final int nanos;
+//
+//        final double time = Double.longBitsToDouble(cumulateBuffer.readLong());
+//        if (time == Double.POSITIVE_INFINITY) {
+//            seconds = DATE_POSITIVE_INFINITY / 1000;
+//            nanos = 0;
+//        } else if (time == Double.NEGATIVE_INFINITY) {
+//            seconds = DATE_NEGATIVE_INFINITY / 1000;
+//            nanos = 0;
+//        } else {
+//            final int million = 1000_000;
+//            long secondPart = (long) time;
+//            int nanoPart = (int) ((time - secondPart) * million);
+//            if (nanoPart < 0) {
+//                secondPart--;
+//                nanoPart += million;
+//            }
+//            nanoPart *= 1000;
+//
+//            seconds = PgTimes.toJavaSeconds(secondPart);
+//            nanos = nanoPart;
+//        }
+//        return OffsetDateTime.of(LocalDateTime.ofEpochSecond(seconds, nanos, ZoneOffset.UTC), ZoneOffset.UTC);
+//    }
+
+
+//    static JdbdException createResponseBinaryColumnValueError(final ByteBuf cumulateBuffer
+//            , final int valueLength, final PgColumnMeta meta) {
+//        byte[] bytes = new byte[valueLength];
+//        cumulateBuffer.readBytes(bytes);
+//        String m = String.format("Server response binary value[%s] error for PgColumnMeta[%s]."
+//                , Arrays.toString(bytes), meta);
+//        return new JdbdException(m);
+//    }
+
+    private static JdbdException columnValueError(PgColumnMeta meta) {
+        String m = String.format("server response column value for %s error", meta);
+        return new JdbdException(m);
+    }
+
+    private static JdbdException unexpectedBinaryFormat(DataType dataType) {
+        String m = String.format("server response unexpected binary format for %s", dataType);
+        return new JdbdException(m);
+    }
+
+    private static JdbdException binaryFormatLengthError(DataType dataType, int length) {
+        String m = String.format("server response error binary format length[%s] for %s", length, dataType);
+        return new JdbdException(m);
     }
 
 
@@ -326,5 +526,346 @@ final class PgResultSetReader implements ResultSetReader {
         READ_RESULT_TERMINATOR,
         END
     }
+
+
+    private static abstract class PgDataRow extends VendorRow {
+
+        final PgRowMeta rowMeta;
+
+        final Object[] columnArray;
+
+
+        private PgDataRow(PgRowMeta rowMeta) {
+            this.rowMeta = rowMeta;
+            final int arrayLength;
+            arrayLength = rowMeta.columnMetaArray.length;
+            this.columnArray = new Object[arrayLength];
+        }
+
+        private PgDataRow(PgCurrentRow currentRow) {
+            this.rowMeta = currentRow.rowMeta;
+
+            final Object[] columnArray = new Object[currentRow.columnArray.length];
+            System.arraycopy(currentRow.columnArray, 0, columnArray, 0, columnArray.length);
+
+            this.columnArray = columnArray;
+        }
+
+        @Override
+        public final ResultRowMeta getRowMeta() {
+            return this.rowMeta;
+        }
+
+        @Override
+        public final int getResultNo() {
+            return this.rowMeta.resultNo;
+        }
+
+        @Override
+        public final boolean isBigColumn(int indexBasedZero) throws JdbdException {
+            this.rowMeta.checkIndex(indexBasedZero);
+            // always false,because postgre protocol don't need.
+            return false;
+        }
+
+        @Override
+        public final Object get(final int indexBasedZero) throws JdbdException {
+            final PgRowMeta rowMeta = this.rowMeta;
+            final Object source;
+            source = this.columnArray[rowMeta.checkIndex(indexBasedZero)];
+            if (source == null) {
+                return null;
+            }
+
+            final PgColumnMeta meta = rowMeta.columnMetaArray[indexBasedZero];
+            final DataType dataType = meta.dataType;
+            if (!(dataType instanceof PgType) || dataType.isArray()) {
+                return source;
+            }
+            try {
+                final Object columnValue;
+                switch ((PgType) dataType) {
+                    case TIME:
+                        columnValue = parseLocalTime((String) source, meta, rowMeta.serverEnv.dateStyle());
+                        break;
+                    case TIMETZ:
+                        columnValue = parseOffsetTime((String) source, meta, rowMeta.serverEnv.dateStyle());
+                        break;
+                    case DATE:
+                        columnValue = parseLocalDate((String) source, meta, rowMeta.serverEnv);
+                        break;
+                    case TIMESTAMP:
+                        columnValue = parseLocalDateTime((String) source, meta, rowMeta.serverEnv);
+                        break;
+                    case TIMESTAMPTZ:
+                        columnValue = parseOffsetDateTime((String) source, meta, rowMeta.serverEnv);
+                        break;
+                    case BIT:
+                    case VARBIT:
+                        columnValue = JdbdStrings.bitStringToBitSet((String) source, true);
+                        break;
+                    case UUID:
+                        columnValue = UUID.fromString((String) source);
+                        break;
+                    default:
+                        columnValue = source;
+                }
+                return columnValue;
+            } catch (JdbdException e) {
+                throw e;
+            } catch (Throwable e) {
+                throw PgExceptions.cannotConvertColumnValue(meta, source, ((PgType) dataType).firstJavaType(), e);
+            }
+
+        }
+
+
+        @Override
+        public final <T> T get(final int indexBasedZero, final Class<T> columnClass) throws JdbdException {
+            final PgRowMeta rowMeta = this.rowMeta;
+            final Object source;
+            source = this.columnArray[rowMeta.checkIndex(indexBasedZero)];
+            if (source == null) {
+                return null;
+            }
+            final PgColumnMeta meta = rowMeta.columnMetaArray[indexBasedZero];
+            final DataType dataType = meta.dataType;
+            try {
+                final T columnValue;
+                if (dataType.isArray()) {
+                    if (!columnClass.isArray()) {
+                        throw PgExceptions.cannotConvertColumnValue(meta, source, columnClass, null);
+                    }
+                    columnValue = parseArray((String) source, meta, rowMeta.serverEnv, columnClass);
+                } else if (!(dataType instanceof PgType)) {
+                    //TODO add convertor for Composite Types
+                    columnValue = ColumnConverts.convertToTarget(meta, source, columnClass, rowMeta.serverEnv.serverZone());
+                } else {
+                    columnValue = convertSimpleColumn((PgType) dataType, source, meta, columnClass);
+                }
+                return columnValue;
+            } catch (JdbdException e) {
+                throw e;
+            } catch (Throwable e) {
+                throw PgExceptions.cannotConvertColumnValue(meta, source, columnClass, e);
+            }
+        }
+
+        @Override
+        public final <T> List<T> getList(int indexBasedZero, Class<T> elementClass, IntFunction<List<T>> constructor)
+                throws JdbdException {
+            return null;
+        }
+
+        @Override
+        public final <T> Set<T> getSet(int indexBasedZero, Class<T> elementClass, IntFunction<Set<T>> constructor)
+                throws JdbdException {
+            return null;
+        }
+
+        @Override
+        public final <K, V> Map<K, V> getMap(int indexBasedZero, Class<K> keyClass, Class<V> valueClass,
+                                             IntFunction<Map<K, V>> constructor) throws JdbdException {
+            return null;
+        }
+
+        @Override
+        public final <T> Publisher<T> getPublisher(int indexBasedZero, Class<T> valueClass) throws JdbdException {
+            return null;
+        }
+
+
+        @Override
+        protected final ColumnMeta getColumnMeta(int safeIndex) {
+            return this.rowMeta.columnMetaArray[safeIndex];
+        }
+
+
+        @SuppressWarnings("unchecked")
+        private <T> T convertSimpleColumn(final PgType dataType, final Object source, final PgColumnMeta meta,
+                                          final Class<T> columnClass) {
+
+            final Object columnValue;
+            switch (dataType) {
+                case TIME: {
+                    if (columnClass == String.class) {
+                        columnValue = source;
+                    } else if (columnClass == LocalTime.class) {
+                        columnValue = parseLocalTime((String) source, meta, this.rowMeta.serverEnv.dateStyle());
+                    } else {
+                        throw JdbdExceptions.cannotConvertColumnValue(meta, source, columnClass, null);
+                    }
+                }
+                break;
+                case TIMETZ: {
+                    if (columnClass == String.class) {
+                        columnValue = source;
+                    } else if (columnClass == OffsetTime.class) {
+                        columnValue = parseOffsetTime((String) source, meta, this.rowMeta.serverEnv.dateStyle());
+                    } else {
+                        throw JdbdExceptions.cannotConvertColumnValue(meta, source, columnClass, null);
+                    }
+                }
+                break;
+                case DATE: {
+                    if (columnClass == String.class) {
+                        columnValue = source;
+                    } else {
+                        final LocalDate v;
+                        v = parseLocalDate((String) source, meta, this.rowMeta.serverEnv);
+                        if (columnClass == LocalDate.class) {
+                            columnValue = v;
+                        } else {
+                            columnValue = ColumnConverts.convertToTarget(meta, v, columnClass, null);
+                        }
+                    }
+                }
+                break;
+                case TIMESTAMP: {
+                    if (columnClass == String.class) {
+                        columnValue = source;
+                    } else {
+                        final LocalDateTime v;
+                        v = parseLocalDateTime((String) source, meta, this.rowMeta.serverEnv);
+                        if (columnClass == LocalDateTime.class) {
+                            columnValue = v;
+                        } else {
+                            columnValue = ColumnConverts.convertToTarget(meta, v, columnClass, null);
+                        }
+                    }
+                }
+                break;
+                case TIMESTAMPTZ: {
+                    if (columnClass == String.class) {
+                        columnValue = source;
+                    } else {
+                        final OffsetDateTime v;
+                        v = parseOffsetDateTime((String) source, meta, rowMeta.serverEnv);
+                        if (columnClass == OffsetDateTime.class) {
+                            columnValue = v;
+                        } else {
+                            columnValue = ColumnConverts.convertToTarget(meta, v, columnClass, null);
+                        }
+                    }
+                }
+                break;
+                case BIT:
+                case VARBIT: {
+                    if (columnClass == String.class) {
+                        columnValue = source;
+                    } else if (columnClass == BitSet.class) {
+                        columnValue = JdbdStrings.bitStringToBitSet((String) source, true);
+                    } else {
+                        columnValue = ColumnConverts.convertToTarget(meta, source, columnClass, null);
+                    }
+                }
+                break;
+                case UUID: {
+                    if (columnClass == String.class) {
+                        columnValue = source;
+                    } else if (columnClass == UUID.class) {
+                        columnValue = UUID.fromString((String) source);
+                    } else {
+                        throw JdbdExceptions.cannotConvertColumnValue(meta, source, columnClass, null);
+                    }
+                }
+                break;
+                default:
+                    columnValue = ColumnConverts.convertToTarget(meta, source, columnClass, null);
+            }
+            return (T) columnValue;
+        }
+
+
+    }//PgRow
+
+
+    private static abstract class PgCurrentRow extends PgDataRow implements CurrentRow {
+
+        private PgCurrentRow(PgRowMeta rowMeta) {
+            super(rowMeta);
+        }
+
+        private PgCurrentRow(MutableCurrentRow currentRow) {
+            super(currentRow);
+        }
+
+        @Override
+        public final boolean isBigRow() {
+            // always false,because postgre protocol don't need.
+            return false;
+        }
+
+        @Override
+        public final ResultRow asResultRow() {
+            return new PgResultRow(this);
+        }
+
+
+    }//PgCurrentRow
+
+
+    private static final class MutableCurrentRow extends PgCurrentRow {
+
+        private long rowCount = 0L;
+
+        private MutableCurrentRow(PgRowMeta rowMeta) {
+            super(rowMeta);
+        }
+
+        @Override
+        public long rowNumber() {
+            return this.rowCount;
+        }
+
+
+        @Override
+        protected CurrentRow copyCurrentRowIfNeed() {
+            return new ImmutableCurrentRow(this);
+        }
+
+
+    }//MutableCurrentRow
+
+    private static final class ImmutableCurrentRow extends PgCurrentRow {
+
+        private final long rowNumber;
+
+        private ImmutableCurrentRow(MutableCurrentRow currentRow) {
+            super(currentRow);
+            this.rowNumber = currentRow.rowCount;
+        }
+
+        @Override
+        public long rowNumber() {
+            return this.rowNumber;
+        }
+
+
+        @Override
+        protected CurrentRow copyCurrentRowIfNeed() {
+            return this;
+        }
+
+
+    }//ImmutableCurrentRow
+
+    private static final class PgResultRow extends PgDataRow implements ResultRow {
+
+        private final boolean bigRow;
+
+        private PgResultRow(PgCurrentRow currentRow) {
+            super(currentRow);
+            this.bigRow = currentRow.isBigRow();
+        }
+
+        @Override
+        public boolean isBigRow() {
+            return this.bigRow;
+        }
+
+
+    }//PgResultRow
+
 
 }

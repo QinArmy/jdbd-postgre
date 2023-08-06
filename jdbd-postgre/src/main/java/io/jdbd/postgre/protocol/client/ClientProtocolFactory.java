@@ -1,7 +1,6 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.PgServerVersion;
-import io.jdbd.postgre.Server;
 import io.jdbd.postgre.ServerParameter;
 import io.jdbd.postgre.env.PgKey;
 import io.jdbd.postgre.session.SessionAdjutant;
@@ -116,7 +115,7 @@ public final class ClientProtocolFactory extends FixedEnv {
         private Mono<Map<String, String>> initializing() {
             final TaskAdjutant adjutant = this.executor.taskAdjutant();
             final Properties properties = adjutant.obtainHost().getProperties();
-            final Server server = adjutant.server();
+            final ServerEnv server = adjutant.server();
             final PgServerVersion serverVersion = server.serverVersion();
 
             final List<String> sqlGroup = new ArrayList<>(3);

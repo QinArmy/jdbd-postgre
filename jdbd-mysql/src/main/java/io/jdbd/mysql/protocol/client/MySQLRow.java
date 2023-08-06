@@ -1,18 +1,17 @@
 package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdException;
-import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.mysql.util.MySQLTimes;
 import io.jdbd.result.CurrentRow;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultRowMeta;
+import io.jdbd.type.PathParameter;
 import io.jdbd.vendor.result.ColumnConverts;
 import io.jdbd.vendor.result.ColumnMeta;
 import io.jdbd.vendor.result.VendorRow;
 import io.jdbd.vendor.util.JdbdExceptions;
 import org.reactivestreams.Publisher;
 
-import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -55,7 +54,7 @@ abstract class MySQLRow extends VendorRow {
 
     @Override
     public final boolean isBigColumn(final int indexBasedZero) {
-        return this.columnArray[this.rowMeta.checkIndex(indexBasedZero)] instanceof Path;
+        return this.columnArray[this.rowMeta.checkIndex(indexBasedZero)] instanceof PathParameter;
     }
 
     @Override
@@ -126,21 +125,6 @@ abstract class MySQLRow extends VendorRow {
         @Override
         public final ResultRow asResultRow() {
             return new MySQLResultRow(this);
-        }
-
-
-        @Override
-        public final String toString() {
-            return MySQLStrings.builder()
-                    .append(getClass().getSimpleName())
-                    .append("[ resultIndex : ")
-                    .append(getResultNo())
-                    .append(" , rowNumber : ")
-                    .append(rowNumber())
-                    .append(" , hash : ")
-                    .append(System.identityHashCode(this))
-                    .append(" ]")
-                    .toString();
         }
 
 

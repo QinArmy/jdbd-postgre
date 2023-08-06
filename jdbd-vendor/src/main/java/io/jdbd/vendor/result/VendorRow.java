@@ -1,6 +1,7 @@
 package io.jdbd.vendor.result;
 
 import io.jdbd.JdbdException;
+import io.jdbd.result.CurrentRow;
 import io.jdbd.result.JdbdRow;
 import io.jdbd.vendor.util.JdbdCollections;
 import io.jdbd.vendor.util.JdbdExceptions;
@@ -116,7 +117,40 @@ public abstract class VendorRow implements JdbdRow {
         return this.getPublisher(getRowMeta().getColumnIndex(columnLabel), valueClass);
     }
 
+    @Override
+    public final String toString() {
+        final StringBuilder builder = new StringBuilder(50);
+        builder.append(getClass().getSimpleName())
+                .append("[ resultNo : ")
+                .append(getResultNo());
+
+        if (this instanceof CurrentRow) {
+            builder.append(" , rowNumber : ")
+                    .append(((CurrentRow) this).rowNumber());
+        }
+        return builder.append(" , hash : ")
+                .append(System.identityHashCode(this))
+                .append(" ]")
+                .toString();
+    }
+
     protected abstract ColumnMeta getColumnMeta(int safeIndex);
+
+
+    /**
+     * <p>
+     * This method is implemented by the sub class of {@link CurrentRow}.
+     * <ul>
+     *     <li>If this current row is mutable,always copy this instance.</li>
+     *     <li>Else return this</li>
+     * </ul>
+     * </p>
+     *
+     * @throws UnsupportedOperationException throw when this is the instance of {@link io.jdbd.result.ResultRow}.
+     */
+    protected CurrentRow copyCurrentRowIfNeed() {
+        throw new UnsupportedOperationException();
+    }
 
 
 }

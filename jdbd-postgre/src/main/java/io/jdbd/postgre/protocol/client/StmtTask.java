@@ -20,9 +20,9 @@ interface StmtTask {
     /**
      * @return true: read CommandComplete message end , false : more cumulate.
      */
-    boolean readResultStateWithReturning(ByteBuf cumulateBuffer, IntSupplier resultIndexes);
+    boolean readResultStateOfQuery(ByteBuf cumulateBuffer, IntSupplier resultIndexes);
 
-    int getAndIncrementResultIndex();
+    int nextResultNo();
 
 
 }

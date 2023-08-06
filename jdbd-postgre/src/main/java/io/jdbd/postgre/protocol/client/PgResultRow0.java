@@ -28,18 +28,18 @@ import java.time.LocalTime;
 import java.time.OffsetTime;
 import java.util.*;
 
-public class PgResultRow extends AbstractResultRow<PgRowMeta> {
+public class PgResultRow0 extends AbstractResultRow<PgRowMeta> {
 
-    static PgResultRow create(PgRowMeta rowMeta, Object[] columnValues, TaskAdjutant adjutant) {
-        return new PgResultRow(rowMeta, columnValues, adjutant);
+    static PgResultRow0 create(PgRowMeta rowMeta, Object[] columnValues, TaskAdjutant adjutant) {
+        return new PgResultRow0(rowMeta, columnValues, adjutant);
     }
 
-    private static final Logger LOG = LoggerFactory.getLogger(PgResultRow.class);
+    private static final Logger LOG = LoggerFactory.getLogger(PgResultRow0.class);
 
     private final TaskAdjutant adjutant;
 
 
-    private PgResultRow(PgRowMeta rowMeta, Object[] columnValues, TaskAdjutant adjutant) {
+    private PgResultRow0(PgRowMeta rowMeta, Object[] columnValues, TaskAdjutant adjutant) {
         super(rowMeta, columnValues);
         this.adjutant = adjutant;
     }
@@ -270,7 +270,7 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
             case CHAR_ARRAY:
             case VARCHAR_ARRAY: {
                 if (targetArrayClass != String.class) {
-                    throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                    throw PgResultRow0.notSupportConverting(meta, targetArrayClass);
                 }
                 value = ColumnArrays.readTextArray(textValue, meta, targetArrayClass);
             }
@@ -387,7 +387,7 @@ public class PgResultRow extends AbstractResultRow<PgRowMeta> {
                 } else if (textValue.equalsIgnoreCase("f")) {
                     value = Boolean.FALSE;
                 } else {
-                    throw PgResultRow.createResponseTextColumnValueError(meta, textValue);
+                    throw PgResultRow0.createResponseTextColumnValueError(meta, textValue);
                 }
             }
             break;

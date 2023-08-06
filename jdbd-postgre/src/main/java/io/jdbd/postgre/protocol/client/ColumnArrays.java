@@ -59,7 +59,7 @@ abstract class ColumnArrays {
 
     static Object readBooleanArray(final String value, final PgColumnMeta meta, final Class<?> targetArrayClass) {
         if (targetArrayClass != Boolean.class && targetArrayClass != boolean.class) {
-            throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+            throw PgResultRow0.notSupportConverting(meta, targetArrayClass);
         }
         final BiFunction<char[], Integer, ArrayPair> function = (charArray, index) -> {
             final List<Boolean> list = new LinkedList<>();
@@ -67,7 +67,7 @@ abstract class ColumnArrays {
             final Consumer<String> consumer = nullable -> {
                 if (nullable == null) {
                     if (targetArrayClass == boolean.class) {
-                        throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                        throw PgResultRow0.notSupportConverting(meta, targetArrayClass);
                     }
                     list.add(null);
                 } else {
@@ -96,7 +96,7 @@ abstract class ColumnArrays {
 
     static Object readShortArray(final String value, final PgColumnMeta meta, final Class<?> targetArrayClass) {
         if (targetArrayClass != Short.class && targetArrayClass != short.class) {
-            throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+            throw PgResultRow0.notSupportConverting(meta, targetArrayClass);
         }
         final BiFunction<char[], Integer, ArrayPair> function = (charArray, index) -> {
             final List<Short> list = new LinkedList<>();
@@ -104,7 +104,7 @@ abstract class ColumnArrays {
             final Consumer<String> consumer = nullable -> {
                 if (nullable == null) {
                     if (targetArrayClass == short.class) {
-                        throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                        throw PgResultRow0.notSupportConverting(meta, targetArrayClass);
                     }
                     list.add(null);
                 } else {
@@ -133,14 +133,14 @@ abstract class ColumnArrays {
 
     static Object readIntegerArray(final String value, final PgColumnMeta meta, final Class<?> targetArrayClass) {
         if (targetArrayClass != Integer.class && targetArrayClass != int.class) {
-            throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+            throw PgResultRow0.notSupportConverting(meta, targetArrayClass);
         }
         final BiFunction<char[], Integer, ArrayPair> function = (charArray, index) -> {
             final List<Integer> list = new LinkedList<>();
             final Consumer<String> consumer = nullable -> {
                 if (nullable == null) {
                     if (targetArrayClass == int.class) {
-                        throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                        throw PgResultRow0.notSupportConverting(meta, targetArrayClass);
                     }
                     list.add(null);
                 } else {
@@ -169,7 +169,7 @@ abstract class ColumnArrays {
 
     static Object readBigIntArray(final String value, final PgColumnMeta meta, final Class<?> targetArrayClass) {
         if (targetArrayClass != Long.class && targetArrayClass != long.class) {
-            throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+            throw PgResultRow0.notSupportConverting(meta, targetArrayClass);
         }
         final BiFunction<char[], Integer, ArrayPair> function = (charArray, index) -> {
             final List<Long> list = new LinkedList<>();
@@ -177,7 +177,7 @@ abstract class ColumnArrays {
             final Consumer<String> consumer = nullable -> {
                 if (nullable == null) {
                     if (targetArrayClass == long.class) {
-                        throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                        throw PgResultRow0.notSupportConverting(meta, targetArrayClass);
                     }
                     list.add(null);
                 } else {
@@ -206,7 +206,7 @@ abstract class ColumnArrays {
 
     static Object readDecimalArray(final String value, final PgColumnMeta meta, final Class<?> targetArrayClass) {
         if (targetArrayClass != BigDecimal.class && targetArrayClass != Object.class) {
-            throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+            throw PgResultRow0.notSupportConverting(meta, targetArrayClass);
         }
         final BiFunction<char[], Integer, ArrayPair> function = (charArray, index) -> {
             final List<Object> list = new LinkedList<>();
@@ -241,7 +241,7 @@ abstract class ColumnArrays {
 
     static Object readRealArray(final String value, final PgColumnMeta meta, final Class<?> targetArrayClass) {
         if (targetArrayClass != Float.class && targetArrayClass != float.class) {
-            throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+            throw PgResultRow0.notSupportConverting(meta, targetArrayClass);
         }
         final BiFunction<char[], Integer, ArrayPair> function = (charArray, index) -> {
             final List<Float> list = new LinkedList<>();
@@ -249,7 +249,7 @@ abstract class ColumnArrays {
             final Consumer<String> consumer = nullable -> {
                 if (nullable == null) {
                     if (targetArrayClass == float.class) {
-                        throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                        throw PgResultRow0.notSupportConverting(meta, targetArrayClass);
                     }
                     list.add(null);
                 } else {
@@ -278,7 +278,7 @@ abstract class ColumnArrays {
 
     static Object readDoubleArray(final String value, final PgColumnMeta meta, final Class<?> targetArrayClass) {
         if (targetArrayClass != Double.class && targetArrayClass != double.class) {
-            throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+            throw PgResultRow0.notSupportConverting(meta, targetArrayClass);
         }
         final BiFunction<char[], Integer, ArrayPair> function = (charArray, index) -> {
             final List<Double> list = new LinkedList<>();
@@ -286,7 +286,7 @@ abstract class ColumnArrays {
             final Consumer<String> consumer = nullable -> {
                 if (nullable == null) {
                     if (targetArrayClass == double.class) {
-                        throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                        throw PgResultRow0.notSupportConverting(meta, targetArrayClass);
                     }
                     list.add(null);
                 } else {
@@ -569,7 +569,7 @@ abstract class ColumnArrays {
     static Object readMoneyArray(final String value, final PgColumnMeta meta, final Class<?> targetArrayClass
             , final @Nullable DecimalFormat format) {
         if (targetArrayClass != BigDecimal.class && targetArrayClass != String.class) {
-            throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+            throw PgResultRow0.notSupportConverting(meta, targetArrayClass);
         }
         final BiFunction<char[], Integer, ArrayPair> function = (charArray, index) -> {
             final List<Object> list = new LinkedList<>();
@@ -579,7 +579,7 @@ abstract class ColumnArrays {
                 } else if (targetArrayClass == String.class) {
                     list.add(nullable);
                 } else {
-                    list.add(PgResultRow.parseMoney(meta, nullable, format));
+                    list.add(PgResultRow0.parseMoney(meta, nullable, format));
                 }
             };
             final int endIndex;
@@ -601,7 +601,7 @@ abstract class ColumnArrays {
      */
     static Object readUuidArray(final String value, final PgColumnMeta meta, final Class<?> targetArrayClass) {
         if (targetArrayClass != UUID.class && targetArrayClass != String.class) {
-            throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+            throw PgResultRow0.notSupportConverting(meta, targetArrayClass);
         }
         final BiFunction<char[], Integer, ArrayPair> function = (charArray, index) -> {
             final List<Object> list = new LinkedList<>();
@@ -653,7 +653,7 @@ abstract class ColumnArrays {
                 } else if (targetArrayClass == String.class) {
                     list.add(new String(bytes, charset));
                 } else {
-                    throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                    throw PgResultRow0.notSupportConverting(meta, targetArrayClass);
                 }
             };
             final int endIndex;
@@ -666,7 +666,7 @@ abstract class ColumnArrays {
             } else if (targetArrayClass == String.class) {
                 array = new String[list.size()];
             } else {
-                throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                throw PgResultRow0.notSupportConverting(meta, targetArrayClass);
             }
             return new ArrayPair(list.toArray(array), endIndex);
         };
@@ -688,10 +688,10 @@ abstract class ColumnArrays {
                     try {
                         list.add(PgStrings.parseEnumValue(targetArrayClass, nullable));
                     } catch (IllegalArgumentException e) {
-                        throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                        throw PgResultRow0.notSupportConverting(meta, targetArrayClass);
                     }
                 } else {
-                    throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                    throw PgResultRow0.notSupportConverting(meta, targetArrayClass);
                 }
             };
             final int endIndex;
@@ -714,7 +714,7 @@ abstract class ColumnArrays {
                     i++;
                 }
             } else {
-                throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                throw PgResultRow0.notSupportConverting(meta, targetArrayClass);
             }
             return new ArrayPair(array, endIndex);
         };
@@ -734,16 +734,16 @@ abstract class ColumnArrays {
                     list.add(v);
                 } else if (targetArrayClass == Duration.class) {
                     if (!v.isDuration()) {
-                        throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                        throw PgResultRow0.notSupportConverting(meta, targetArrayClass);
                     }
                     list.add(v.toDurationExact());
                 } else if (targetArrayClass == Period.class) {
                     if (!v.isPeriod()) {
-                        throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                        throw PgResultRow0.notSupportConverting(meta, targetArrayClass);
                     }
                     list.add(v.toPeriodExact());
                 } else {
-                    throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                    throw PgResultRow0.notSupportConverting(meta, targetArrayClass);
                 }
             };
             final int endIndex;
@@ -756,7 +756,7 @@ abstract class ColumnArrays {
             } else if (targetArrayClass == Period.class) {
                 array = new Period[list.size()];
             } else {
-                throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                throw PgResultRow0.notSupportConverting(meta, targetArrayClass);
             }
             return new ArrayPair(list.toArray(array), endIndex);
         };
@@ -775,7 +775,7 @@ abstract class ColumnArrays {
                 } else if (targetArrayClass == String.class) {
                     list.add(nullable);
                 } else {
-                    throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                    throw PgResultRow0.notSupportConverting(meta, targetArrayClass);
                 }
             };
             final int endIndex;
@@ -786,7 +786,7 @@ abstract class ColumnArrays {
             } else if (targetArrayClass == String.class) {
                 array = new String[list.size()];
             } else {
-                throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                throw PgResultRow0.notSupportConverting(meta, targetArrayClass);
             }
             return new ArrayPair(list.toArray(array), endIndex);
         };
@@ -804,7 +804,7 @@ abstract class ColumnArrays {
                 } else if (targetArrayClass == String.class) {
                     list.add(nullable);
                 } else {
-                    throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                    throw PgResultRow0.notSupportConverting(meta, targetArrayClass);
                 }
             };
             final int endIndex;
@@ -815,7 +815,7 @@ abstract class ColumnArrays {
             } else if (targetArrayClass == String.class) {
                 array = new String[list.size()];
             } else {
-                throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                throw PgResultRow0.notSupportConverting(meta, targetArrayClass);
             }
             return new ArrayPair(list.toArray(array), endIndex);
         };
@@ -833,7 +833,7 @@ abstract class ColumnArrays {
                 } else if (targetArrayClass == String.class) {
                     list.add(nullable);
                 } else {
-                    throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                    throw PgResultRow0.notSupportConverting(meta, targetArrayClass);
                 }
             };
             final int endIndex;
@@ -844,7 +844,7 @@ abstract class ColumnArrays {
             } else if (targetArrayClass == String.class) {
                 array = new String[list.size()];
             } else {
-                throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                throw PgResultRow0.notSupportConverting(meta, targetArrayClass);
             }
             return new ArrayPair(list.toArray(array), endIndex);
         };
@@ -862,7 +862,7 @@ abstract class ColumnArrays {
                 } else if (targetArrayClass == String.class) {
                     list.add(nullable);
                 } else {
-                    throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                    throw PgResultRow0.notSupportConverting(meta, targetArrayClass);
                 }
             };
             final int endIndex;
@@ -873,7 +873,7 @@ abstract class ColumnArrays {
             } else if (targetArrayClass == String.class) {
                 array = new String[list.size()];
             } else {
-                throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                throw PgResultRow0.notSupportConverting(meta, targetArrayClass);
             }
             return new ArrayPair(list.toArray(array), endIndex);
         };
@@ -893,7 +893,7 @@ abstract class ColumnArrays {
                 } else if (targetArrayClass == LongString.class) {
                     list.add(LongStrings.fromString(nullable));
                 } else {
-                    throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                    throw PgResultRow0.notSupportConverting(meta, targetArrayClass);
                 }
             };
             final int endIndex;
@@ -906,7 +906,7 @@ abstract class ColumnArrays {
             } else if (targetArrayClass == LongString.class) {
                 array = new LongString[list.size()];
             } else {
-                throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                throw PgResultRow0.notSupportConverting(meta, targetArrayClass);
             }
             return new ArrayPair(list.toArray(array), endIndex);
         };
@@ -927,7 +927,7 @@ abstract class ColumnArrays {
                 } else if (targetArrayClass == LongString.class) {
                     list.add(LongStrings.fromString(nullable));
                 } else {
-                    throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                    throw PgResultRow0.notSupportConverting(meta, targetArrayClass);
                 }
             };
             final int endIndex;
@@ -940,7 +940,7 @@ abstract class ColumnArrays {
             } else if (targetArrayClass == LongString.class) {
                 array = new LongString[list.size()];
             } else {
-                throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                throw PgResultRow0.notSupportConverting(meta, targetArrayClass);
             }
             return new ArrayPair(list.toArray(array), endIndex);
         };
@@ -958,7 +958,7 @@ abstract class ColumnArrays {
                 } else if (targetArrayClass == String.class) {
                     list.add(nullable);
                 } else {
-                    throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                    throw PgResultRow0.notSupportConverting(meta, targetArrayClass);
                 }
             };
             final int endIndex;
@@ -969,7 +969,7 @@ abstract class ColumnArrays {
             } else if (targetArrayClass == String.class) {
                 array = new String[list.size()];
             } else {
-                throw PgResultRow.notSupportConverting(meta, targetArrayClass);
+                throw PgResultRow0.notSupportConverting(meta, targetArrayClass);
             }
             return new ArrayPair(list.toArray(array), endIndex);
         };

@@ -2,7 +2,6 @@ package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.Encoding;
 import io.jdbd.postgre.PgServerVersion;
-import io.jdbd.postgre.Server;
 import io.jdbd.postgre.ServerParameter;
 import io.jdbd.postgre.env.PgHost;
 import io.jdbd.postgre.session.SessionAdjutant;
@@ -244,8 +243,8 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
         }
 
         @Override
-        public final Server server() {
-            final Server server = this.server;
+        public final ServerEnv server() {
+            final ServerEnv server = this.server;
             if (server == null) {
                 throw new IllegalStateException("this.server is null");
             }
@@ -351,7 +350,7 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
         private void authenticationSuccess(AuthResult result) {
             synchronized (this) {
-                final Server server = this.server;
+                final ServerEnv server = this.server;
                 if (server != null) {
                     throw new IllegalStateException("this.server is not null.");
                 }
@@ -404,7 +403,7 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
     }
 
-    private static final class ServerImpl implements Server {
+    private static final class ServerImpl implements ServerEnv {
 
         private static final Map<String, Locale> LOCALE_MAP = createLocalMap();
 
@@ -434,7 +433,7 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
         }
 
         @Override
-        public final ZoneOffset zoneOffset() {
+        public final ZoneOffset serverZone() {
             final ZoneId zoneId = ZoneId.of(paramStatusMap.get(ServerParameter.TimeZone.name()), ZoneId.SHORT_IDS);
             return PgTimes.toZoneOffset(zoneId);
         }
@@ -446,6 +445,11 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
             } catch (IllegalArgumentException e) {
                 throw new IllegalStateException(e.getMessage(), e);
             }
+        }
+
+        @Override
+        public DateStyle dateStyle() {
+            return null;
         }
 
         @Override
