@@ -6,7 +6,7 @@ package io.jdbd.result;
  * </p>
  * <p>
  * The instance of this interface always after the instance of {@link ResultRowMeta} and before the instance of {@link ResultStates}
- * in the {@link OrderedFlux} of same query result.
+ * in same query result in the {@link OrderedFlux}.
  * </p>
  * <p>
  * The {@link #getResultNo()} of this interface always return same value with {@link ResultRowMeta} in same query result.

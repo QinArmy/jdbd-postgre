@@ -5,7 +5,7 @@ package io.jdbd.result;
  * This interface representing one item of result (update/query result).
  * <ul>
  *     <li>The update result always is represented by just one {@link ResultStates} instance.</li>
- *     <li>The query result is represented by following :
+ *     <li>The query result is represented by following sequence :
  *         <ol>
  *             <li>one {@link ResultRowMeta} instance.</li>
  *             <li>0-N {@link ResultRow} instance.</li>

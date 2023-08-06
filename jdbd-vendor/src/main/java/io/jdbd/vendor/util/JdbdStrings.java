@@ -26,6 +26,17 @@ public abstract class JdbdStrings /*extends StringUtils*/ {
         return new StringBuilder(capacity);
     }
 
+    public static boolean isWhitespace(final String text, final int offset, final int end) {
+        boolean match = offset < end;
+        for (int i = offset; i < end; i++) {
+            if (!Character.isWhitespace(text.charAt(i))) {
+                match = false;
+                break;
+            }
+        }
+        return match;
+    }
+
     public static boolean hasText(final @Nullable CharSequence str) {
         final int strLen;
 

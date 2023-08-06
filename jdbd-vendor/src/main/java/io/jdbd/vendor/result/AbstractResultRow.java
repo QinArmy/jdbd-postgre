@@ -23,6 +23,7 @@ import java.time.temporal.TemporalAccessor;
 import java.time.temporal.TemporalAmount;
 import java.util.*;
 
+@Deprecated
 public abstract class AbstractResultRow<R extends ResultRowMeta> implements ResultRow {
 
     protected final R rowMeta;

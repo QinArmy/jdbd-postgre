@@ -28,6 +28,7 @@ import java.time.LocalTime;
 import java.time.OffsetTime;
 import java.util.*;
 
+@Deprecated
 public class PgResultRow0 extends AbstractResultRow<PgRowMeta> {
 
     static PgResultRow0 create(PgRowMeta rowMeta, Object[] columnValues, TaskAdjutant adjutant) {
@@ -520,7 +521,6 @@ public class PgResultRow0 extends AbstractResultRow<PgRowMeta> {
         }
         return value;
     }
-
 
 
     /**

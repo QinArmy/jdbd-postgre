@@ -288,7 +288,7 @@ abstract class CommandWriter {
                                         final BiConsumer<Object, ByteBuf> consumer, final ByteBuf message) {
         final int length = array.length;
 
-        message.writeByte(PgConstant.LEFT_BRACKET);
+        message.writeByte(PgConstant.LEFT_BRACE);
         Object element;
         byte[] nullBytes = null;
         for (int i = 0; i < length; i++) {
@@ -310,7 +310,7 @@ abstract class CommandWriter {
             }
 
         }
-        message.writeByte(PgConstant.RIGHT_BRACKET);
+        message.writeByte(PgConstant.RIGHT_BRACE);
     }
 
     /**
@@ -329,7 +329,7 @@ abstract class CommandWriter {
             outElement = dimension == 1;
         }
 
-        message.writeByte(PgConstant.LEFT_BRACKET);
+        message.writeByte(PgConstant.LEFT_BRACE);
         Object element;
         byte[] nullBytes = null;
         for (int i = 0; i < length; i++) {
@@ -354,7 +354,7 @@ abstract class CommandWriter {
             }
 
         }
-        message.writeByte(PgConstant.RIGHT_BRACKET);
+        message.writeByte(PgConstant.RIGHT_BRACE);
 
     }
 

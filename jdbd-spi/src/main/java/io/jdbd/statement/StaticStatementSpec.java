@@ -10,17 +10,16 @@ import java.util.function.Function;
 
 /**
  * <p>
- *     This interface is base interface of following:
+ * This interface is base interface of following:
  *     <ul>
  *         <li>{@link Statement}</li>
  *         <li>{@link DatabaseSession}</li>
  *     </ul>
  * </p>
+ *
  * @since 1.0
  */
 public interface StaticStatementSpec {
-
-
 
 
     /**
@@ -172,15 +171,20 @@ public interface StaticStatementSpec {
     <R> Publisher<R> executeQuery(String sql, Function<CurrentRow, R> function, Consumer<ResultStates> statesConsumer);
 
 
-
     Publisher<ResultStates> executeBatchUpdate(List<String> sqlGroup);
 
     BatchQuery executeBatchQuery(List<String> sqlGroup);
 
     MultiResult executeBatchAsMulti(List<String> sqlGroup);
 
+    /**
+     * @see OrderedFlux
+     */
     OrderedFlux executeBatchAsFlux(List<String> sqlGroup);
 
+    /**
+     * @see OrderedFlux
+     */
     OrderedFlux executeAsFlux(String multiStmt);
 
 

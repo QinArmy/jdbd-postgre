@@ -11,7 +11,7 @@ import java.util.List;
  * This interface representing the meta data of data row of query result (eg: SELECT command).
  * </p>
  * <p>
- * The instance of this interface always is the first item of the {@link OrderedFlux} of same query result.
+ * The instance of this interface always is the first item of same query result in the {@link OrderedFlux}.
  * </p>
  *
  * @see ResultRow

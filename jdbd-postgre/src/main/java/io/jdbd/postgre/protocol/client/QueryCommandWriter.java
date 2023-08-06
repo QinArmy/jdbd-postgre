@@ -504,8 +504,8 @@ final class QueryCommandWriter extends CommandWriter {
         }
 
         final String arrayValue = (String) paramValue.getNonNullValue();
-        if (arrayValue.charAt(0) != PgConstant.LEFT_BRACKET
-                || arrayValue.charAt(arrayValue.length() - 1) != PgConstant.RIGHT_BRACKET) {
+        if (arrayValue.charAt(0) != PgConstant.LEFT_BRACE
+                || arrayValue.charAt(arrayValue.length() - 1) != PgConstant.RIGHT_BRACE) {
             throw PgExceptions.outOfTypeRange(batchIndex, paramValue);
         }
 

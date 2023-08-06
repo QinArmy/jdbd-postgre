@@ -12,7 +12,7 @@ import io.jdbd.session.Option;
  *     </ul>
  * </p>
  * <p>
- *  The instance of this interface always is the last item in the {@link OrderedFlux} of same query result.
+ *  The instance of this interface always is the last item of same query result in the {@link OrderedFlux}.
  * </p>
  * <p>
  * The {@link #getResultNo()} of this interface always return same value with {@link ResultRowMeta} in same query result.
@@ -39,6 +39,14 @@ public interface ResultStates extends ResultItem {
 
     boolean hasMoreResult();
 
+    /**
+     * @return true : exists server cursor
+     */
+    boolean isExistsCursor();
+
+    /**
+     * @return true representing exists server cursor and the last row don't send.
+     */
     boolean hasMoreFetch();
 
     /**
@@ -49,6 +57,12 @@ public interface ResultStates extends ResultItem {
      */
     boolean hasColumn();
 
+    /**
+     * @return the row count.<ul>
+     * <li>If {@link #isExistsCursor()} is true , then the row count representing only the row count of current fetch result.</li>
+     * <li>Else then the row count representing the total row count of query result.</li>
+     * </ul>
+     */
     long rowCount();
 
     default int getWarnings() {

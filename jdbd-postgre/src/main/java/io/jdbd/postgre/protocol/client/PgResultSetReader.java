@@ -54,17 +54,11 @@ final class PgResultSetReader implements ResultSetReader {
 
     private final StmtTask task;
 
-    private final TaskAdjutant adjutant;
-
-    private PgRowMeta rowMeta;
-
     private MutableCurrentRow currentRow;
 
-    private Phase phase = Phase.READ_ROW_META;
 
     private PgResultSetReader(StmtTask task) {
         this.task = task;
-        this.adjutant = task.adjutant();
     }
 
     @Override
@@ -72,7 +66,11 @@ final class PgResultSetReader implements ResultSetReader {
             throws JdbdException {
         MutableCurrentRow currentRow = this.currentRow;
         if (currentRow == null) {
-            this.currentRow = currentRow = new MutableCurrentRow(PgRowMeta.read(cumulateBuffer, this.task));
+            final StmtTask task = this.task;
+            this.currentRow = currentRow = new MutableCurrentRow(PgRowMeta.read(cumulateBuffer, task));
+            if (!task.isCancelled()) {
+                task.next(currentRow.rowMeta); // emit io.jdbd.result.ResultRowMeta
+            }
         }
         final boolean resultSetEnd;
         resultSetEnd = readRowData(cumulateBuffer);
@@ -97,8 +95,10 @@ final class PgResultSetReader implements ResultSetReader {
             LOG.trace("Read ResultSet row data for {}", currentRow);
         }
         final StmtTask sink = this.task;
-        final PgColumnMeta[] columnMetaArray = currentRow.rowMeta.columnMetaArray;
+        final PgRowMeta rowMeta = currentRow.rowMeta;
+        final PgColumnMeta[] columnMetaArray = rowMeta.columnMetaArray;
         final Object[] columnArray = currentRow.columnArray;
+
         final int columnCount = columnMetaArray.length;
 
         boolean isCanceled = sink.isCancelled();
@@ -147,12 +147,6 @@ final class PgResultSetReader implements ResultSetReader {
         }
 
         return false;
-    }
-
-
-    @Override
-    public String toString() {
-        return String.format("Class[%s] phase[%s]", getClass().getSimpleName(), this.phase);
     }
 
 
@@ -522,14 +516,6 @@ final class PgResultSetReader implements ResultSetReader {
     }
 
 
-    enum Phase {
-        READ_ROW_META,
-        READ_ROWS,
-        READ_RESULT_TERMINATOR,
-        END
-    }
-
-
     private static abstract class PgDataRow extends VendorRow {
 
         final PgRowMeta rowMeta;
@@ -657,21 +643,21 @@ final class PgResultSetReader implements ResultSetReader {
         }
 
         @Override
-        public final <T> List<T> getList(int indexBasedZero, Class<T> elementClass, IntFunction<List<T>> constructor)
-                throws JdbdException {
+        public final <T> List<T> getList(final int indexBasedZero, final Class<T> elementClass,
+                                         final IntFunction<List<T>> constructor) throws JdbdException {
             return null;
         }
 
         @Override
         public final <T> Set<T> getSet(int indexBasedZero, Class<T> elementClass, IntFunction<Set<T>> constructor)
                 throws JdbdException {
-            return null;
+            throw new JdbdException("jdbd-postgre don't support getMap() method");
         }
 
         @Override
         public final <K, V> Map<K, V> getMap(int indexBasedZero, Class<K> keyClass, Class<V> valueClass,
                                              IntFunction<Map<K, V>> constructor) throws JdbdException {
-            return null;
+            throw new JdbdException("jdbd-postgre don't support getMap() method");
         }
 
         @Override
