@@ -1,17 +1,26 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.JdbdException;
-import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
 import io.jdbd.postgre.PgConstant;
 import io.jdbd.postgre.PgType;
-import io.jdbd.postgre.util.PgStrings;
+import io.jdbd.postgre.type.PgGeometries;
+import io.jdbd.postgre.util.*;
+import io.jdbd.result.ResultRow;
+import io.jdbd.type.Interval;
+import io.jdbd.type.Point;
 
 import java.lang.reflect.Array;
+import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
+import java.text.ParseException;
+import java.time.*;
+import java.util.BitSet;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
-import java.util.function.Supplier;
+import java.util.UUID;
 
 /**
  * <p>
@@ -31,107 +40,392 @@ abstract class ColumnArrays {
     private static final Map<Class<?>, Integer> EMPTY_LENGTHS = Collections.emptyMap();
 
 
-    /**
-     * @param nonNull     true : element of one dimension array non-null
-     * @param elementFunc <ul>
-     *                    <li>offset is non-whitespace,non-whitespace before end</li>
-     *                    <li>no notation <strong>null</strong>,because have handled</li>
-     *                    </ul>
-     */
-    public static Object parseArray(final String text, final boolean nonNull, final TextFunction<?> elementFunc,
-                                    final char delimiter, final SqlType sqlType, final MappingType type,
-                                    final ErrorHandler handler) throws IllegalArgumentException {
-
-        if (!(type instanceof MappingType.SqlArrayType)) {
-            throw _Exceptions.notArrayMappingType(type);
-        }
-
-        final Class<?> arrayJavaType;
-        if (type instanceof UnaryGenericsMapping.ListMapping) {
-            final Class<?> elementType;
-            elementType = ((UnaryGenericsMapping.ListMapping<?>) type).genericsType();
-            arrayJavaType = ArrayUtils.arrayClassOf(elementType);
-        } else {
-            arrayJavaType = type.javaType();
-            if (!arrayJavaType.isArray()) {
-                throw notArrayJavaType(type);
+    @SuppressWarnings("unchecked")
+    static <T> T parseArray(final String source, final PgColumnMeta meta, final PgRowMeta rowMeta,
+                            final Class<T> arrayClass) {
+        final DataType dataType = meta.dataType;
+        final Class<?> componentType;
+        componentType = PgArrays.underlyingComponent(arrayClass);
+        if (!(dataType instanceof PgType)) {
+            if (componentType != String.class) { //TODO add hstore?
+                throw PgExceptions.cannotConvertColumnValue(meta, source, arrayClass, null);
             }
+            return (T) parseArrayText(dataType, arrayClass, source, false, PgConstant.COMMA, String::substring);
+        }
+        final TextFunction function;
+        switch ((PgType) dataType) {
+            case BOOLEAN_ARRAY: {
+                if (componentType != boolean.class && componentType != Boolean.class) {
+                    throw PgExceptions.cannotConvertColumnValue(meta, source, arrayClass, null);
+                }
+                function = ColumnArrays::readBoolean;
+            }
+            break;
+            case SMALLINT_ARRAY: {
+                if (componentType != short.class && componentType != Short.class) {
+                    throw PgExceptions.cannotConvertColumnValue(meta, source, arrayClass, null);
+                }
+                function = (text, offset, end) -> Short.parseShort(text.substring(offset, end));
+            }
+            break;
+            case INTEGER_ARRAY: {
+                if (componentType != int.class && componentType != Integer.class) {
+                    throw PgExceptions.cannotConvertColumnValue(meta, source, arrayClass, null);
+                }
+                function = (text, offset, end) -> Integer.parseInt(text.substring(offset, end));
+            }
+            break;
+            case OID_ARRAY:
+            case BIGINT_ARRAY: {
+                if (componentType != long.class && componentType != Long.class) {
+                    throw PgExceptions.cannotConvertColumnValue(meta, source, arrayClass, null);
+                }
+                function = (text, offset, end) -> Long.parseLong(text.substring(offset, end));
+            }
+            break;
+            case DECIMAL_ARRAY: {
+                if (componentType != BigDecimal.class) {
+                    throw PgExceptions.cannotConvertColumnValue(meta, source, arrayClass, null);
+                }
+                function = (text, offset, end) -> new BigDecimal(text.substring(offset, end));
+            }
+            break;
+            case REAL_ARRAY: {
+                if (componentType != float.class && componentType != Float.class) {
+                    throw PgExceptions.cannotConvertColumnValue(meta, source, arrayClass, null);
+                }
+                function = (text, offset, end) -> Float.parseFloat(text.substring(offset, end));
+            }
+            break;
+            case DOUBLE_ARRAY: {
+                if (componentType != double.class && componentType != Double.class) {
+                    throw PgExceptions.cannotConvertColumnValue(meta, source, arrayClass, null);
+                }
+                function = (text, offset, end) -> Double.parseDouble(text.substring(offset, end));
+            }
+            break;
+            case BYTEA_ARRAY: {
+                if (componentType != byte.class) {
+                    throw PgExceptions.cannotConvertColumnValue(meta, source, arrayClass, null);
+                }
+                function = (text, offset, end) -> {
+                    final String element;
+                    if (text.charAt(offset) == PgConstant.BACK_SLASH && text.charAt(offset + 1) == 'x') {
+                        element = text.substring(offset + 2, end);
+                    } else {
+                        element = text.substring(offset, end);
+                    }
+                    final byte[] bytes;
+                    bytes = element.getBytes(StandardCharsets.UTF_8);
+                    return PgBuffers.decodeHex(bytes, bytes.length);
+                };
+            }
+            break;
+            case TIME_ARRAY: {
+                if (componentType != LocalTime.class) {
+                    throw PgExceptions.cannotConvertColumnValue(meta, source, arrayClass, null);
+                }
+                function = (text, offset, end) -> {
+                    // currently jdbd-postgre support only iso style,see io.jdbd.postgre.protocol.client.PgConnectionTask
+                    return LocalTime.parse(text.substring(offset, end), PgTimes.TIME_FORMATTER_6);
+                };
+
+            }
+            break;
+            case TIMETZ_ARRAY: {
+                if (componentType != OffsetTime.class) {
+                    throw PgExceptions.cannotConvertColumnValue(meta, source, arrayClass, null);
+                }
+                function = (text, offset, end) -> {
+                    // currently jdbd-postgre support only iso style,see io.jdbd.postgre.protocol.client.PgConnectionTask
+                    return OffsetTime.parse(text.substring(offset, end), PgTimes.OFFSET_TIME_FORMATTER_6);
+                };
+            }
+            break;
+            case DATE_ARRAY: {
+                function = (text, offset, end) -> {
+                    // currently jdbd-postgre support only iso style,see io.jdbd.postgre.protocol.client.PgConnectionTask
+                    final String element = text.substring(offset, end);
+                    final Object value;
+                    if (componentType == LocalDate.class) {
+                        value = LocalDate.parse(element);
+                    } else if (componentType != Object.class) {
+                        throw PgExceptions.cannotConvertColumnValue(meta, source, arrayClass, null);
+                    } else if (PgConstant.INFINITY.equalsIgnoreCase(element) || PgConstant.NEG_INFINITY.equalsIgnoreCase(element)) {
+                        value = element;
+                    } else {
+                        value = LocalDate.parse(element);
+                    }
+                    return value;
+                };
+            }
+            break;
+            case TIMESTAMP_ARRAY: {
+                function = (text, offset, end) -> {
+                    // currently jdbd-postgre support only iso style,see io.jdbd.postgre.protocol.client.PgConnectionTask
+                    final String element = text.substring(offset, end);
+                    final Object value;
+                    if (componentType == LocalDateTime.class) {
+                        value = LocalDateTime.parse(element, PgTimes.DATETIME_FORMATTER_6);
+                    } else if (componentType != Object.class) {
+                        throw PgExceptions.cannotConvertColumnValue(meta, source, arrayClass, null);
+                    } else if (PgConstant.INFINITY.equalsIgnoreCase(element) || PgConstant.NEG_INFINITY.equalsIgnoreCase(element)) {
+                        value = element;
+                    } else {
+                        value = LocalDateTime.parse(element, PgTimes.DATETIME_FORMATTER_6);
+                    }
+                    return value;
+                };
+            }
+            break;
+            case TIMESTAMPTZ_ARRAY: {
+                function = (text, offset, end) -> {
+                    // currently jdbd-postgre support only iso style,see io.jdbd.postgre.protocol.client.PgConnectionTask
+                    final String element = text.substring(offset, end);
+                    final Object value;
+                    if (componentType == OffsetDateTime.class) {
+                        value = OffsetDateTime.parse(element, PgTimes.OFFSET_DATETIME_FORMATTER_6);
+                    } else if (componentType != Object.class) {
+                        throw PgExceptions.cannotConvertColumnValue(meta, source, arrayClass, null);
+                    } else if (PgConstant.INFINITY.equalsIgnoreCase(element) || PgConstant.NEG_INFINITY.equalsIgnoreCase(element)) {
+                        value = element;
+                    } else {
+                        value = OffsetDateTime.parse(element, PgTimes.OFFSET_DATETIME_FORMATTER_6);
+                    }
+                    return value;
+                };
+            }
+            break;
+            case INTERVAL_ARRAY: {
+                function = (text, offset, end) -> {
+                    // currently jdbd-postgre support only iso style,see io.jdbd.postgre.protocol.client.PgConnectionTask
+                    final Object value;
+                    if (componentType == Interval.class) {
+                        value = Interval.parse(text.substring(offset, end), true);
+                    } else if (componentType == String.class) {
+                        value = text.substring(offset, end);
+                    } else {
+                        throw PgExceptions.cannotConvertColumnValue(meta, source, arrayClass, null);
+                    }
+                    return value;
+                };
+            }
+            break;
+            case MONEY_ARRAY: {
+                function = (text, offset, end) -> {
+                    final Object value;
+                    if (componentType == String.class) {
+                        value = text.substring(offset, end);
+                    } else if (componentType == BigDecimal.class) {
+                        value = readMoney(text.substring(offset, end), meta, rowMeta.moneyFormat);
+                    } else {
+                        throw PgExceptions.cannotConvertColumnValue(meta, source, arrayClass, null);
+                    }
+                    return value;
+                };
+            }
+            break;
+            case UUID_ARRAY: {
+                function = (text, offset, end) -> {
+                    final Object value;
+                    if (componentType == String.class) {
+                        value = text.substring(offset, end);
+                    } else if (componentType == UUID.class) {
+                        value = UUID.fromString(text.substring(offset, end));
+                    } else {
+                        throw PgExceptions.cannotConvertColumnValue(meta, source, arrayClass, null);
+                    }
+                    return value;
+                };
+            }
+            break;
+            case BIT_ARRAY:
+            case VARBIT_ARRAY: {
+                function = (text, offset, end) -> {
+                    final Object value;
+                    if (componentType == String.class) {
+                        value = text.substring(offset, end);
+                    } else if (componentType == BitSet.class) {
+                        value = PgStrings.bitStringToBitSet(text.substring(offset, end), true);
+                    } else if (componentType == Long.class) {
+                        value = Long.parseLong(text.substring(offset, end), 2);
+                    } else if (componentType == Integer.class) {
+                        value = Integer.parseInt(text.substring(offset, end), 2);
+                    } else {
+                        throw PgExceptions.cannotConvertColumnValue(meta, source, arrayClass, null);
+                    }
+                    return value;
+                };
+            }
+            break;
+            case POINT_ARRAY: {
+                function = (text, offset, end) -> {
+                    final Object value;
+                    if (componentType == String.class) {
+                        value = text.substring(offset, end);
+                    } else if (componentType == Point.class) {
+                        value = PgGeometries.point(text.substring(offset, end));
+                    } else {
+                        throw PgExceptions.cannotConvertColumnValue(meta, source, arrayClass, null);
+                    }
+                    return value;
+                };
+            }
+            break;
+            case CHAR_ARRAY:
+            case VARCHAR_ARRAY:
+            case TEXT_ARRAY:
+            case JSON_ARRAY:
+            case JSONB_ARRAY:
+            case JSONPATH_ARRAY:
+            case XML_ARRAY:
+            case TSQUERY_ARRAY:
+            case TSVECTOR_ARRAY:
+
+            case INT4RANGE_ARRAY:
+            case INT8RANGE_ARRAY:
+            case NUMRANGE_ARRAY:
+            case DATERANGE_ARRAY:
+            case TSRANGE_ARRAY:
+            case TSTZRANGE_ARRAY:
+
+            case INT4MULTIRANGE_ARRAY:
+            case INT8MULTIRANGE_ARRAY:
+            case NUMMULTIRANGE_ARRAY:
+            case DATEMULTIRANGE_ARRAY:
+            case TSMULTIRANGE_ARRAY:
+            case TSTZMULTIRANGE_ARRAY:
+
+            case LINE_ARRAY:
+            case PATH_ARRAY:
+            case BOX_ARRAY:
+            case LSEG_ARRAY:
+            case CIRCLE_ARRAY:
+            case POLYGON_ARRAY:
+
+            case CIDR_ARRAY:
+            case INET_ARRAY:
+            case MACADDR_ARRAY:
+            case MACADDR8_ARRAY:
+
+            case REF_CURSOR_ARRAY: //TODO REF_CURSOR_ARRAY add api ?
+                function = String::substring;
+                break;
+            default:
+                throw PgExceptions.cannotConvertColumnValue(meta, source, arrayClass, null);
+
         }
 
-        final Object array, value;
-        try {
-            array = PostgreArrays.parseArrayText(arrayJavaType, text, nonNull, delimiter, elementFunc);
-        } catch (Throwable e) {
-            throw handler.apply(type, sqlType, text, e);
-        }
-        if (type instanceof UnaryGenericsMapping.ListMapping) {
-            value = PostgreArrays.linearToList(array,
-                    ((UnaryGenericsMapping.ListMapping<?>) type).listConstructor()
-            );
-        } else if (type.javaType().isInstance(array)) {
-            value = array;
+
+        return (T) parseArrayText(dataType, arrayClass, source, componentType.isPrimitive(), ',', function);
+    }
+
+    private static boolean readBoolean(final String text, int offset, int end) {
+        final boolean value;
+        final String element = text.substring(offset, end);
+        if (PgConstant.TRUE.equalsIgnoreCase(element)) {
+            value = true;
+        } else if (PgConstant.FALSE.equalsIgnoreCase(element)) {
+            value = false;
         } else {
-            String m = String.format("%s return value and %s not match.", TextFunction.class.getName(), type);
-            throw handler.apply(type, sqlType, text, new IllegalArgumentException(m));
+            throw new IllegalArgumentException("server response boolean array");
         }
         return value;
     }
 
-
-    private static int parseArrayLength(final String text, final int offset, final int end) throws JdbdException {
-        char ch;
-        boolean leftBrace = true, inBrace = false, inQuote = false, arrayEnd = false;
-
-        int length = 0;
-        for (int i = offset, itemCount = 0; i < end; i++) {
-            ch = text.charAt(i);
-            if (leftBrace) {
-                if (ch == PgConstant.LEFT_BRACE) {
-                    leftBrace = false;
-                } else if (!Character.isWhitespace(ch)) {
-                    throw isNotWhitespaceError(i);
-                }
-            } else if (inQuote) {
-                if (ch == PgConstant.BACK_SLASH) {
-                    i++;
-                } else if (ch == PgConstant.DOUBLE_QUOTE) {
-                    inQuote = false;
-                }
-            } else if (inBrace) {
-                if (ch == PgConstant.RIGHT_BRACE) {
-                    inBrace = false;
-                }
-            } else if (ch == PgConstant.LEFT_BRACE) {
-                itemCount++;
-                inBrace = true;
-            } else if (ch == PgConstant.DOUBLE_QUOTE) {
-                itemCount++;
-                inQuote = true;
-            } else if (ch == PgConstant.COMMA) {
-                length++;
-            } else if (ch == PgConstant.RIGHT_BRACE) {
-                if (itemCount > 0) {
-                    length++;
-                }
-                arrayEnd = true;
-                break;
-            } else if (itemCount == 0 && !Character.isWhitespace(ch)) {
-                itemCount++;
-            }
-
-        }
-        if (leftBrace) {
-            throw noLeftBrace(offset);
-        } else if (!arrayEnd) {
-            throw noRightBrace(end);
-        }
-        return length;
+    private static short readShort(final String text, int offset, int end) {
+        return Short.parseShort(text.substring(offset, end));
     }
 
-    public static Map<Class<?>, Integer> parseArrayLengthMap(final Class<?> javaType, final String text, final int offset,
-                                                             final int end) {
+    private static int readInt(final String text, int offset, int end) {
+        return Integer.parseInt(text.substring(offset, end));
+    }
+
+    private static long readLong(final String text, int offset, int end) {
+        return Long.parseLong(text.substring(offset, end));
+    }
+
+    private static BigDecimal readDecimal(final String text, int offset, int end) {
+        return new BigDecimal(text.substring(offset, end));
+    }
+
+    private static float readFloat(final String text, int offset, int end) {
+        return Float.parseFloat(text.substring(offset, end));
+    }
+
+    private static double readDouble(final String text, int offset, int end) {
+        return Double.parseDouble(text.substring(offset, end));
+    }
+
+    private static BigDecimal readMoney(final String element, final PgColumnMeta meta, final DecimalFormat format) {
+        try {
+            final Number value;
+            value = format.parse(element);
+            if (!(value instanceof BigDecimal)) {
+                throw moneyCannotConvertException(meta);
+            }
+            return (BigDecimal) value;
+        } catch (Throwable e) {
+            final String columnLabel = meta.columnLabel;
+            String m;
+            m = String.format("Column[%s] postgre %s type convert to  java type BigDecimal failure.", columnLabel,
+                    meta.dataType);
+            if (e instanceof ParseException) {
+                m = String.format("%s\nYou possibly execute '%s' AND %s.get(\"%s\",%s.class) in multi-statement.",
+                        m,
+                        "SET lc_monetary",
+                        ResultRow.class.getName(),
+                        columnLabel,
+                        BigDecimal.class.getName()
+                );
+            }
+            throw new JdbdException(m);
+        }
+    }
+
+
+    /**
+     * <p>
+     * parse postgre array text.
+     * </p>
+     *
+     * @see <a href="https://www.postgresql.org/docs/15/arrays.html#ARRAYS-IO">Array Input and Output Syntax</a>
+     */
+    private static Object parseArrayText(final DataType dataType, final Class<?> javaType, final String text,
+                                         final boolean nonNull, final char delimiter, final TextFunction function)
+            throws JdbdException {
+        final int length;
+        length = text.length();
+        int offset = 0;
+        for (; offset < length; offset++) {
+            if (!Character.isWhitespace(text.charAt(offset))) {
+                break;
+            }
+        }
+        if (offset == length) {
+            throw new JdbdException("array no text");
+        }
+
+        final Map<Class<?>, Integer> lengthMap;
+        if (text.charAt(offset) == PgConstant.LEFT_SQUARE_BRACKET) {
+            final int index;
+            index = text.indexOf('=', offset);
+            if (index < offset || index >= length) {
+                throw new JdbdException("postgre array format error.");
+            }
+            lengthMap = parseArrayLengthMap(javaType, text, offset, index);
+            offset = index + 1;
+        } else {
+            lengthMap = EMPTY_LENGTHS;
+        }
+        return _parseArray(dataType, javaType, text, offset, length, delimiter, false, lengthMap, nonNull, function);
+    }
+
+
+    private static Map<Class<?>, Integer> parseArrayLengthMap(final Class<?> javaType, final String text, final int offset,
+                                                              final int end) {
         final char colon = ':';
-        final Map<Class<?>, Integer> map = _Collections.hashMap();
+        final Map<Class<?>, Integer> map = PgCollections.hashMap();
 
         Class<?> componentType;
         componentType = javaType;
@@ -198,73 +492,61 @@ abstract class ColumnArrays {
 
         if (inBracket) {
             throw lengthOfDimensionError(text.substring(offset, end));
-        } else if (map.size() != ArrayUtils.dimensionOf(javaType)) {
+        } else if (map.size() != PgArrays.dimensionOf(javaType)) {
             throw boundDecorationNotMatch(javaType, text.substring(offset, end));
         }
-        return _Collections.unmodifiableMap(map);
+        return PgCollections.unmodifiableMap(map);
     }
 
 
-    /**
-     * <p>
-     * parse postgre array text.
-     * </p>
-     *
-     * @see <a href="https://www.postgresql.org/docs/15/arrays.html#ARRAYS-IO">Array Input and Output Syntax</a>
-     */
-    static Object parseArrayText(final Class<?> javaType, final String text, final boolean nonNull, final char delimiter,
-                                 final TextFunction<?> function) throws IllegalArgumentException {
-        final int length;
-        length = text.length();
-        int offset = 0;
-        for (; offset < length; offset++) {
-            if (!Character.isWhitespace(text.charAt(offset))) {
+    private static int parseArrayLength(final String text, final int offset, final int end) throws JdbdException {
+        char ch;
+        boolean leftBrace = true, inBrace = false, inQuote = false, arrayEnd = false;
+
+        int length = 0;
+        for (int i = offset, itemCount = 0; i < end; i++) {
+            ch = text.charAt(i);
+            if (leftBrace) {
+                if (ch == PgConstant.LEFT_BRACE) {
+                    leftBrace = false;
+                } else if (!Character.isWhitespace(ch)) {
+                    throw isNotWhitespaceError(i);
+                }
+            } else if (inQuote) {
+                if (ch == PgConstant.BACK_SLASH) {
+                    i++;
+                } else if (ch == PgConstant.DOUBLE_QUOTE) {
+                    inQuote = false;
+                }
+            } else if (inBrace) {
+                if (ch == PgConstant.RIGHT_BRACE) {
+                    inBrace = false;
+                }
+            } else if (ch == PgConstant.LEFT_BRACE) {
+                itemCount++;
+                inBrace = true;
+            } else if (ch == PgConstant.DOUBLE_QUOTE) {
+                itemCount++;
+                inQuote = true;
+            } else if (ch == PgConstant.COMMA) {
+                length++;
+            } else if (ch == PgConstant.RIGHT_BRACE) {
+                if (itemCount > 0) {
+                    length++;
+                }
+                arrayEnd = true;
                 break;
+            } else if (itemCount == 0 && !Character.isWhitespace(ch)) {
+                itemCount++;
             }
-        }
-        if (offset == length) {
-            throw new IllegalArgumentException("no text");
-        }
 
-        final Map<Class<?>, Integer> lengthMap;
-        if (text.charAt(offset) == PgConstant.LEFT_SQUARE_BRACKET) {
-            final int index;
-            index = text.indexOf('=', offset);
-            if (index < offset || index >= length) {
-                throw new IllegalArgumentException("postgre array format error.");
-            }
-            lengthMap = parseArrayLengthMap(javaType, text, offset, index);
-            offset = index + 1;
-        } else {
-            lengthMap = EMPTY_LENGTHS;
         }
-        return _parseArray(javaType, text, nonNull, offset, length, delimiter, lengthMap, false, function);
-    }
-
-
-    @SuppressWarnings("unchecked")
-    static <E> List<E> linearToList(final Object array, final Supplier<List<E>> supplier) {
-
-        List<E> list;
-        list = supplier.get();
-        final int arrayLength;
-        arrayLength = Array.getLength(array);
-        for (int i = 0; i < arrayLength; i++) {
-            list.add((E) Array.get(array, i));
+        if (leftBrace) {
+            throw noLeftBrace(offset);
+        } else if (!arrayEnd) {
+            throw noRightBrace(end);
         }
-        if (list instanceof ImmutableSpec) {
-            switch (arrayLength) {
-                case 0:
-                    list = _Collections.emptyList();
-                    break;
-                case 1:
-                    list = _Collections.singletonList((E) Array.get(array, 0));
-                    break;
-                default:
-                    list = _Collections.unmodifiableList(list);
-            }
-        }
-        return list;
+        return length;
     }
 
 
@@ -276,11 +558,10 @@ abstract class ColumnArrays {
      * @param nonNull true : if text multi range
      * @see <a href="https://www.postgresql.org/docs/15/arrays.html#ARRAYS-IO">Array Input and Output Syntax</a>
      */
-    @Nullable
     private static Object _parseArray(final DataType dataType, final Class<?> javaType, final String text,
                                       final int offset, final int end, final char delimiter,
                                       final boolean doubleQuoteEscapes, Map<Class<?>, Integer> lengthMap,
-                                      final boolean nonNull, final TextFunction<?> function) {
+                                      final boolean nonNull, final TextFunction function) {
 
         assert offset >= 0 && offset < end;
 
@@ -351,7 +632,7 @@ abstract class ColumnArrays {
             } else if (ch == PgConstant.LEFT_BRACE) {
                 if (oneDimension) {
                     String m = String.format("postgre array isn't one dimension array after offset[%s]", i);
-                    throw new IllegalArgumentException(m);
+                    throw new JdbdException(m);
                 }
                 assert startIndex < 0;
                 startIndex = i;
@@ -395,7 +676,7 @@ abstract class ColumnArrays {
                 if (!Character.isWhitespace(ch)) {
                     if (!oneDimension) {
                         String m = String.format("postgre array isn't multi-dimension array after offset[%s]", i);
-                        throw new IllegalArgumentException(m);
+                        throw new JdbdException(m);
                     }
                     startChar = ch;
                     startIndex = i;
@@ -439,10 +720,22 @@ abstract class ColumnArrays {
         return new JdbdException(String.format("postgre array error at offset[%s]", offset));
     }
 
+    private static JdbdException moneyCannotConvertException(final PgColumnMeta meta) {
+        final String format;
+        format = "Column[index:%s,label:%s] %s.getCurrencyInstance(Locale) method don't return %s instance,so can't convert postgre %s type to java type BigDecimal,jdbd-postgre need to upgrade.";
+        String msg = String.format(format,
+                meta.columnIndex,
+                meta.columnLabel,
+                NumberFormat.class.getName(),
+                DecimalFormat.class.getName(),
+                meta.dataType);
+        return new JdbdException(msg);
+    }
 
-    private interface TextFunction<T> {
 
-        T apply(String text, int offset, int end);
+    interface TextFunction {
+
+        Object apply(String text, int offset, int end);
 
     }
 

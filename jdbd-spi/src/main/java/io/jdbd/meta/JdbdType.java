@@ -7,6 +7,7 @@ package io.jdbd.meta;
  *
  * @see io.jdbd.statement.ParametrizedStatement#bind(int, DataType, Object)
  * @see io.jdbd.statement.Statement#bindStmtVar(String, DataType, Object)
+ * @see io.jdbd.result.ResultRowMeta#getJdbdType(int)
  */
 public enum JdbdType implements DataType {
 
@@ -38,12 +39,30 @@ public enum JdbdType implements DataType {
      * Identifies the generic SQL type {@code BIT}, not boolean.
      * {@code BIT} are strings of 1's and 0's. They can be used to store or visualize bit masks.
      * {@code BIT} is similar to {@link #VARBIT}, except that must match fixed length.
+     * <p>
+     * {@link io.jdbd.result.DataRow#get(int, Class)} support following java type:
+     * <ul>
+     *     <li>{@link Integer}</li>
+     *     <li>{@link Long}</li>
+     *     <li>{@link String}</li>
+     *     <li>{@link java.util.BitSet}</li>
+     * </ul>
+     * </p>
      */
     BIT,
 
     /**
      * Identifies the generic SQL type {@code VARBIT}, not boolean.
      * {@code VARBIT} are strings of 1's and 0's. They can be used to store or visualize bit masks.
+     * <p>
+     * {@link io.jdbd.result.DataRow#get(int, Class)} support following java type:
+     * <ul>
+     *     <li>{@link Integer}</li>
+     *     <li>{@link Long}</li>
+     *     <li>{@link String}</li>
+     *     <li>{@link java.util.BitSet}</li>
+     * </ul>
+     * </p>
      */
     VARBIT,
 
@@ -197,10 +216,6 @@ public enum JdbdType implements DataType {
      */
     ARRAY,
 
-    /**
-     * Identifies the generic SQL type {@code DATALINK}.
-     */
-    DATALINK,
 
     /**
      * Identifies the SQL type {@code ROWID}.
@@ -208,7 +223,7 @@ public enum JdbdType implements DataType {
     ROWID,
 
     /**
-     * Identifies the generic SQL type {@code SQLXML}.
+     * Identifies the generic SQL type {@code XML}.
      */
     XML,
 
@@ -221,14 +236,30 @@ public enum JdbdType implements DataType {
     REF_CURSOR,
 
     /**
+     * Identifies the generic SQL type {@code GEOMETRY}, for example Point , LineString,polygon
+     *
      * @see <a href="https://www.ogc.org/standards/sfa">Simple Feature Access - Part 1: Common Architecture PDF</a>
      */
     GEOMETRY,
 
+    /**
+     * Indicates that the user-defined data type  , this enum instance is only returned by {@link io.jdbd.result.ResultRowMeta#getJdbdType(int)}.
+     * This enum instance representing the data type that couldn't be expressed other instance of {@link JdbdType}.
+     * <p>
+     *     <ul>
+     *         <li>{@link io.jdbd.statement.ParametrizedStatement#bind(int, DataType, Object)} don't support this enum instance.</li>
+     *         <li>{@link io.jdbd.statement.Statement#bindStmtVar(String, DataType, Object)} don't support this enum instance.</li>
+     *     </ul>
+     *     If application developer want to bind user-defined data type ,then application developer should define the new {@link DataType} type
+     *     that it's {@link #typeName()} is supported by database and it's {@link #isUserDefined()} is true.
+     * </p>
+     */
+    USER_DEFINED,
+
 
     /**
-     * Indicates that the dialect SQL type  , this enum instance is only returned by {@link io.jdbd.result.ResultRowMeta#getJdbdType(int)}.
-     * This enum instance representing the dialect SQL type couldn't be expressed other instance of {@link JdbdType}.
+     * Indicates that the dialect data type  , this enum instance is only returned by {@link io.jdbd.result.ResultRowMeta#getJdbdType(int)}.
+     * This enum instance representing the dialect data type than couldn't be expressed other instance of {@link JdbdType}.
      * <p>
      *     <ul>
      *         <li>{@link io.jdbd.statement.ParametrizedStatement#bind(int, DataType, Object)} don't support this enum instance.</li>
@@ -259,7 +290,7 @@ public enum JdbdType implements DataType {
 
     @Override
     public final boolean isUserDefined() {
-        return false;
+        return this == USER_DEFINED;
     }
 
     /**

@@ -2,7 +2,7 @@ package io.jdbd.vendor.result;
 
 import io.jdbd.JdbdException;
 import io.jdbd.result.CurrentRow;
-import io.jdbd.result.JdbdRow;
+import io.jdbd.result.DataRow;
 import io.jdbd.result.OrderedFlux;
 import io.jdbd.result.ResultStates;
 import io.jdbd.vendor.stmt.Stmts;
@@ -20,7 +20,7 @@ import java.util.function.IntFunction;
 
 /**
  * <p>
- * This class is base class of the implementation of {@link JdbdRow}.
+ * This class is base class of the implementation of {@link DataRow}.
  * If you use following method:
  * <ul>
  *     <li>{@link MultiResults#asMulti(ITaskAdjutant, Consumer)}</li>
@@ -31,7 +31,7 @@ import java.util.function.IntFunction;
  *
  * @since 1.0
  */
-public abstract class VendorRow implements JdbdRow {
+public abstract class VendorDataRow implements DataRow {
 
 
     @Override

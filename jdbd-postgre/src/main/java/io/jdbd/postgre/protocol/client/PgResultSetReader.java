@@ -5,13 +5,14 @@ import io.jdbd.meta.DataType;
 import io.jdbd.postgre.PgConstant;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.type.PgGeometries;
+import io.jdbd.postgre.util.PgArrays;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PgTimes;
 import io.jdbd.result.*;
 import io.jdbd.type.Point;
 import io.jdbd.vendor.result.ColumnConverts;
 import io.jdbd.vendor.result.ColumnMeta;
-import io.jdbd.vendor.result.VendorRow;
+import io.jdbd.vendor.result.VendorDataRow;
 import io.jdbd.vendor.util.JdbdExceptions;
 import io.jdbd.vendor.util.JdbdStrings;
 import io.netty.buffer.ByteBuf;
@@ -420,14 +421,6 @@ final class PgResultSetReader implements ResultSetReader {
         return OffsetDateTime.parse(source, PgTimes.OFFSET_DATETIME_FORMATTER_6);
     }
 
-    /**
-     * @see PgDataRow#get(int, Class)
-     */
-    private static <T> T parseArray(final String source, final PgColumnMeta meta, final ServerEnv env,
-                                    Class<T> arrayClass) {
-        throw new UnsupportedOperationException();
-    }
-
 
 //    /**
 //     * @see #parseColumnFromBinary(ByteBuf, int, PgColumnMeta)
@@ -515,7 +508,7 @@ final class PgResultSetReader implements ResultSetReader {
     }
 
 
-    private static abstract class PgDataRow extends VendorRow {
+    private static abstract class PgDataRow extends VendorDataRow {
 
         final PgRowMeta rowMeta;
 
@@ -629,10 +622,11 @@ final class PgResultSetReader implements ResultSetReader {
             try {
                 final T columnValue;
                 if (dataType.isArray()) {
-                    if (!columnClass.isArray()) {
+                    if (!columnClass.isArray()
+                            || (dataType == PgType.BYTEA_ARRAY && PgArrays.dimensionOf(columnClass) < 2)) {
                         throw PgExceptions.cannotConvertColumnValue(meta, source, columnClass, null);
                     }
-                    columnValue = parseArray((String) source, meta, rowMeta.serverEnv, columnClass);
+                    columnValue = ColumnArrays.parseArray((String) source, meta, rowMeta, columnClass);
                 } else if (dataType instanceof PgType) {
                     columnValue = convertSimpleColumn((PgType) dataType, source, meta, columnClass);
                 } else {
@@ -656,12 +650,13 @@ final class PgResultSetReader implements ResultSetReader {
         @Override
         public final <T> Set<T> getSet(int indexBasedZero, Class<T> elementClass, IntFunction<Set<T>> constructor)
                 throws JdbdException {
-            throw new JdbdException("jdbd-postgre don't support getMap() method");
+            throw new JdbdException("jdbd-postgre don't support getSet() method");
         }
 
         @Override
         public final <K, V> Map<K, V> getMap(int indexBasedZero, Class<K> keyClass, Class<V> valueClass,
                                              IntFunction<Map<K, V>> constructor) throws JdbdException {
+            //TODO add hstore
             throw new JdbdException("jdbd-postgre don't support getMap() method");
         }
 

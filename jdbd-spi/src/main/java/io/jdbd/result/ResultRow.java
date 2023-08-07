@@ -17,7 +17,7 @@ package io.jdbd.result;
  * @see ResultStates
  * @since 1.0
  */
-public interface ResultRow extends JdbdRow {
+public interface ResultRow extends DataRow {
 
 
 }

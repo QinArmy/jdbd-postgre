@@ -347,4 +347,69 @@ public enum PgType implements SQLType {
 //            case REF_CURSOR:
 
 
+//            case BOOLEAN_ARRAY:
+//            case SMALLINT_ARRAY:
+//            case INTEGER_ARRAY:
+//            case OID_ARRAY:
+//            case BIGINT_ARRAY:
+//            case DECIMAL_ARRAY:
+//            case REAL_ARRAY:
+//            case DOUBLE_ARRAY:
+//
+//            case BYTEA_ARRAY:
+//
+//            case TIME_ARRAY:
+//            case TIMETZ_ARRAY:
+//            case DATE_ARRAY:
+//            case TIMESTAMP_ARRAY:
+//            case TIMESTAMPTZ_ARRAY:
+//            case INTERVAL_ARRAY:
+//
+//            case MONEY_ARRAY:
+//
+//            case UUID_ARRAY:
+//
+//            case BIT_ARRAY:
+//            case VARBIT_ARRAY:
+//
+//            case CHAR_ARRAY:
+//            case VARCHAR_ARRAY:
+//            case TEXT_ARRAY:
+//            case JSON_ARRAY:
+//            case JSONB_ARRAY:
+//            case JSONPATH_ARRAY:
+//            case XML_ARRAY:
+//            case TSQUERY_ARRAY:
+//            case TSVECTOR_ARRAY:
+//
+//            case INT4RANGE_ARRAY:
+//            case INT8RANGE_ARRAY:
+//            case NUMRANGE_ARRAY:
+//            case DATERANGE_ARRAY:
+//            case TSRANGE_ARRAY:
+//            case TSTZRANGE_ARRAY:
+//
+//            case INT4MULTIRANGE_ARRAY:
+//            case INT8MULTIRANGE_ARRAY:
+//            case NUMMULTIRANGE_ARRAY:
+//            case DATEMULTIRANGE_ARRAY:
+//            case TSMULTIRANGE_ARRAY:
+//            case TSTZMULTIRANGE_ARRAY:
+//
+//            case POINT_ARRAY:
+//            case LINE_ARRAY:
+//            case PATH_ARRAY:
+//            case BOX_ARRAY:
+//            case LSEG_ARRAY:
+//            case CIRCLE_ARRAY:
+//            case POLYGON_ARRAY:
+//
+//            case CIDR_ARRAY:
+//            case INET_ARRAY:
+//            case MACADDR_ARRAY:
+//            case MACADDR8_ARRAY:
+//
+//            case REF_CURSOR_ARRAY:
+
+
 }

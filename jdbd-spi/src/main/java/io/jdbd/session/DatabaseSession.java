@@ -14,6 +14,8 @@ import org.reactivestreams.Publisher;
  *     <ul>
  *         <li>{@link LocalDatabaseSession}</li>
  *         <li>{@link RmDatabaseSession}</li>
+ *         <li>{@link io.jdbd.pool.PoolLocalDatabaseSession}</li>
+ *         <li>{@link io.jdbd.pool.PoolRmDatabaseSession}</li>
  *     </ul>
  * </p>
  *

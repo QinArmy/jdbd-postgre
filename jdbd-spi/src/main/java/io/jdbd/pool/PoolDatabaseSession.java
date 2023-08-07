@@ -35,6 +35,21 @@ public interface PoolDatabaseSession extends DatabaseSession {
 
 
     /**
+     * <p>
+     * Reset session :
+     * <ul>
+     *     <li>reset key session variable , for example :  </li>
+     *          <ul>
+     *              <li>transaction isolation level</li>
+     *              <li>auto commit</li>
+     *              <li>server zone</li>
+     *              <li>charset</li>
+     *              <li>data type output format</li>
+     *          </ul>
+     *     <li>if database support user-defined data type,then should check whether exists new data type or not.</li>
+     * </ul>
+     * </p>
+     *
      * @return {@link Publisher} that emit <strong>this</strong> when success.
      */
     Publisher<? extends PoolDatabaseSession> reset();

@@ -21,7 +21,6 @@ import java.math.BigDecimal;
 import java.nio.charset.Charset;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
-import java.text.NumberFormat;
 import java.text.ParseException;
 import java.time.DateTimeException;
 import java.time.LocalTime;
@@ -577,17 +576,6 @@ public class PgResultRow0 extends AbstractResultRow<PgRowMeta> {
         return createResponseTextColumnValueError(null, meta, textValue);
     }
 
-    static UnsupportedConvertingException moneyCannotConvertException(final PgColumnMeta meta) {
-        String format;
-        format = "Column[index:%s,label:%s] %s.getCurrencyInstance(Locale) method don't return %s instance,so can't convert postgre %s type to java type BigDecimal,jdbd-postgre need to upgrade.";
-        String msg = String.format(format
-                , meta.columnIndex
-                , meta.columnLabel
-                , NumberFormat.class.getName()
-                , DecimalFormat.class.getName()
-                , meta.dataType);
-        return new UnsupportedConvertingException(msg, meta.dataType, BigDecimal.class);
-    }
 
 
 }

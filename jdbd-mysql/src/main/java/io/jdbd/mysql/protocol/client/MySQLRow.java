@@ -8,7 +8,7 @@ import io.jdbd.result.ResultRowMeta;
 import io.jdbd.type.PathParameter;
 import io.jdbd.vendor.result.ColumnConverts;
 import io.jdbd.vendor.result.ColumnMeta;
-import io.jdbd.vendor.result.VendorRow;
+import io.jdbd.vendor.result.VendorDataRow;
 import io.jdbd.vendor.util.JdbdExceptions;
 import org.reactivestreams.Publisher;
 
@@ -18,7 +18,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.IntFunction;
 
-abstract class MySQLRow extends VendorRow {
+abstract class MySQLRow extends VendorDataRow {
 
     final MySQLRowMeta rowMeta;
 

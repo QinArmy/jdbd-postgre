@@ -23,7 +23,7 @@ import java.util.function.Function;
  * @see ResultRow
  * @since 1.0
  */
-public interface CurrentRow extends JdbdRow {
+public interface CurrentRow extends DataRow {
 
     /**
      * @return the row number of current row, based 1 . The first value is 1 .

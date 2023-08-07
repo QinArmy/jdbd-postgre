@@ -32,6 +32,10 @@ public interface PgConstant {
 
     char RIGHT_BRACE = '}';
 
+    char LEFT_SQUARE_BRACKET = '[';
+
+    char RIGHT_SQUARE_BRACKET = ']';
+
     char DOUBLE_QUOTE = '"';
 
     char BACK_SLASH = '\\';
