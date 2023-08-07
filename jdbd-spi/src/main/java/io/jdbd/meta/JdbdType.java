@@ -232,6 +232,8 @@ public enum JdbdType implements DataType {
     JSONB,
     /**
      * Identifies the generic SQL type {@code REF_CURSOR}.
+     *
+     * @see io.jdbd.result.RefCursor
      */
     REF_CURSOR,
 

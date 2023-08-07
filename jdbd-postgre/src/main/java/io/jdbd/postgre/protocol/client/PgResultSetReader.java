@@ -1,24 +1,29 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.JdbdException;
+import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
 import io.jdbd.postgre.PgConstant;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.type.PgGeometries;
-import io.jdbd.postgre.util.PgArrays;
-import io.jdbd.postgre.util.PgExceptions;
-import io.jdbd.postgre.util.PgTimes;
+import io.jdbd.postgre.util.*;
 import io.jdbd.result.*;
 import io.jdbd.type.Point;
 import io.jdbd.vendor.result.ColumnConverts;
 import io.jdbd.vendor.result.ColumnMeta;
 import io.jdbd.vendor.result.VendorDataRow;
+import io.jdbd.vendor.result.VendorRefCursor;
+import io.jdbd.vendor.stmt.JdbdValues;
+import io.jdbd.vendor.stmt.ParamStmt;
+import io.jdbd.vendor.stmt.ParamValue;
+import io.jdbd.vendor.stmt.Stmts;
 import io.jdbd.vendor.util.JdbdExceptions;
 import io.jdbd.vendor.util.JdbdStrings;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
 import java.nio.file.Path;
@@ -262,7 +267,10 @@ final class PgResultSetReader implements ResultSetReader {
             case UNSPECIFIED:
                 columnValue = new String(valueBytes, rowMeta.clientCharset);
                 break;
-            case REF_CURSOR:
+            case REF_CURSOR: {
+
+            }
+            break;
             default:
                 throw PgExceptions.unexpectedEnum((PgType) dataType);
 
@@ -508,6 +516,178 @@ final class PgResultSetReader implements ResultSetReader {
     }
 
 
+    private static final class PgRefCursor extends VendorRefCursor {
+
+        private final PgColumnMeta meta;
+
+        private final TaskAdjutant adjutant;
+
+        private PgRefCursor(String name, PgColumnMeta meta, TaskAdjutant adjutant) {
+            super(name);
+            this.meta = meta;
+            this.adjutant = adjutant;
+        }
+
+        @Override
+        public <T> Publisher<T> first(Function<CurrentRow, T> function, Consumer<ResultStates> consumer) {
+            return null;
+        }
+
+        @Override
+        public OrderedFlux first() {
+            return null;
+        }
+
+        @Override
+        public <T> Publisher<T> last(Function<CurrentRow, T> function, Consumer<ResultStates> consumer) {
+            return null;
+        }
+
+        @Override
+        public OrderedFlux last() {
+            return null;
+        }
+
+        @Override
+        public <T> Publisher<T> prior(Function<CurrentRow, T> function, Consumer<ResultStates> consumer) {
+            return null;
+        }
+
+        @Override
+        public OrderedFlux prior() {
+            return null;
+        }
+
+        @Override
+        public <T> Publisher<T> next(Function<CurrentRow, T> function, Consumer<ResultStates> consumer) {
+            return null;
+        }
+
+        @Override
+        public OrderedFlux next() {
+            return null;
+        }
+
+        @Override
+        public <T> Publisher<T> absolute(long count, Function<CurrentRow, T> function, Consumer<ResultStates> consumer) {
+            return null;
+        }
+
+        @Override
+        public OrderedFlux absolute(long count) {
+            return null;
+        }
+
+        @Override
+        public <T> Publisher<T> relative(long count, Function<CurrentRow, T> function, Consumer<ResultStates> consumer) {
+            return null;
+        }
+
+        @Override
+        public OrderedFlux relative(long count) {
+            return null;
+        }
+
+        @Override
+        public <T> Publisher<T> forward(long count, Function<CurrentRow, T> function, Consumer<ResultStates> consumer) {
+            return null;
+        }
+
+        @Override
+        public OrderedFlux forward(long count) {
+            return null;
+        }
+
+        @Override
+        public <T> Publisher<T> forwardAll(Function<CurrentRow, T> function, Consumer<ResultStates> consumer) {
+            return null;
+        }
+
+        @Override
+        public OrderedFlux forwardAll() {
+            return null;
+        }
+
+        @Override
+        public <T> Publisher<T> backward(long count, Function<CurrentRow, T> function, Consumer<ResultStates> consumer) {
+            return null;
+        }
+
+        @Override
+        public OrderedFlux backward(long count) {
+            return null;
+        }
+
+        @Override
+        public <T> Publisher<T> backwardAll(Function<CurrentRow, T> function, Consumer<ResultStates> consumer) {
+            return null;
+        }
+
+        @Override
+        public OrderedFlux backwardAll() {
+            return null;
+        }
+
+        @Override
+        public <T> Publisher<T> close() {
+            return null;
+        }
+
+        @Override
+        public String toString() {
+            return PgStrings.builder()
+                    .append(getClass().getName())
+                    .append("[ name : ")
+                    .append(this.name)
+                    .append(" , index : ")
+                    .append(this.meta.columnIndex)
+                    .append(" , label : ")
+                    .append(this.meta.columnLabel)
+                    .append(" , hash : ")
+                    .append(System.identityHashCode(this))
+                    .append(" ]")
+                    .toString();
+        }
+
+        private ParamStmt createFetchStmt(final int fetchSize, final Consumer<ResultStates> consumer) {
+            final StringBuilder builder = new StringBuilder(40);
+            final List<ParamValue> paramList = PgCollections.arrayList(2);
+
+            builder.append("FETCH");
+            if (fetchSize == 0) {
+                builder.append(" ALL");
+            } else {
+                builder.append(" FORWARD ?");
+                paramList.add(JdbdValues.paramValue(0, PgType.INTEGER, fetchSize));
+            }
+            builder.append(" FROM ? ");
+            paramList.add(JdbdValues.paramValue(paramList.size(), PgType.TEXT, this.name));
+            return Stmts.paramFetchStmt(builder.toString(), paramList, consumer, fetchSize);
+        }
+
+
+        private <T> Mono<T> closeCursor() {
+            return Mono.empty();
+        }
+
+        private <T> Mono<T> handleFetchEnd(@Nullable Throwable error) {
+            final Mono<T> mono;
+            if (error == null) {
+                mono = Mono.defer(this::closeCursor);
+            } else if (error instanceof PgServerException) {
+                // postgre protocol : current transaction is aborted, commands ignored until end of transaction
+                mono = Mono.error(error);
+            } else {
+                mono = Mono.defer(this::closeCursor)
+                        .then(Mono.error(error));
+            }
+            return mono;
+        }
+
+
+    }//PgRefCursor
+
+
     private static abstract class PgDataRow extends VendorDataRow {
 
         final PgRowMeta rowMeta;
@@ -665,16 +845,6 @@ final class PgResultSetReader implements ResultSetReader {
             return null;
         }
 
-        @Override
-        public final <T> Publisher<T> getResult(int indexBasedZero, int fetchSize, Function<CurrentRow, T> function,
-                                                Consumer<ResultStates> consumer) {
-            return null;
-        }
-
-        @Override
-        public final OrderedFlux getFlux(int indexBasedZero, int fetchSize) {
-            return null;
-        }
 
         @Override
         protected final ColumnMeta getColumnMeta(int safeIndex) {

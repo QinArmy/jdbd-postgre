@@ -9,8 +9,6 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.IntFunction;
 
 /**
@@ -102,51 +100,6 @@ public interface DataRow extends ResultItem {
 
     <T> Publisher<T> getPublisher(int indexBasedZero, Class<T> valueClass) throws JdbdException;
 
-    <T> Publisher<T> getResult(int indexBasedZero, Function<CurrentRow, T> function) throws JdbdException;
-
-    <T> Publisher<T> getResult(int indexBasedZero, int fetchSize, Function<CurrentRow, T> function) throws JdbdException;
-
-    /**
-     * <p>
-     * This method can be useful in various scenarios,for example {@link io.jdbd.meta.JdbdType#REF_CURSOR}.
-     * </p>
-     *
-     * @param fetchSize non-negative <ul>
-     *                  <li>0 : fetch all</li>
-     *                  <li>positive</li>
-     *                  </ul>
-     * @throws JdbdException <ul>
-     *                       <li>emit(not throw) session have closed</li>
-     *                       <li>emit(not throw) result set have ended</li>
-     *                       <li>throw when data type don't support this method</li>
-     *                       <li>throw when indexBasedZero error</li>
-     *                       <li>throw when fetchSize error</li>
-     *                       </ul>
-     */
-    <T> Publisher<T> getResult(int indexBasedZero, int fetchSize, Function<CurrentRow, T> function, Consumer<ResultStates> consumer) throws JdbdException;
-
-
-    OrderedFlux getFlux(int indexBasedZero) throws JdbdException;
-
-    /**
-     * <p>
-     * This method can be useful in various scenarios,for example {@link io.jdbd.meta.JdbdType#REF_CURSOR}.
-     * </p>
-     *
-     * @param fetchSize non-negative <ul>
-     *                  <li>0 : fetch all</li>
-     *                  <li>positive</li>
-     *                  </ul>
-     * @throws JdbdException <ul>
-     *                       <li>emit(not throw) session have closed</li>
-     *                       <li>emit(not throw) result set have ended</li>
-     *                       <li>throw when data type don't support this method</li>
-     *                       <li>throw when indexBasedZero error</li>
-     *                       <li>throw when fetchSize error</li>
-     *                       </ul>
-     */
-    OrderedFlux getFlux(int indexBasedZero, int fetchSize) throws JdbdException;
-
 
     boolean isBigColumn(String columnLabel);
 
@@ -211,15 +164,6 @@ public interface DataRow extends ResultItem {
 
     <T> Publisher<T> getPublisher(String columnLabel, Class<T> valueClass) throws JdbdException;
 
-    <T> Publisher<T> getResult(String columnLabel, Function<CurrentRow, T> function) throws JdbdException;
-
-    <T> Publisher<T> getResult(String columnLabel, int fetchSize, Function<CurrentRow, T> function) throws JdbdException;
-
-    <T> Publisher<T> getResult(String columnLabel, int fetchSize, Function<CurrentRow, T> function, Consumer<ResultStates> consumer) throws JdbdException;
-
-    OrderedFlux getFlux(String columnLabel) throws JdbdException;
-
-    OrderedFlux getFlux(String columnLabel, int fetchSize) throws JdbdException;
 
 
 }

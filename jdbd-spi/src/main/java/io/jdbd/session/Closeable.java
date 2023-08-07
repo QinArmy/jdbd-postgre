@@ -1,5 +1,6 @@
 package io.jdbd.session;
 
+import io.jdbd.JdbdException;
 import org.reactivestreams.Publisher;
 
 /**
@@ -15,7 +16,10 @@ import org.reactivestreams.Publisher;
  */
 public interface Closeable {
 
-    Publisher<Void> close();
+    /**
+     * @return the {@link Publisher} that emit nothing or emit {@link JdbdException}
+     */
+    <T> Publisher<T> close();
 
 
 }

@@ -57,7 +57,7 @@ final class FluxResult implements OrderedFlux {
         @Override
         public void error(Throwable e) {
             // this method invoker in EventLoop
-            this.subscriber.onError(JdbdExceptions.wrap(e));
+            this.subscriber.onError(JdbdExceptions.wrapIfNonJvmFatal(e));
         }
 
         @Override

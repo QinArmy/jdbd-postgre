@@ -203,6 +203,10 @@ public abstract class JdbdExceptions {
         return new JdbdException(m);
     }
 
+    public static IllegalArgumentException fetchSizeError(int fetchSize) {
+        return new IllegalArgumentException(String.format("fetch size[%s]", fetchSize));
+    }
+
     public static Throwable wrapIfNonJvmFatal(Throwable e) {
         return isJvmFatal(e) ? e : wrap(e);
     }

@@ -1,6 +1,7 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.JdbdException;
+import io.jdbd.lang.Nullable;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.util.PgCollections;
 import io.jdbd.postgre.util.PgExceptions;
@@ -18,7 +19,6 @@ import org.reactivestreams.Subscriber;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
-import reactor.util.annotation.Nullable;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -35,6 +35,7 @@ import java.util.function.Function;
  *
  * @see SimpleQueryTask
  * @see <a href="https://www.postgresql.org/docs/current/protocol-flow.html#PROTOCOL-FLOW-EXT-QUERY"> Extended Query</a>
+ * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html"> Extended Query</a>
  */
 final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, ExtendedStmtTask {
 
@@ -50,8 +51,19 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
         });
     }
 
-    static Flux<ResultRow> query(final ParamStmt stmt, Function<CurrentRow, ResultRow> func, final TaskAdjutant adjutant) {
+    static <R> Flux<R> query(final ParamStmt stmt, Function<CurrentRow, R> func, final TaskAdjutant adjutant) {
         return MultiResults.query(func, stmt.getStatusConsumer(), sink -> {
+            try {
+                ExtendedQueryTask task = new ExtendedQueryTask(stmt, sink, adjutant);
+                task.submit(sink::error);
+            } catch (Throwable e) {
+                sink.error(PgExceptions.wrapIfNonJvmFatal(e));
+            }
+        });
+    }
+
+    static OrderedFlux executeAsFlux(final ParamStmt stmt, final TaskAdjutant adjutant) {
+        return MultiResults.asFlux(sink -> {
             try {
                 ExtendedQueryTask task = new ExtendedQueryTask(stmt, sink, adjutant);
                 task.submit(sink::error);

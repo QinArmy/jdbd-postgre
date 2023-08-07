@@ -95,6 +95,7 @@ public abstract class Stmts {
         return new SimpleOptionParamStmt(sql, paramGroup, option);
     }
 
+
     public static ParamStmt paramStmt(String sql, @Nullable List<ParamValue> paramGroup,
                                       Consumer<ResultStates> statesConsumer, StmtOption option) {
         if (paramGroup == null) {
@@ -106,6 +107,11 @@ public abstract class Stmts {
             return new SimpleOptionParamStmt(sql, paramGroup, option);
         }
         return new QueryOptionParamStmt(sql, paramGroup, statesConsumer, option);
+    }
+
+    public static ParamStmt paramFetchStmt(String sql, List<ParamValue> paramList, Consumer<ResultStates> consumer,
+                                           int fetchSize) {
+        return new QueryFetchParamStmt(sql, paramList, consumer, fetchSize);
     }
 
     public static ParamBatchStmt paramBatch(String sql, List<List<ParamValue>> groupList) {
@@ -451,6 +457,66 @@ public abstract class Stmts {
         }
 
     }//QueryOptionParamStmt
+
+
+    private static final class QueryFetchParamStmt implements ParamStmt {
+
+        private final String sql;
+
+        private final List<ParamValue> paramList;
+
+        private final Consumer<ResultStates> consumer;
+        private final int fetchSize;
+
+        private QueryFetchParamStmt(String sql, List<ParamValue> paramList, Consumer<ResultStates> consumer, int fetchSize) {
+            this.sql = sql;
+            this.paramList = JdbdCollections.unmodifiableList(paramList);
+            this.consumer = consumer;
+            this.fetchSize = fetchSize;
+        }
+
+
+        @Override
+        public String getSql() {
+            return this.sql;
+        }
+
+        @Override
+        public List<ParamValue> getBindGroup() {
+            return this.paramList;
+        }
+
+        @Override
+        public int getFetchSize() {
+            return this.fetchSize;
+        }
+
+        @Override
+        public Consumer<ResultStates> getStatusConsumer() {
+            return this.consumer;
+        }
+
+        @Override
+        public int getTimeout() {
+            return 0;
+        }
+
+        @Override
+        public List<NamedValue> getStmtVarList() {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public Function<ChunkOption, Publisher<byte[]>> getImportFunction() {
+            return null;
+        }
+
+        @Override
+        public Function<ChunkOption, Subscriber<byte[]>> getExportFunction() {
+            return null;
+        }
+
+    }//QueryFetchParamStmt
 
 
     private static final class MinParamBatchStmt extends StmtWithoutOption implements ParamBatchStmt {

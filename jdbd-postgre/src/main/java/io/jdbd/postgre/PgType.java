@@ -4,6 +4,7 @@ package io.jdbd.postgre;
 import io.jdbd.meta.JdbdType;
 import io.jdbd.meta.SQLType;
 import io.jdbd.postgre.util.PgCollections;
+import io.jdbd.result.RefCursor;
 import io.jdbd.type.Interval;
 import io.jdbd.type.Point;
 import reactor.util.annotation.Nullable;
@@ -96,7 +97,7 @@ public enum PgType implements SQLType {
     TSTZMULTIRANGE(PgConstant.TYPE_TSTZMULTIRANGE, JdbdType.DIALECT_TYPE, String.class),
 
 
-    REF_CURSOR(PgConstant.TYPE_REF_CURSOR, JdbdType.REF_CURSOR, Object.class),//TODO fix java type
+    REF_CURSOR(PgConstant.TYPE_REF_CURSOR, JdbdType.REF_CURSOR, RefCursor.class),//TODO fix java type
 
 
     BOOLEAN_ARRAY(PgConstant.TYPE_BOOLEAN_ARRAY, BOOLEAN),
@@ -226,7 +227,7 @@ public enum PgType implements SQLType {
 
     @Override
     public final Class<?> secondJavaType() {
-        //TODO
+        // currently ,jdbd-postgre don't need second java type
         return null;
     }
 

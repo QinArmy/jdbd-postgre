@@ -3,6 +3,7 @@ package io.jdbd.statement;
 import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
+import io.jdbd.result.RefCursor;
 import io.jdbd.result.ResultRowMeta;
 import io.jdbd.result.Warning;
 import io.jdbd.session.ChunkOption;
@@ -29,6 +30,7 @@ import java.util.function.Function;
  *     <li>{@link #executeBatchQuery()}</li>
  *     <li>{@link #executeBatchAsMulti()}</li>
  *     <li>{@link #executeBatchAsFlux()}</li>
+ *     <li>{@link #executeCursor()}, you must invoke {@link RefCursor#close()} after {@link #executeCursor()} success</li>
  *     <li>{@link #abandonBind()}</li>
  * </ul>
  * or {@link DatabaseSession} of this {@link PreparedStatement}
@@ -39,6 +41,7 @@ import java.util.function.Function;
  *     <strong>NOTE</strong>: {@link PreparedStatement} is auto close after you invoke executeXxx() method,or binding occur error,so
  *     {@link PreparedStatement} have no close() method.
  * </p>
+ *
  * @see BindStatement
  */
 public interface PreparedStatement extends BindSingleStatement {

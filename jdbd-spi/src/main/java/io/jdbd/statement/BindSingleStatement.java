@@ -5,6 +5,7 @@ import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
 import io.jdbd.result.CurrentRow;
+import io.jdbd.result.RefCursor;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
 import io.jdbd.session.ChunkOption;
@@ -91,6 +92,8 @@ public interface BindSingleStatement extends ParametrizedStatement, MultiResultS
 
 
     <R> Publisher<R> executeQuery(Function<CurrentRow, R> function, Consumer<ResultStates> statesConsumer);
+
+    Publisher<RefCursor> executeCursor();
 
 
 }

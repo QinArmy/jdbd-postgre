@@ -171,6 +171,9 @@ public interface StaticStatementSpec {
     <R> Publisher<R> executeQuery(String sql, Function<CurrentRow, R> function, Consumer<ResultStates> statesConsumer);
 
 
+    Publisher<RefCursor> executeCursor(String sql);
+
+
     Publisher<ResultStates> executeBatchUpdate(List<String> sqlGroup);
 
     BatchQuery executeBatchQuery(List<String> sqlGroup);

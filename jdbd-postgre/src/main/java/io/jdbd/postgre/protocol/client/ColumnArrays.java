@@ -333,29 +333,6 @@ abstract class ColumnArrays {
         return value;
     }
 
-    private static short readShort(final String text, int offset, int end) {
-        return Short.parseShort(text.substring(offset, end));
-    }
-
-    private static int readInt(final String text, int offset, int end) {
-        return Integer.parseInt(text.substring(offset, end));
-    }
-
-    private static long readLong(final String text, int offset, int end) {
-        return Long.parseLong(text.substring(offset, end));
-    }
-
-    private static BigDecimal readDecimal(final String text, int offset, int end) {
-        return new BigDecimal(text.substring(offset, end));
-    }
-
-    private static float readFloat(final String text, int offset, int end) {
-        return Float.parseFloat(text.substring(offset, end));
-    }
-
-    private static double readDouble(final String text, int offset, int end) {
-        return Double.parseDouble(text.substring(offset, end));
-    }
 
     private static BigDecimal readMoney(final String element, final PgColumnMeta meta, final DecimalFormat format) {
         try {
