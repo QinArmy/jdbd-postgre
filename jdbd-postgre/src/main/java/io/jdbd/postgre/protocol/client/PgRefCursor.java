@@ -223,7 +223,7 @@ abstract class PgRefCursor extends VendorRefCursor {
 
     /**
      * <p>
-     * This class for {@link BindSingleStatement#executeCursor()}.
+     * This class for {@link BindSingleStatement#declareCursor()}.
      * </p>
      */
     private static final class StatementRefCursor extends PgRefCursor {

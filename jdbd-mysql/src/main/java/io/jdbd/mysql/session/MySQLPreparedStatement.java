@@ -4,6 +4,7 @@ import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
 import io.jdbd.meta.JdbdType;
+import io.jdbd.mysql.MySQLDriver;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.util.MySQLBinds;
 import io.jdbd.mysql.util.MySQLCollections;
@@ -375,8 +376,12 @@ final class MySQLPreparedStatement extends MySQLStatement<PreparedStatement> imp
     }
 
     @Override
-    public Publisher<RefCursor> executeCursor() {
-        return null;
+    public Publisher<RefCursor> declareCursor() {
+        if (this.paramGroup == EMPTY_PARAM_GROUP) {
+            return Mono.error(MySQLExceptions.cannotReuseStatement(PreparedStatement.class));
+        }
+        this.abandonBind();
+        return Mono.error(MySQLExceptions.dontSupportDeclareCursor(MySQLDriver.MY_SQL));
     }
 
     @Override

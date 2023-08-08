@@ -1,5 +1,6 @@
 package io.jdbd.mysql.session;
 
+import io.jdbd.mysql.MySQLDriver;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLStrings;
@@ -121,6 +122,11 @@ final class MySQLStaticStatement extends MySQLStatement<StaticStatement> impleme
             flux = MultiResults.fluxError(MySQLExceptions.sqlIsEmpty());
         }
         return flux;
+    }
+
+    @Override
+    public Publisher<RefCursor> declareCursor(String sql) {
+        return Mono.error(MySQLExceptions.dontSupportDeclareCursor(MySQLDriver.MY_SQL));
     }
 
 

@@ -103,11 +103,6 @@ public interface DatabaseSession extends StaticStatementSpec, SessionMetaSpec, C
 
     boolean isClosed();
 
-    /**
-     * @throws JdbdException throw when session have closed.
-     */
-    ServerVersion serverVersion() throws JdbdException;
-
 
     boolean isSameFactory(DatabaseSession session);
 

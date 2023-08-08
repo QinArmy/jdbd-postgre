@@ -30,7 +30,7 @@ import java.util.function.Function;
  *     <li>{@link #executeBatchQuery()}</li>
  *     <li>{@link #executeBatchAsMulti()}</li>
  *     <li>{@link #executeBatchAsFlux()}</li>
- *     <li>{@link #executeCursor()}</li>
+ *     <li>{@link #declareCursor()}</li>
  *     <li>{@link #abandonBind()}</li>
  * </ul>
  * </p>

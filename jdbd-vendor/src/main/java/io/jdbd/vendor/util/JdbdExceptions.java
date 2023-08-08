@@ -363,6 +363,10 @@ public abstract class JdbdExceptions {
         return new JdbdException(String.format("unknown %s", option));
     }
 
+    public static JdbdException dontSupportDeclareCursor(String database) {
+        return new JdbdException(String.format("%s don't support declare cursor.", database));
+    }
+
     public static JdbdException savePointNameIsEmpty() {
         return new JdbdException("save point name must non-empty");
     }

@@ -2,13 +2,16 @@ package io.jdbd.mysql.session;
 
 import io.jdbd.JdbdException;
 import io.jdbd.meta.DatabaseMetaData;
+import io.jdbd.mysql.MySQLDriver;
 import io.jdbd.mysql.MySQLType;
 import io.jdbd.mysql.protocol.MySQLProtocol;
 import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.result.*;
-import io.jdbd.session.*;
+import io.jdbd.session.DatabaseSession;
+import io.jdbd.session.SavePoint;
+import io.jdbd.session.TransactionStatus;
 import io.jdbd.statement.BindStatement;
 import io.jdbd.statement.MultiStatement;
 import io.jdbd.statement.PreparedStatement;
@@ -40,17 +43,15 @@ import java.util.function.Function;
  *
  * </p>
  */
-abstract class MySQLDatabaseSession<S extends DatabaseSession> implements DatabaseSession {
+abstract class MySQLDatabaseSession<S extends DatabaseSession> extends MySQLSessionMetaSpec implements DatabaseSession {
 
     final MySQLDatabaseSessionFactory factory;
-
-    final MySQLProtocol protocol;
 
     private final AtomicInteger savePointIndex = new AtomicInteger(0);
 
     MySQLDatabaseSession(MySQLDatabaseSessionFactory factory, MySQLProtocol protocol) {
+        super(protocol);
         this.factory = factory;
-        this.protocol = protocol;
     }
 
     @Override
@@ -131,6 +132,11 @@ abstract class MySQLDatabaseSession<S extends DatabaseSession> implements Databa
     }
 
     @Override
+    public final Publisher<RefCursor> declareCursor(String sql) {
+        return Mono.error(MySQLExceptions.dontSupportDeclareCursor(MySQLDriver.MY_SQL));
+    }
+
+    @Override
     public final Publisher<TransactionStatus> transactionStatus() {
         return this.protocol.transactionStatus();
     }
@@ -176,32 +182,6 @@ abstract class MySQLDatabaseSession<S extends DatabaseSession> implements Databa
         throw new UnsupportedOperationException();
     }
 
-
-    @Override
-    public final boolean isSupportStmtVar() {
-        return this.protocol.supportStmtVar();
-    }
-
-    @Override
-    public final boolean isSupportSavePoints() {
-        return this.protocol.supportSavePoints();
-    }
-
-    @Override
-    public final boolean isSupportMultiStatement() {
-        return this.protocol.supportMultiStmt();
-    }
-
-    @Override
-    public final boolean isSupportOutParameter() {
-        return this.protocol.supportOutParameter();
-    }
-
-    @Override
-    public final boolean isSupportStoredProcedures() throws JdbdException {
-        // always true, MySQL support
-        return true;
-    }
 
     @Override
     public final Publisher<SavePoint> setSavePoint() {
@@ -256,50 +236,12 @@ abstract class MySQLDatabaseSession<S extends DatabaseSession> implements Databa
         return this.protocol.isClosed();
     }
 
-    @Override
-    public final ServerVersion serverVersion() {
-        return this.protocol.serverVersion();
-    }
 
     @Override
     public final boolean isSameFactory(DatabaseSession session) {
         return session instanceof MySQLDatabaseSession && ((MySQLDatabaseSession<?>) session).factory == this.factory;
     }
 
-    /**
-     * <p>
-     * jdbd-mysql support following :
-     *     <ul>
-     *         <li>{@link Option#AUTO_COMMIT}</li>
-     *         <li>{@link Option#IN_TRANSACTION}</li>
-     *         <li>{@link Option#READ_ONLY},true :  representing exists transaction and is read only.</li>
-     *         <li>{@link Option#CLIENT_ZONE}</li>
-     *         <li>{@link Option#SERVER_ZONE} if support TRACK_SESSION_STATE enabled</li>
-     *         <li>{@link Option#CLIENT_CHARSET}</li>
-     *         <li>{@link Option#BACKSLASH_ESCAPES}</li>
-     *         <li>{@link Option#BINARY_HEX_ESCAPES}</li>
-     *         <li>{@link Option#AUTO_RECONNECT}</li>
-     *     </ul>
-     * </p>
-     */
-    @Override
-    public final <T> T valueOf(Option<T> option) throws JdbdException {
-        final T value;
-        if (option == Option.AUTO_COMMIT
-                || option == Option.IN_TRANSACTION
-                || option == Option.READ_ONLY
-                || option == Option.CLIENT_ZONE
-                || option == Option.SERVER_ZONE
-                || option == Option.CLIENT_CHARSET
-                || option == Option.BACKSLASH_ESCAPES
-                || option == Option.BINARY_HEX_ESCAPES
-                || option == Option.AUTO_RECONNECT) {
-            value = this.protocol.valueOf(option);
-        } else {
-            value = null;
-        }
-        return value;
-    }
 
     @Override
     public final <T> Publisher<T> close() {

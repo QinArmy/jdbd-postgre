@@ -69,7 +69,7 @@ public interface BindSingleStatement extends ParametrizedStatement, MultiResultS
 
     <R> Publisher<R> executeQuery(Function<CurrentRow, R> function, Consumer<ResultStates> statesConsumer);
 
-    Publisher<RefCursor> executeCursor();
+    Publisher<RefCursor> declareCursor();
 
     /**
      * {@inheritDoc }

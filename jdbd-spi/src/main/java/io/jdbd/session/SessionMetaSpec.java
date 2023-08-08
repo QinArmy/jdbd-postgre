@@ -15,6 +15,11 @@ import io.jdbd.JdbdException;
  */
 public interface SessionMetaSpec extends OptionSpec {
 
+    /**
+     * @throws JdbdException throw when session have closed.
+     */
+    ServerVersion serverVersion() throws JdbdException;
+
 
     /**
      * @see java.sql.DatabaseMetaData#supportsSavepoints()
