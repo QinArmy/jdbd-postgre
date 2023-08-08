@@ -3,6 +3,8 @@ package io.jdbd.statement;
 import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
+import io.jdbd.session.ChunkOption;
+import io.jdbd.session.Option;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
@@ -38,14 +40,18 @@ public interface StaticStatement extends Statement, StaticStatementSpec {
      * {@inheritDoc }
      */
     @Override
-    StaticStatement setImportPublisher(Function<Object, Publisher<byte[]>> function) throws JdbdException;
+    StaticStatement setImportPublisher(Function<ChunkOption, Publisher<byte[]>> function) throws JdbdException;
 
     /**
      * {@inheritDoc }
      */
     @Override
-    StaticStatement setExportSubscriber(Function<Object, Subscriber<byte[]>> function) throws JdbdException;
+    StaticStatement setExportSubscriber(Function<ChunkOption, Subscriber<byte[]>> function) throws JdbdException;
 
+    /**
+     * {@inheritDoc }
+     */
+    <T> StaticStatement setOption(Option<T> option, @Nullable T value) throws JdbdException;
 
 
 }

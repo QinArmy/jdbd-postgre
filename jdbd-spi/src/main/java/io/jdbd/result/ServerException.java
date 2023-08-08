@@ -30,6 +30,7 @@ public abstract class ServerException extends JdbdException implements OptionSpe
      * @see Option#SQL_STATE
      * @see Option#VENDOR_CODE
      */
+    @Override
     @Nullable
     public abstract <T> T valueOf(Option<T> option);
 

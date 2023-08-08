@@ -5,6 +5,7 @@ import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
 import io.jdbd.result.OutResult;
 import io.jdbd.session.ChunkOption;
+import io.jdbd.session.Option;
 import io.jdbd.type.*;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
@@ -139,6 +140,12 @@ public interface ParametrizedStatement extends Statement {
      */
     @Override
     ParametrizedStatement setExportSubscriber(Function<ChunkOption, Subscriber<byte[]>> function) throws JdbdException;
+
+
+    /**
+     * {@inheritDoc }
+     */
+    <T> ParametrizedStatement setOption(Option<T> option, @Nullable T value) throws JdbdException;
 
 
 }

@@ -7,6 +7,7 @@ import io.jdbd.result.ResultRowMeta;
 import io.jdbd.result.Warning;
 import io.jdbd.session.ChunkOption;
 import io.jdbd.session.DatabaseSession;
+import io.jdbd.session.Option;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
@@ -70,6 +71,19 @@ public interface PreparedStatement extends BindSingleStatement {
     @Override
     PreparedStatement addBatch() throws JdbdException;
 
+    /**
+     * <p>
+     * This method close this  {@link PreparedStatement} if you don't invoke any executeXxx() method.
+     * </p>
+     * <p>
+     * Abandon binding before invoke executeXxx() method.
+     * </p>
+     *
+     * @return Publisher like {@code reactor.core.publisher.Mono} ,
+     * if success emit {@link DatabaseSession} that create this {@link PreparedStatement}.
+     * @throws JdbdException emit(not throw), when after invoking executeXxx().
+     */
+    DatabaseSession abandonBind();
 
     /**
      * {@inheritDoc }
@@ -97,18 +111,9 @@ public interface PreparedStatement extends BindSingleStatement {
 
 
     /**
-     * <p>
-     * This method close this  {@link PreparedStatement} if you don't invoke any executeXxx() method.
-     * </p>
-     * <p>
-     * Abandon binding before invoke executeXxx() method.
-     * </p>
-     *
-     * @return Publisher like {@code reactor.core.publisher.Mono} ,
-     * if success emit {@link DatabaseSession} that create this {@link PreparedStatement}.
-     * @throws JdbdException emit(not throw), when after invoking executeXxx().
+     * {@inheritDoc }
      */
-    DatabaseSession abandonBind();
+    <T> PreparedStatement setOption(Option<T> option, @Nullable T value) throws JdbdException;
 
 
 }

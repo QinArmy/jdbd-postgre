@@ -1,8 +1,6 @@
 package io.jdbd.result;
 
 
-import io.jdbd.session.Option;
-
 /**
  * <p>
  * The interface representing the states of the result of sql statement (eg: SELECT/INSERT/UPDATE/DELETE).
@@ -69,7 +67,5 @@ public interface ResultStates extends ResultItem {
         throw new UnsupportedOperationException();
     }
 
-
-    <T> T valueOf(Option<T> option);
 
 }

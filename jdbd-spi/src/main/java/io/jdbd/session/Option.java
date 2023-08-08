@@ -7,6 +7,19 @@ import java.io.ObjectStreamException;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentMap;
 
+/**
+ * <p>
+ * This class is supported by following methods :
+ * <ul>
+ *     <li>{@link OptionSpec#valueOf(Option)}</li>
+ *     <li>{@link io.jdbd.statement.Statement#setOption(Option, Object)}</li>
+ * </ul>
+ * for more dialectal driver.
+ * </p>
+ *
+ * @see OptionSpec
+ * @since 1.0
+ */
 public final class Option<T> {
 
 

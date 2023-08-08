@@ -9,6 +9,7 @@ import io.jdbd.result.RefCursor;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
 import io.jdbd.session.ChunkOption;
+import io.jdbd.session.Option;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
@@ -44,31 +45,6 @@ public interface BindSingleStatement extends ParametrizedStatement, MultiResultS
 
 
     /**
-     * {@inheritDoc }
-     */
-    @Override
-    BindSingleStatement setTimeout(int seconds) throws JdbdException;
-
-    /**
-     * {@inheritDoc }
-     */
-    @Override
-    BindSingleStatement setFetchSize(int fetchSize) throws JdbdException;
-
-    /**
-     * {@inheritDoc }
-     */
-    @Override
-    BindSingleStatement setImportPublisher(Function<ChunkOption, Publisher<byte[]>> function) throws JdbdException;
-
-    /**
-     * {@inheritDoc }
-     */
-    @Override
-    BindSingleStatement setExportSubscriber(Function<ChunkOption, Subscriber<byte[]>> function) throws JdbdException;
-
-
-    /**
      * @see BindStatement#addBatch()
      * @see PreparedStatement#addBatch()
      */
@@ -94,6 +70,36 @@ public interface BindSingleStatement extends ParametrizedStatement, MultiResultS
     <R> Publisher<R> executeQuery(Function<CurrentRow, R> function, Consumer<ResultStates> statesConsumer);
 
     Publisher<RefCursor> executeCursor();
+
+    /**
+     * {@inheritDoc }
+     */
+    @Override
+    BindSingleStatement setTimeout(int seconds) throws JdbdException;
+
+    /**
+     * {@inheritDoc }
+     */
+    @Override
+    BindSingleStatement setFetchSize(int fetchSize) throws JdbdException;
+
+    /**
+     * {@inheritDoc }
+     */
+    @Override
+    BindSingleStatement setImportPublisher(Function<ChunkOption, Publisher<byte[]>> function) throws JdbdException;
+
+    /**
+     * {@inheritDoc }
+     */
+    @Override
+    BindSingleStatement setExportSubscriber(Function<ChunkOption, Subscriber<byte[]>> function) throws JdbdException;
+
+    /**
+     * {@inheritDoc }
+     */
+    <T> BindSingleStatement setOption(Option<T> option, @Nullable T value) throws JdbdException;
+
 
 
 }

@@ -6,6 +6,7 @@ import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
 import io.jdbd.session.ChunkOption;
 import io.jdbd.session.DatabaseSession;
+import io.jdbd.session.Option;
 import io.jdbd.session.OptionSpec;
 import io.jdbd.type.*;
 import org.reactivestreams.Publisher;
@@ -155,6 +156,7 @@ public interface Statement extends OptionSpec {
 
     Statement setExportSubscriber(Function<ChunkOption, Subscriber<byte[]>> function) throws JdbdException;
 
+    <T> Statement setOption(Option<T> option, @Nullable T value) throws JdbdException;
 
     DatabaseSession getSession();
 

@@ -7,7 +7,9 @@ import io.jdbd.JdbdException;
  */
 public final class NoMoreResultException extends JdbdException {
 
-    public NoMoreResultException(String messageFormat, Object... args) {
-        super(messageFormat, args);
+    public NoMoreResultException(String message) {
+        super(message);
     }
+
+
 }

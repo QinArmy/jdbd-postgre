@@ -4,6 +4,7 @@ import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
 import io.jdbd.session.ChunkOption;
+import io.jdbd.session.Option;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
@@ -69,6 +70,12 @@ public interface BindStatement extends BindSingleStatement {
      */
     @Override
     BindStatement setExportSubscriber(Function<ChunkOption, Subscriber<byte[]>> function) throws JdbdException;
+
+
+    /**
+     * {@inheritDoc }
+     */
+    <T> BindStatement setOption(Option<T> option, @Nullable T value) throws JdbdException;
 
 
 }
