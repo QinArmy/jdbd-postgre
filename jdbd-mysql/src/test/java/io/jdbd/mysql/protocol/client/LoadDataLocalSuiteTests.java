@@ -193,8 +193,8 @@ public class LoadDataLocalSuiteTests extends AbstractStmtTaskSuiteTests {
                 .block();
 
         assertNotNull(status, sql);
-        LOG.info("Local file:{} affectedRows:{}", path, status.getAffectedRows());
-        assertEquals(status.getAffectedRows(), rows, sql);
+        LOG.info("Local file:{} affectedRows:{}", path, status.affectedRows());
+        assertEquals(status.affectedRows(), rows, sql);
 
         releaseConnection(adjutant);
     }

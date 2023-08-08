@@ -26,7 +26,7 @@ abstract class PgResultStates implements ResultStates {
     }
 
     @Override
-    public final boolean supportInsertId() {
+    public final boolean isSupportInsertId() {
         return this.supportInsertId;
     }
 
@@ -46,17 +46,17 @@ abstract class PgResultStates implements ResultStates {
 
 
         @Override
-        public final long getAffectedRows() {
+        public final long affectedRows() {
             return 0L;
         }
 
         @Override
-        public final long getInsertId() {
+        public final long lastInsertedId() {
             return 0L;
         }
 
         @Override
-        public final String getMessage() {
+        public final String message() {
             return "";
         }
 
@@ -113,17 +113,17 @@ abstract class PgResultStates implements ResultStates {
         }
 
         @Override
-        public final long getAffectedRows() {
+        public final long affectedRows() {
             return this.affectedRows;
         }
 
         @Override
-        public final long getInsertId() {
+        public final long lastInsertedId() {
             return this.insertId;
         }
 
         @Override
-        public final String getMessage() {
+        public final String message() {
             String message = null;
             NoticeMessage nm = this.noticeMessage;
             if (nm != null) {

@@ -1,6 +1,10 @@
 package io.jdbd.result;
 
 
+import io.jdbd.lang.Nullable;
+import io.jdbd.session.OptionSpec;
+import io.jdbd.statement.Statement;
+
 /**
  * <p>
  * The interface representing the states of the result of sql statement (eg: SELECT/INSERT/UPDATE/DELETE).
@@ -20,27 +24,23 @@ package io.jdbd.result;
  * @see ResultRow
  * @since 1.0
  */
-public interface ResultStates extends ResultItem {
+public interface ResultStates extends ResultItem, OptionSpec {
 
-    boolean supportInsertId();
+    boolean isSupportInsertId();
 
     boolean inTransaction();
 
-    long getAffectedRows();
+    long affectedRows();
 
-    long getInsertId();
+    long lastInsertedId();
 
     /**
-     * @return success info(maybe contain warning info)
+     * @return empty or  success info(maybe contain warning info)
      */
-    String getMessage();
+    String message();
 
     boolean hasMoreResult();
 
-    /**
-     * @return true : exists server cursor
-     */
-    boolean isExistsCursor();
 
     /**
      * @return true representing exists server cursor and the last row don't send.
@@ -57,15 +57,15 @@ public interface ResultStates extends ResultItem {
 
     /**
      * @return the row count.<ul>
-     * <li>If {@link #isExistsCursor()} is true , then the row count representing only the row count of current fetch result.</li>
+     * <li>If use fetch (eg: {@link Statement#setFetchSize(int)} , {@link RefCursor}) , then the row count representing only the row count of current fetch result.</li>
      * <li>Else then the row count representing the total row count of query result.</li>
      * </ul>
      */
     long rowCount();
 
-    default int getWarnings() {
-        throw new UnsupportedOperationException();
-    }
+
+    @Nullable
+    Warning warning();
 
 
 }

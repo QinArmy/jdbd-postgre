@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.ObjectStreamException;
+import java.nio.charset.Charset;
+import java.time.ZoneOffset;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentMap;
 
@@ -13,6 +15,8 @@ import java.util.concurrent.ConcurrentMap;
  * <ul>
  *     <li>{@link OptionSpec#valueOf(Option)}</li>
  *     <li>{@link io.jdbd.statement.Statement#setOption(Option, Object)}</li>
+ *     <li>{@link io.jdbd.result.ResultRowMeta#getOf(int, Option)}</li>
+ *     <li>{@link io.jdbd.result.ResultRowMeta#getNonNullOf(int, Option)}</li>
  * </ul>
  * for more dialectal driver.
  * </p>
@@ -47,6 +51,8 @@ public final class Option<T> {
 
     public static final Option<Boolean> IN_TRANSACTION = Option.from("IN TRANSACTION", Boolean.class);
 
+    public static final Option<Boolean> AUTO_COMMIT = Option.from("AUTO COMMIT", Boolean.class);
+
     /**
      * @see io.jdbd.result.ServerException#valueOf(Option)
      */
@@ -57,6 +63,30 @@ public final class Option<T> {
      * @see io.jdbd.result.ServerException#valueOf(Option)
      */
     public static final Option<Integer> VENDOR_CODE = Option.from("VENDOR CODE", Integer.class);
+
+    /**
+     * @see Option#WARNING_COUNT
+     */
+    public static final Option<Integer> WARNING_COUNT = Option.from("WARNING COUNT", Integer.class);
+
+
+    public static final Option<ZoneOffset> CLIENT_ZONE = Option.from("CLIENT ZONE", ZoneOffset.class);
+
+    public static final Option<ZoneOffset> SERVER_ZONE = Option.from("SERVER ZONE", ZoneOffset.class);
+
+    public static final Option<Charset> CLIENT_CHARSET = Option.from("CLIENT CHARSET", Charset.class);
+
+    /**
+     * true : text value support backslash escapes
+     */
+    public static final Option<Boolean> BACKSLASH_ESCAPES = Option.from("BACKSLASH ESCAPES", Boolean.class);
+
+    /**
+     * true : binary value support hex escapes
+     */
+    public static final Option<Boolean> BINARY_HEX_ESCAPES = Option.from("BINARY HEX ESCAPES", Boolean.class);
+
+    public static final Option<Boolean> AUTO_RECONNECT = Option.from("AUTO RECONNECT", Boolean.class);
 
     private final String name;
 

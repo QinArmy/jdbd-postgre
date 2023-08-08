@@ -64,7 +64,7 @@ public class CopyOutSuiteTests extends AbstractTaskTests {
                 .block();
 
         assertNotNull(state, "state");
-        assertEquals(state.getAffectedRows(), 0L, "affectedRows");
+        assertEquals(state.affectedRows(), 0L, "affectedRows");
         assertFalse(state.hasMoreFetch(), "more fetch");
         assertFalse(state.hasColumn(), "hasColumn");
         assertFalse(state.hasMoreResult(), "more result");
@@ -93,7 +93,7 @@ public class CopyOutSuiteTests extends AbstractTaskTests {
                 .block();
 
         assertNotNull(state, "state");
-        assertTrue(state.getAffectedRows() > 0L, "affectedRows");
+        assertTrue(state.affectedRows() > 0L, "affectedRows");
         assertFalse(state.hasMoreFetch(), "more fetch");
         assertFalse(state.hasColumn(), "hasColumn");
         assertFalse(state.hasMoreResult(), "more result");

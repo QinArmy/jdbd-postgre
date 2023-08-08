@@ -60,8 +60,8 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
         assertNotNull(state, "state");
 
-        assertEquals(state.getAffectedRows(), 1L, "rows");
-        assertEquals(state.getInsertId(), 0L, "insert id");
+        assertEquals(state.affectedRows(), 1L, "rows");
+        assertEquals(state.lastInsertedId(), 0L, "insert id");
         assertEquals(state.getResultNo(), 0, "resultIndex");
         assertFalse(state.hasMoreFetch(), "moreFetch");
 
@@ -99,8 +99,8 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         final ResultStates state = stateHolder.get();
 
         assertNotNull(state, "ResultState");
-        assertEquals(state.getAffectedRows(), 0L, "rows");
-        assertEquals(state.getInsertId(), 0L, "insert id");
+        assertEquals(state.affectedRows(), 0L, "rows");
+        assertEquals(state.lastInsertedId(), 0L, "insert id");
         assertEquals(state.getResultNo(), 0, "resultIndex");
         assertFalse(state.hasMoreFetch(), "moreFetch");
 
@@ -136,8 +136,8 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         for (int i = 0; i < size; i++) {
             ResultStates state = stateList.get(i);
 
-            assertEquals(state.getAffectedRows(), 1L, "rows");
-            assertEquals(state.getInsertId(), 0L, "insert id");
+            assertEquals(state.affectedRows(), 1L, "rows");
+            assertEquals(state.lastInsertedId(), 0L, "insert id");
             assertEquals(state.getResultNo(), i, "resultIndex");
             assertFalse(state.hasMoreFetch(), "moreFetch");
 
@@ -238,8 +238,8 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
         assertFalse(state.hasColumn(), "first update statement has returning column.");
         assertFalse(state.hasMoreFetch(), "first update statement more fetch.");
-        assertEquals(state.getAffectedRows(), 1L, "first update statement affected rows");
-        assertEquals(state.getInsertId(), 0L, "first update statement insert id");
+        assertEquals(state.affectedRows(), 1L, "first update statement affected rows");
+        assertEquals(state.lastInsertedId(), 0L, "first update statement insert id");
 
         assertTrue(state.hasMoreResult(), "first update statement more result.");
 
@@ -258,9 +258,9 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         state = (ResultStates) result;
         assertTrue(state.hasColumn(), "second select statement has returning column.");
         assertFalse(state.hasMoreFetch(), "second select statement more fetch.");
-        assertEquals(state.getAffectedRows(), 0L, "second select statement affected rows");
+        assertEquals(state.affectedRows(), 0L, "second select statement affected rows");
 
-        assertEquals(state.getInsertId(), 0L, "second select statement insert id");
+        assertEquals(state.lastInsertedId(), 0L, "second select statement insert id");
         assertTrue(state.hasMoreResult(), "second select statement more result.");
 
         // result 2
@@ -277,9 +277,9 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         state = (ResultStates) result;
         assertTrue(state.hasColumn(), "third update returning statement has returning column.");
         assertFalse(state.hasMoreFetch(), "third update returning statement more fetch.");
-        assertEquals(state.getAffectedRows(), 1L, "third update returning statement affected rows");
+        assertEquals(state.affectedRows(), 1L, "third update returning statement affected rows");
 
-        assertEquals(state.getInsertId(), 0L, "third update returning statement insert id");
+        assertEquals(state.lastInsertedId(), 0L, "third update returning statement insert id");
         assertTrue(state.hasMoreResult(), "third update returning statement more result.");
 
         // result 3
@@ -290,8 +290,8 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
 
         assertFalse(state.hasColumn(), "fourth update statement has returning column.");
         assertFalse(state.hasMoreFetch(), "fourth update statement more fetch.");
-        assertEquals(state.getAffectedRows(), 1L, "fourth update statement affected rows");
-        assertEquals(state.getInsertId(), 0L, "fourth update statement insert id");
+        assertEquals(state.affectedRows(), 1L, "fourth update statement affected rows");
+        assertEquals(state.lastInsertedId(), 0L, "fourth update statement insert id");
 
         assertFalse(state.hasMoreResult(), "fourth update statement more result.");
 
@@ -330,8 +330,8 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
                 .block();
 
         assertNotNull(state, "ResultState");
-        assertEquals(state.getAffectedRows(), 1L, "rows");
-        assertEquals(state.getInsertId(), 0L, "insert id");
+        assertEquals(state.affectedRows(), 1L, "rows");
+        assertEquals(state.lastInsertedId(), 0L, "insert id");
         assertEquals(state.getResultNo(), 0, "resultIndex");
         assertFalse(state.hasMoreFetch(), "moreFetch");
 
@@ -416,8 +416,8 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
         for (int i = 0, last = valueArray.length - 1; i < valueArray.length; i++) {
             ResultStates state = stateList.get(i);
             assertEquals(state.getResultNo(), i);
-            assertEquals(state.getAffectedRows(), 1L, "getAffectedRows");
-            assertEquals(state.getInsertId(), 0L, "insert id");
+            assertEquals(state.affectedRows(), 1L, "getAffectedRows");
+            assertEquals(state.lastInsertedId(), 0L, "insert id");
 
             if (i == last) {
                 assertFalse(state.hasMoreResult(), "more result");
@@ -479,8 +479,8 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
             final ResultStates state = stateList.get(i);
 
             assertEquals(state.getResultNo(), i);
-            assertEquals(state.getAffectedRows(), 1L, "getAffectedRows");
-            assertEquals(state.getInsertId(), 0L, "insert id");
+            assertEquals(state.affectedRows(), 1L, "getAffectedRows");
+            assertEquals(state.lastInsertedId(), 0L, "insert id");
 
             if (i == last) {
                 assertFalse(state.hasMoreResult(), "more result");
@@ -563,8 +563,8 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
             assertNotNull(state, "state");
 
             assertEquals(state.getResultNo(), i);
-            assertEquals(state.getAffectedRows(), 1L, "getAffectedRows");
-            assertEquals(state.getInsertId(), 0L, "insert id");
+            assertEquals(state.affectedRows(), 1L, "getAffectedRows");
+            assertEquals(state.lastInsertedId(), 0L, "insert id");
 
             if (i == last) {
                 assertFalse(state.hasMoreResult(), "more result");
@@ -621,8 +621,8 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
             final ResultStates state = stateList.get(i);
 
             assertEquals(state.getResultNo(), i);
-            assertEquals(state.getAffectedRows(), 1L, "getAffectedRows");
-            assertEquals(state.getInsertId(), 0L, "insert id");
+            assertEquals(state.affectedRows(), 1L, "getAffectedRows");
+            assertEquals(state.lastInsertedId(), 0L, "insert id");
 
             if (i == last) {
                 assertFalse(state.hasMoreResult(), "more result");
@@ -695,8 +695,8 @@ public class SimpleQueryTaskSuiteTests extends AbstractTaskTests {
             final ResultStates state = (ResultStates) resultList.get(j + 1);
 
             assertEquals(state.getResultNo(), i);
-            assertEquals(state.getAffectedRows(), 1L, "getAffectedRows");
-            assertEquals(state.getInsertId(), 0L, "insert id");
+            assertEquals(state.affectedRows(), 1L, "getAffectedRows");
+            assertEquals(state.lastInsertedId(), 0L, "insert id");
 
             if (i == last) {
                 assertFalse(state.hasMoreResult(), "more result");

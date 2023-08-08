@@ -34,7 +34,7 @@ abstract class AbstractTaskTests {
 
 
     static ResultStates assertUpdateOne(ResultStates state) {
-        assertEquals(state.getAffectedRows(), 1L, "affectedRows");
+        assertEquals(state.affectedRows(), 1L, "affectedRows");
         return state;
     }
 

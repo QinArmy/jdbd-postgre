@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-public interface DatabaseProtocol {
+public interface DatabaseProtocol extends OptionSpec, Closeable {
 
     Function<CurrentRow, ResultRow> ROW_FUNC = CurrentRow::asResultRow;
 
@@ -166,7 +166,5 @@ public interface DatabaseProtocol {
 
 
     boolean isClosed();
-
-    Mono<Void> close();
 
 }

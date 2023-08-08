@@ -229,8 +229,8 @@ public class PreparedStatementSuiteTests extends AbstractStatementTests {
         assertFalse(states.hasMoreResult(), "moreResult");
         assertTrue(states.hasColumn(), "hasColumn");
 
-        assertEquals(states.getAffectedRows(), 0L, "affectedRows");
-        assertEquals(states.getInsertId(), 0L, "insertId");
+        assertEquals(states.affectedRows(), 0L, "affectedRows");
+        assertEquals(states.lastInsertedId(), 0L, "insertId");
         assertEquals(states.rowCount(), 1L, "rowCount");
 
         closeSession(session);

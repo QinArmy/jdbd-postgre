@@ -142,10 +142,10 @@ public class TaskTestAdvice extends AbstractTaskSuiteTests {
                 .block();
 
         assertNotNull(resultStates, "resultStates");
-        assertEquals(resultStates.getAffectedRows(), rowCount, "affectedRows");
+        assertEquals(resultStates.affectedRows(), rowCount, "affectedRows");
         assertFalse(resultStates.hasMoreResult(), "hasMoreResults");
-        LOG.info("prepared data rows:{}", resultStates.getAffectedRows());
-        LOG.info("InsertId:{}", resultStates.getInsertId());
+        LOG.info("prepared data rows:{}", resultStates.affectedRows());
+        LOG.info("InsertId:{}", resultStates.lastInsertedId());
 
     }
 

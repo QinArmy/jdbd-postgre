@@ -9,7 +9,7 @@ import io.jdbd.lang.Nullable;
  *         <li>{@link DatabaseSessionFactory}</li>
  *         <li>{@link SessionMetaSpec}</li>
  *         <li>{@link io.jdbd.statement.Statement}</li>
- *         <li>{@link io.jdbd.result.ResultItem}</li>
+ *         <li>{@link io.jdbd.result.ResultStates}</li>
  *         <li>{@link io.jdbd.VersionSpec}</li>
  *         <li>{@link io.jdbd.result.ServerException}</li>
  *         <li>{@link io.jdbd.result.RefCursor}</li>
@@ -27,6 +27,13 @@ import io.jdbd.lang.Nullable;
 public interface OptionSpec {
 
     /**
+     * <p>
+     * This method can provider more dialectal driver.
+     * </p>
+     * <p>
+     * The implementation of this method must provide java doc(html list) for explaining supporting {@link Option} list.
+     * </p>
+     *
      * @return null or the value of option.
      */
     @Nullable

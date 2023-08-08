@@ -156,7 +156,31 @@ public interface Statement extends OptionSpec {
 
     Statement setExportSubscriber(Function<ChunkOption, Subscriber<byte[]>> function) throws JdbdException;
 
+    /**
+     * <p>
+     * Set dialect statement option.
+     * </p>
+     *
+     * @return <strong>this</strong>
+     * @throws JdbdException throw when statement don't support option.
+     */
     <T> Statement setOption(Option<T> option, @Nullable T value) throws JdbdException;
+
+    /**
+     * <p>
+     * This implementation of this method should support following :
+     *     <ul>
+     *         <li>{@link Option#BACKSLASH_ESCAPES}</li>
+     *         <li>{@link Option#BINARY_HEX_ESCAPES}</li>
+     *         <li>{@link Option#CLIENT_CHARSET}</li>
+     *         <li>{@link Option#CLIENT_ZONE} if database build-in time and datetime don't support zone</li>
+     *     </ul>
+     * </p>
+     */
+    @Nullable
+    @Override
+    <T> T valueOf(Option<T> option);
+
 
     DatabaseSession getSession();
 

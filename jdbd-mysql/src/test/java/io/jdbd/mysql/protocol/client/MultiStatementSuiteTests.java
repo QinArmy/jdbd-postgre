@@ -586,7 +586,7 @@ public class MultiStatementSuiteTests extends AbstractTaskSuiteTests {
         assertEquals(resultStatesList.size(), groupList.size(), "resultStatesList");
 
         for (ResultStates states : resultStatesList) {
-            assertEquals(states.getAffectedRows(), 1L, "getAffectedRows");
+            assertEquals(states.affectedRows(), 1L, "getAffectedRows");
         }
 
         LOG.info("bindableBatchWithMultiStmtMode test success");
@@ -625,7 +625,7 @@ public class MultiStatementSuiteTests extends AbstractTaskSuiteTests {
         assertEquals(resultStatesList.size(), sqlList.size(), "resultStatesList");
 
         for (ResultStates states : resultStatesList) {
-            assertEquals(states.getAffectedRows(), 1L, "getAffectedRows");
+            assertEquals(states.affectedRows(), 1L, "getAffectedRows");
         }
 
         LOG.info("batchUpdateWithMultiStmtMode test success");
@@ -643,7 +643,7 @@ public class MultiStatementSuiteTests extends AbstractTaskSuiteTests {
 
 
     private ResultStates assertUpdateSuccess(ResultStates states) {
-        Assert.assertEquals(states.getAffectedRows(), 1L, "update rows");
+        Assert.assertEquals(states.affectedRows(), 1L, "update rows");
         return states;
     }
 

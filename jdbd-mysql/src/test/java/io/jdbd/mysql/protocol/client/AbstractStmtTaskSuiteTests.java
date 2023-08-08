@@ -1763,7 +1763,7 @@ public abstract class AbstractStmtTaskSuiteTests extends AbstractTaskSuiteTests 
                 .block();
 
         assertNotNull(resultStates, "resultStates");
-        assertEquals(resultStates.getAffectedRows(), 1L, "getAffectedRows");
+        assertEquals(resultStates.affectedRows(), 1L, "getAffectedRows");
     }
 
     private ResultRow querySingleField(final TaskAdjutant taskAdjutant, final String field, final Object id) {

@@ -10,6 +10,7 @@ import io.jdbd.mysql.util.MySQLCollections;
 import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.session.ChunkOption;
 import io.jdbd.session.DatabaseSession;
+import io.jdbd.session.Option;
 import io.jdbd.statement.OutParameter;
 import io.jdbd.statement.Statement;
 import io.jdbd.vendor.stmt.JdbdValues;
@@ -68,6 +69,8 @@ abstract class MySQLStatement<S extends Statement> implements Statement, StmtOpt
     @Override
     public final S bindStmtVar(final String name, final @Nullable DataType dataType,
                                final @Nullable Object value) throws JdbdException {
+        checkReuse();
+
         RuntimeException error = null;
         final MySQLType type;
         if (!JdbdStrings.hasText(name)) {
@@ -154,6 +157,45 @@ abstract class MySQLStatement<S extends Statement> implements Statement, StmtOpt
 
 
     @Override
+    public final <T> S setOption(Option<T> option, @Nullable T value) throws JdbdException {
+        throw MySQLExceptions.dontSupportSetOption(option);
+    }
+
+    /**
+     * <p>
+     * jdbd-mysql support following :
+     *     <ul>
+     *         <li>{@link Option#AUTO_COMMIT}</li>
+     *         <li>{@link Option#IN_TRANSACTION}</li>
+     *         <li>{@link Option#READ_ONLY},true :  representing exists transaction and is read only.</li>
+     *         <li>{@link Option#CLIENT_ZONE}</li>
+     *         <li>{@link Option#SERVER_ZONE} if support TRACK_SESSION_STATE enabled</li>
+     *         <li>{@link Option#CLIENT_CHARSET}</li>
+     *         <li>{@link Option#BACKSLASH_ESCAPES}</li>
+     *         <li>{@link Option#BINARY_HEX_ESCAPES}</li>
+     *     </ul>
+     * </p>
+     */
+    @Override
+    public final <T> T valueOf(Option<T> option) {
+        final T value;
+        if (option == Option.AUTO_COMMIT
+                || option == Option.IN_TRANSACTION
+                || option == Option.READ_ONLY
+                || option == Option.CLIENT_ZONE
+                || option == Option.SERVER_ZONE
+                || option == Option.CLIENT_CHARSET
+                || option == Option.BACKSLASH_ESCAPES
+                || option == Option.BINARY_HEX_ESCAPES) {
+            value = this.session.protocol.valueOf(option);
+        } else {
+            value = null;
+        }
+        return value;
+    }
+
+
+    @Override
     public final int getTimeout() {
         return this.timeoutSeconds;
     }
@@ -188,7 +230,6 @@ abstract class MySQLStatement<S extends Statement> implements Statement, StmtOpt
         // always null
         return null;
     }
-
 
     @Override
     public final int hashCode() {

@@ -198,6 +198,14 @@ public abstract class JdbdExceptions {
     }
 
 
+    /**
+     * @see Statement#setOption(Option, Object)
+     */
+    public static JdbdException dontSupportSetOption(Option<?> option) {
+        return new JdbdException(String.format("dont' support set %s", option));
+    }
+
+
     public static JdbdException factoryClosed(String name) {
         String m = String.format("%s[%s] have closed", DatabaseSessionFactory.class.getName(), name);
         return new JdbdException(m);

@@ -70,7 +70,7 @@ public class CopyInSuiteTests extends AbstractTaskTests {
                 .block();
 
         assertNotNull(state, "state");
-        assertTrue(state.getAffectedRows() > 0L, "affectedRows");
+        assertTrue(state.affectedRows() > 0L, "affectedRows");
         assertFalse(state.hasMoreFetch(), "more fetch");
         assertFalse(state.hasColumn(), "hasColumn");
         assertFalse(state.hasMoreResult(), "more result");
@@ -110,7 +110,7 @@ public class CopyInSuiteTests extends AbstractTaskTests {
 
         int count = 0;
         for (ResultStates state : stateList) {
-            assertTrue(state.getAffectedRows() > 0L, "affectedRows");
+            assertTrue(state.affectedRows() > 0L, "affectedRows");
             assertFalse(state.hasMoreFetch(), "more fetch");
             assertFalse(state.hasColumn(), "hasColumn");
 
@@ -148,7 +148,7 @@ public class CopyInSuiteTests extends AbstractTaskTests {
                 .block();
 
         assertNotNull(state, "state");
-        assertTrue(state.getAffectedRows() > 0L, "affectedRows");
+        assertTrue(state.affectedRows() > 0L, "affectedRows");
         assertFalse(state.hasMoreFetch(), "more fetch");
         assertFalse(state.hasColumn(), "hasColumn");
         assertFalse(state.hasMoreResult(), "more result");
@@ -187,7 +187,7 @@ public class CopyInSuiteTests extends AbstractTaskTests {
         int count = 0;
         for (ResultStates state : stateList) {
 
-            assertTrue(state.getAffectedRows() > 0L, "affectedRows");
+            assertTrue(state.affectedRows() > 0L, "affectedRows");
             assertFalse(state.hasMoreFetch(), "more fetch");
             assertFalse(state.hasColumn(), "hasColumn");
 
@@ -236,7 +236,7 @@ public class CopyInSuiteTests extends AbstractTaskTests {
         int count = 0;
         for (ResultStates state : stateList) {
 
-            assertTrue(state.getAffectedRows() > 0L, "affectedRows");
+            assertTrue(state.affectedRows() > 0L, "affectedRows");
             assertFalse(state.hasMoreFetch(), "more fetch");
             assertFalse(state.hasColumn(), "hasColumn");
 

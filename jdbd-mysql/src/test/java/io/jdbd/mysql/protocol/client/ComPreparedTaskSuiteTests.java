@@ -71,7 +71,7 @@ public class ComPreparedTaskSuiteTests extends AbstractStmtTaskSuiteTests {
                 .block();
 
         assertNotNull(states, "states");
-        assertEquals(states.getAffectedRows(), 1L, "getAffectedRows");
+        assertEquals(states.affectedRows(), 1L, "getAffectedRows");
 
         LOG.info("prepare update test success");
         releaseConnection(adjutant);

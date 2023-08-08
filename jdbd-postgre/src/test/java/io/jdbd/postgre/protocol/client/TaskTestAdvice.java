@@ -80,7 +80,7 @@ public class TaskTestAdvice extends AbstractTaskTests {
                 .blockLast();
 
         assertNotNull(state, "state");
-        assertEquals(state.getAffectedRows(), rowCount, "affectedRows");
+        assertEquals(state.affectedRows(), rowCount, "affectedRows");
 
     }
 

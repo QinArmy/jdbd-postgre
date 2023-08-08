@@ -1,13 +1,16 @@
 package io.jdbd.session;
 
 import io.jdbd.JdbdException;
+import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DatabaseMetaData;
 import io.jdbd.statement.*;
 import org.reactivestreams.Publisher;
 
+import java.util.Map;
+
 /**
  * <p>
- * This interface representing database session, This interface is reactive version of {@code   java.sql.Connection}.
+ * This interface representing database session, This interface is reactive version of {@code java.sql.Connection}.
  * </p>
  * <p>
  * This interface is base interface of following :
@@ -78,7 +81,6 @@ public interface DatabaseSession extends StaticStatementSpec, SessionMetaSpec, C
     MultiStatement multiStatement() throws JdbdException;
 
 
-
     Publisher<SavePoint> setSavePoint();
 
 
@@ -108,6 +110,39 @@ public interface DatabaseSession extends StaticStatementSpec, SessionMetaSpec, C
 
 
     boolean isSameFactory(DatabaseSession session);
+
+
+    /**
+     * <p>
+     * This method should provide the access of some key(<strong>NOTE</strong> : is key,not all) properties of url ,but {@link io.jdbd.Driver#PASSWORD},
+     * see {@link io.jdbd.Driver#createSessionFactory(String, Map)}.<br/>
+     * </p>
+     *
+     * <p>
+     * The implementation of this method must provide java doc(html list) for explaining supporting {@link Option} list.
+     * </p>
+     *
+     * <p>
+     * The implementation of this method perhaps support some of following :
+     *     <ul>
+     *         <li>{@link Option#AUTO_COMMIT}</li>
+     *         <li>{@link Option#IN_TRANSACTION}</li>
+     *         <li>{@link Option#READ_ONLY},true :  representing exists transaction and is read only.</li>
+     *         <li>{@link Option#CLIENT_ZONE}</li>
+     *         <li>{@link Option#SERVER_ZONE}</li>
+     *         <li>{@link Option#CLIENT_CHARSET}</li>
+     *         <li>{@link Option#BACKSLASH_ESCAPES}</li>
+     *         <li>{@link Option#BINARY_HEX_ESCAPES}</li>
+     *         <li>{@link Option#AUTO_RECONNECT}</li>
+     *     </ul>
+     * </p>
+     *
+     * @return null or the value of option.
+     * @throws JdbdException throw when option need session open and session have closed.
+     */
+    @Nullable
+    @Override
+    <T> T valueOf(Option<T> option) throws JdbdException;
 
 
 }

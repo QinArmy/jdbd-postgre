@@ -71,9 +71,9 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
                 .block();
 
         assertNotNull(resultStates, "resultStates");
-        assertEquals(resultStates.getAffectedRows(), 1L, "affectedRows");
-        assertEquals(resultStates.getInsertId(), 0L, "insertedId");
-        assertNotNull(resultStates.getMessage(), "message");
+        assertEquals(resultStates.affectedRows(), 1L, "affectedRows");
+        assertEquals(resultStates.lastInsertedId(), 0L, "insertedId");
+        assertNotNull(resultStates.message(), "message");
 
         assertFalse(resultStates.hasMoreResult(), "hasMoreResult");
 
@@ -104,9 +104,9 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
 
         assertNotNull(resultStates, "resultStates");
 
-        assertEquals(resultStates.getAffectedRows(), 0L, "getAffectedRows");
-        assertNotNull(resultStates.getMessage(), "message");
-        assertEquals(resultStates.getInsertId(), 0L, "getInsertId");
+        assertEquals(resultStates.affectedRows(), 0L, "getAffectedRows");
+        assertNotNull(resultStates.message(), "message");
+        assertEquals(resultStates.lastInsertedId(), 0L, "getInsertId");
         assertFalse(resultStates.hasMoreResult(), "hasMoreResults");
 
 
@@ -134,9 +134,9 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
                 .block();
 
         assertNotNull(resultStates, "resultStates");
-        assertEquals(resultStates.getAffectedRows(), 1L, "affectedRows");
-        assertEquals(resultStates.getInsertId(), 0L, "inserted");
-        assertNotNull(resultStates.getMessage(), "message");
+        assertEquals(resultStates.affectedRows(), 1L, "affectedRows");
+        assertEquals(resultStates.lastInsertedId(), 0L, "inserted");
+        assertNotNull(resultStates.message(), "message");
 
         assertFalse(resultStates.hasMoreResult(), "hasMoreResults");
 
@@ -252,7 +252,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         assertEquals(resultStatesList.size(), 3, "resultStatesList");
 
         for (ResultStates states : resultStatesList) {
-            assertEquals(states.getAffectedRows(), 1L, "getAffectedRows");
+            assertEquals(states.affectedRows(), 1L, "getAffectedRows");
         }
 
         LOG.info("batchUpdateWithSingleStmtMode test success");
@@ -291,7 +291,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         assertEquals(resultStatesList.size(), sqlList.size(), "resultStatesList");
 
         for (ResultStates states : resultStatesList) {
-            assertEquals(states.getAffectedRows(), 1L, "getAffectedRows");
+            assertEquals(states.affectedRows(), 1L, "getAffectedRows");
         }
 
         LOG.info("batchUpdateWithSingleStmtMode test success");
@@ -327,7 +327,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
                     .index()
                     .map(tuple2 -> {
                         if (tuple2.getT1() < 2) {
-                            assertEquals(tuple2.getT2().getAffectedRows(), 1L, "getAffectedRows");
+                            assertEquals(tuple2.getT2().affectedRows(), 1L, "getAffectedRows");
                         } else {
                             fail("batchUpdateContainQuery don't recognize query statement.");
                         }
@@ -402,7 +402,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
                     .index()
                     .map(tuple2 -> {
                         if (tuple2.getT1() < 2) {
-                            assertEquals(tuple2.getT2().getAffectedRows(), 1L, "getAffectedRows");
+                            assertEquals(tuple2.getT2().affectedRows(), 1L, "getAffectedRows");
                         } else {
                             fail("batchUpdateSyntaxWithSingleStmtMode don't recognize query statement.");
                         }
@@ -478,7 +478,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
                     .index()
                     .map(tuple2 -> {
                         if (tuple2.getT1() < 3) {
-                            assertEquals(tuple2.getT2().getAffectedRows(), 1L, "getAffectedRows");
+                            assertEquals(tuple2.getT2().affectedRows(), 1L, "getAffectedRows");
                         } else {
                             fail("batchUpdateContainQueryWithTempMultiMode don't recognize query statement.");
                         }
@@ -648,7 +648,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         assertEquals(resultStatesList.size(), groupList.size(), "resultStatesList");
 
         for (ResultStates states : resultStatesList) {
-            assertEquals(states.getAffectedRows(), 1L, "getAffectedRows");
+            assertEquals(states.affectedRows(), 1L, "getAffectedRows");
         }
 
         LOG.info("bindableBatchWithSingleStmtMode test success");
@@ -697,7 +697,7 @@ public class ComQueryTaskSuiteTests extends AbstractStmtTaskSuiteTests {
         assertEquals(resultStatesList.size(), groupList.size(), "resultStatesList");
 
         for (ResultStates states : resultStatesList) {
-            assertEquals(states.getAffectedRows(), 1L, "getAffectedRows");
+            assertEquals(states.affectedRows(), 1L, "getAffectedRows");
         }
 
         LOG.info("bindableBatchWithTempMultiMode test success");
