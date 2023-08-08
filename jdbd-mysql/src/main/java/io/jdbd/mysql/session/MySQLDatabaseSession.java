@@ -164,7 +164,7 @@ abstract class MySQLDatabaseSession<S extends DatabaseSession> extends MySQLSess
     @Override
     public final BindStatement bindStatement(final String sql, final boolean forceServerPrepared) {
         if (!MySQLStrings.hasText(sql)) {
-            throw MySQLExceptions.sqlIsEmpty();
+            throw MySQLExceptions.bindSqlHaveNoText();
         }
         return MySQLBindStatement.create(this, sql, forceServerPrepared);
     }
@@ -178,8 +178,11 @@ abstract class MySQLDatabaseSession<S extends DatabaseSession> extends MySQLSess
     }
 
     @Override
-    public final DatabaseMetaData databaseMetaData() {
-        throw new UnsupportedOperationException();
+    public final DatabaseMetaData databaseMetaData() throws JdbdException {
+        if (this.protocol.isClosed()) {
+            throw MySQLExceptions.sessionHaveClosed();
+        }
+        return MySQLDatabaseMetadata.create(this.protocol);
     }
 
 

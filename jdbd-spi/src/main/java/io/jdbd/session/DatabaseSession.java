@@ -46,8 +46,14 @@ public interface DatabaseSession extends StaticStatementSpec, SessionMetaSpec, C
      */
     long identifier() throws JdbdException;
 
-
-    DatabaseMetaData databaseMetaData();
+    /**
+     * <p>
+     * This method create one {@link DatabaseMetaData} instance.
+     * </p>
+     *
+     * @throws JdbdException throw when session have closed.
+     */
+    DatabaseMetaData databaseMetaData() throws JdbdException;
 
 
     Publisher<TransactionStatus> transactionStatus();
@@ -66,18 +72,47 @@ public interface DatabaseSession extends StaticStatementSpec, SessionMetaSpec, C
      */
     Publisher<PreparedStatement> prepare(String sql);
 
+    /**
+     * <p>
+     * This method is equivalent to following :
+     * <pre>
+     *         <code><br/>
+     *             // session is instance of DatabaseSession
+     *             session.bindStatement(sql,false) ;
+     *         </code>
+     *     </pre>
+     * </p>
+     *
+     * @see #bindStatement(String, boolean)
+     */
     BindStatement bindStatement(String sql) throws JdbdException;
 
     /**
      * <p>
      * Create the statement that is the adaptor of client-prepared statement and server-prepared statement.
      * </p>
+     * <p>
+     * This method don't check session whether open or not.
+     * </p>
      *
+     * @param sql                 have text sql.
      * @param forceServerPrepared true : must use server-prepared statement.
+     * @throws IllegalArgumentException throw when only sql have no text.
      * @see BindStatement#isForcePrepare()
      */
-    BindStatement bindStatement(String sql, boolean forceServerPrepared) throws JdbdException;
+    BindStatement bindStatement(String sql, boolean forceServerPrepared);
 
+    /**
+     * <p>
+     * Create one multi statement.
+     * </p>
+     *
+     * @throws JdbdException throw when :
+     *                       <ul>
+     *                           <li>session have closed</li>
+     *                           <li>{@link #isSupportMultiStatement()} return false</li>
+     *                       </ul>
+     */
     MultiStatement multiStatement() throws JdbdException;
 
 

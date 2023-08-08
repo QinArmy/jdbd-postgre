@@ -6,10 +6,7 @@ import io.jdbd.meta.DataType;
 import io.jdbd.meta.SQLType;
 import io.jdbd.result.CurrentRow;
 import io.jdbd.result.ResultStates;
-import io.jdbd.session.DatabaseSessionFactory;
-import io.jdbd.session.Isolation;
-import io.jdbd.session.Option;
-import io.jdbd.session.SavePoint;
+import io.jdbd.session.*;
 import io.jdbd.statement.OutParameter;
 import io.jdbd.statement.PreparedStatement;
 import io.jdbd.statement.Statement;
@@ -104,6 +101,10 @@ public abstract class JdbdExceptions {
 
     public static JdbdException dontSupportDataType(DataType dataType, String database) {
         return new JdbdException(String.format("%s don't support %s[%s]", database, DataType.class.getName(), dataType));
+    }
+
+    public static JdbdException sessionHaveClosed() {
+        return new SessionCloseException("session have closed");
     }
 
     public static RuntimeException stmtVarNameHaveNoText(@Nullable String name) {

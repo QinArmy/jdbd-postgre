@@ -57,6 +57,14 @@ public abstract class MySQLExceptions extends JdbdExceptions {
         return new JdbdException("Query was empty", "42000", 1065);
     }
 
+    /**
+     * @return {@link IllegalArgumentException}
+     * @see io.jdbd.session.DatabaseSession#bindStatement(String, boolean)
+     */
+    public static IllegalArgumentException bindSqlHaveNoText() {
+        return new IllegalArgumentException("bind sql must have text.");
+    }
+
 
     public static JdbdException createInvalidParameterNoError(int stmtIndex, int paramIndex) {
         String message = String.format("Invalid parameter number[%s] in statement[sequenceId:%s]."
