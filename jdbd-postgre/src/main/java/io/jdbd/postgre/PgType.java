@@ -97,7 +97,7 @@ public enum PgType implements SQLType {
     TSTZMULTIRANGE(PgConstant.TYPE_TSTZMULTIRANGE, JdbdType.DIALECT_TYPE, String.class),
 
 
-    REF_CURSOR(PgConstant.TYPE_REF_CURSOR, JdbdType.REF_CURSOR, RefCursor.class),//TODO fix java type
+    REF_CURSOR(PgConstant.TYPE_REF_CURSOR, JdbdType.REF_CURSOR, RefCursor.class),
 
 
     BOOLEAN_ARRAY(PgConstant.TYPE_BOOLEAN_ARRAY, BOOLEAN),
@@ -205,7 +205,7 @@ public enum PgType implements SQLType {
         this.typeOid = typeOid;
         this.typeName = elementType.name() + "[]";
         this.jdbdType = JdbdType.ARRAY;
-        this.javaType = Object.class;
+        this.javaType = String.class; // postgre array always output array.
         this.elementType = elementType;
     }
 

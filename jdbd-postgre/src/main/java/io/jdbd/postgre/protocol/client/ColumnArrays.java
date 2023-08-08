@@ -39,6 +39,33 @@ abstract class ColumnArrays {
 
     private static final Map<Class<?>, Integer> EMPTY_LENGTHS = Collections.emptyMap();
 
+    /**
+     * @see <a href="https://www.postgresql.org/docs/15/arrays.html#ARRAYS-IO">Array Input and Output Syntax</a>
+     */
+    static int readArrayDimension(final String source) {
+        final int braceIndex, length;
+        braceIndex = source.indexOf(PgConstant.LEFT_BRACE);
+        if (braceIndex < 0) {
+            throw postgreArrayOutputError();
+        }
+
+        length = source.length();
+        int dimension = 0;
+        char ch;
+        for (int i = braceIndex; i < length; i++) {
+            ch = source.charAt(i);
+            if (ch == PgConstant.LEFT_BRACE) {
+                dimension++;
+            } else if (!Character.isWhitespace(ch)) {
+                break;
+            }
+        }
+        if (dimension == 0) {
+            throw postgreArrayOutputError();
+        }
+        return dimension;
+    }
+
 
     @SuppressWarnings("unchecked")
     static <T> T parseArray(final String source, final PgColumnMeta meta, final PgRowMeta rowMeta,
@@ -475,7 +502,9 @@ abstract class ColumnArrays {
         return PgCollections.unmodifiableMap(map);
     }
 
-
+    /**
+     * @see <a href="https://www.postgresql.org/docs/15/arrays.html#ARRAYS-IO">Array Input and Output Syntax</a>
+     */
     private static int parseArrayLength(final String text, final int offset, final int end) throws JdbdException {
         char ch;
         boolean leftBrace = true, inBrace = false, inQuote = false, arrayEnd = false;
@@ -695,6 +724,10 @@ abstract class ColumnArrays {
 
     private static JdbdException isNotWhitespaceError(int offset) {
         return new JdbdException(String.format("postgre array error at offset[%s]", offset));
+    }
+
+    private static JdbdException postgreArrayOutputError() {
+        return new JdbdException("postgre array output error");
     }
 
     private static JdbdException moneyCannotConvertException(final PgColumnMeta meta) {

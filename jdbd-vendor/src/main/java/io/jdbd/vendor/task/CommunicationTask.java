@@ -42,6 +42,17 @@ public abstract class CommunicationTask {
 
     /**
      * <p>
+     * If use this constructor ,then must override {@link #emitError(Throwable)}
+     * </p>
+     */
+    protected CommunicationTask(ITaskAdjutant adjutant) {
+        this.adjutant = adjutant;
+        this.errorConsumer = this::emitError;
+    }
+
+
+    /**
+     * <p>
      * {@link CommunicationTaskExecutor} invoke this method start task.
      * </p>
      *
@@ -212,6 +223,14 @@ public abstract class CommunicationTask {
      * @return true : task end.
      */
     protected boolean skipPacketsOnError(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
+        throw new UnsupportedOperationException();
+    }
+
+
+    /**
+     * for {@link CommunicationTask#CommunicationTask(ITaskAdjutant)}
+     */
+    protected void emitError(Throwable e) {
         throw new UnsupportedOperationException();
     }
 

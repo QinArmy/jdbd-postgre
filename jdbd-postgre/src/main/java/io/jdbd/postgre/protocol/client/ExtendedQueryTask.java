@@ -139,6 +139,9 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
 
     private final ExtendedCommandWriter commandWriter;
 
+    final Stmt stmt;
+
+    final ResultSink sink;
 
     private Phase phase;
 
@@ -148,7 +151,9 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
 
 
     private ExtendedQueryTask(Stmt stmt, ResultSink sink, TaskAdjutant adjutant) throws SQLException {
-        super(adjutant, sink, stmt);
+        super(adjutant, sink::error);
+        this.stmt = stmt;
+        this.sink = sink;
         this.commandWriter = PgExtendedCommandWriter.create(this);
     }
 
@@ -210,6 +215,11 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
     @Override
     public String getSql() {
         return ((ParamSingleStmt) this.stmt).getSql();
+    }
+
+    @Override
+    public void next(ResultItem result) {
+        this.sink.next(result);
     }
 
     @Override

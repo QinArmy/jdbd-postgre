@@ -4,7 +4,6 @@ import io.jdbd.JdbdException;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.syntax.PgParser;
 import io.jdbd.postgre.util.PgArrays;
-import io.jdbd.result.ResultItem;
 import io.jdbd.result.ResultRowMeta;
 import io.jdbd.vendor.result.ResultSink;
 import io.jdbd.vendor.stmt.SingleStmt;
@@ -41,9 +40,6 @@ abstract class PgCommandTask extends PgTask implements StmtTask {
 
     private static final String SET = "SET";
 
-    final ResultSink sink;
-
-    final Stmt stmt;
 
     private final ResultSetReader resultSetReader;
 
@@ -56,10 +52,33 @@ abstract class PgCommandTask extends PgTask implements StmtTask {
     private CopyOperationHandler copyOperationHandler;
 
 
-    PgCommandTask(TaskAdjutant adjutant, ResultSink sink, Stmt stmt) {
+    /**
+     * <p>
+     * This constructor for : <ul>
+     * <li>{@link SimpleQueryTask}</li>
+     * <li>{@link ExtendedQueryTask}</li>
+     * </ul>
+     * </p>
+     */
+    PgCommandTask(TaskAdjutant adjutant, ResultSink sink) {
         super(adjutant, sink::error);
-        this.sink = sink;
-        this.stmt = stmt;
+        this.resultSetReader = PgResultSetReader.create(this);
+    }
+
+
+    /**
+     * <p>
+     * This constructor for : <ul>
+     * <li>{@link CursorTask}</li>
+     * </ul>
+     * </p>
+     * <p>
+     * If use this constructor ,then must override {@link #emitError(Throwable)}
+     * </p>
+     */
+    PgCommandTask(TaskAdjutant adjutant) {
+        super(adjutant);
+        assert this instanceof CursorTask;
         this.resultSetReader = PgResultSetReader.create(this);
     }
 
@@ -101,10 +120,6 @@ abstract class PgCommandTask extends PgTask implements StmtTask {
         return isCanceled;
     }
 
-    @Override
-    public final void next(final ResultItem result) {
-        this.sink.next(result);
-    }
 
     @Override
     public final String toString() {
@@ -271,10 +286,13 @@ abstract class PgCommandTask extends PgTask implements StmtTask {
 
     abstract boolean handleClientTimeout();
 
+    abstract Stmt getStmt();
+
     boolean handleSelectCommand(long rowCount) {
         // sub class override.
         return false;
     }
+
 
     /**
      * @return true: read CommandComplete message end , false : more cumulate.
@@ -303,7 +321,7 @@ abstract class PgCommandTask extends PgTask implements StmtTask {
             final boolean moreResult = status == ResultSetStatus.MORE_RESULT;
             states = PgResultStates.empty(nextResultNo(), moreResult
                     , this.adjutant.server().serverVersion());
-            this.sink.next(states);
+            this.next(states);
             cumulateBuffer.readerIndex(nextMsgIndex); // avoid tail filler
             readEnd = true;
         }
@@ -484,7 +502,7 @@ abstract class PgCommandTask extends PgTask implements StmtTask {
     }
 
     private void handleSetCommand(final int resultIndex) {
-        final Stmt stmt = this.stmt;
+        final Stmt stmt = this.getStmt();
         try {
             final PgParser parser = this.adjutant.sqlParser();
             final String sql;

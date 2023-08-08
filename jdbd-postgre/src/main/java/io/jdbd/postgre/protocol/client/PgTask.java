@@ -1,6 +1,6 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.vendor.env.Properties;
+import io.jdbd.vendor.env.Environment;
 import io.jdbd.vendor.task.CommunicationTask;
 import io.netty.buffer.ByteBuf;
 
@@ -11,14 +11,25 @@ abstract class PgTask extends CommunicationTask {
 
     final TaskAdjutant adjutant;
 
-    final Properties properties;
+    final Environment env;
 
     PostgreUnitTask unitTask;
 
     PgTask(final TaskAdjutant adjutant, Consumer<Throwable> errorConsumer) {
         super(adjutant, errorConsumer);
         this.adjutant = adjutant;
-        this.properties = adjutant.obtainHost().getProperties();
+        this.env = adjutant.environment();
+    }
+
+    /**
+     * <p>
+     * If use this constructor ,then must override {@link #emitError(Throwable)}
+     * </p>
+     */
+    PgTask(final TaskAdjutant adjutant) {
+        super(adjutant);
+        this.adjutant = adjutant;
+        this.env = adjutant.environment();
     }
 
 

@@ -313,11 +313,17 @@ final class SimpleQueryTask extends PgCommandTask implements SimpleStmtTask {
 
     private static final Logger LOG = LoggerFactory.getLogger(SimpleQueryTask.class);
 
+    final Stmt stmt;
+
+    final ResultSink sink;
+
     private Phase phase;
 
 
     private SimpleQueryTask(Stmt stmt, ResultSink sink, TaskAdjutant adjutant) throws JdbdException {
-        super(adjutant, sink, stmt);
+        super(adjutant, sink::error);
+        this.stmt = stmt;
+        this.sink = sink;
 
         if (stmt instanceof StaticStmt) {
             this.packetPublisher = QueryCommandWriter.staticCommand(((StaticStmt) stmt).getSql(), adjutant);
@@ -349,6 +355,15 @@ final class SimpleQueryTask extends PgCommandTask implements SimpleStmtTask {
                 .subscribe();
     }
 
+    @Override
+    Stmt getStmt() {
+        return this.stmt;
+    }
+
+    @Override
+    public void next(ResultItem result) {
+        this.sink.next(result);
+    }
 
     /*############################### blow io.jdbd.postgre.protocol.client.StmtTask method ########################*/
 

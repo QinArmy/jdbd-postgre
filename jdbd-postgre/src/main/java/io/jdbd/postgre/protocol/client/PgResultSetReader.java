@@ -1,37 +1,34 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.JdbdException;
-import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
 import io.jdbd.postgre.PgConstant;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.type.PgGeometries;
-import io.jdbd.postgre.util.*;
-import io.jdbd.result.*;
+import io.jdbd.postgre.util.PgArrays;
+import io.jdbd.postgre.util.PgExceptions;
+import io.jdbd.postgre.util.PgTimes;
+import io.jdbd.result.CurrentRow;
+import io.jdbd.result.RefCursor;
+import io.jdbd.result.ResultRow;
+import io.jdbd.result.ResultRowMeta;
 import io.jdbd.type.Point;
 import io.jdbd.vendor.result.ColumnConverts;
 import io.jdbd.vendor.result.ColumnMeta;
 import io.jdbd.vendor.result.VendorDataRow;
-import io.jdbd.vendor.result.VendorRefCursor;
-import io.jdbd.vendor.stmt.JdbdValues;
-import io.jdbd.vendor.stmt.ParamStmt;
-import io.jdbd.vendor.stmt.ParamValue;
-import io.jdbd.vendor.stmt.Stmts;
-import io.jdbd.vendor.util.JdbdExceptions;
 import io.jdbd.vendor.util.JdbdStrings;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import reactor.core.publisher.Mono;
 
+import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.*;
 import java.util.*;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.IntFunction;
 
 final class PgResultSetReader implements ResultSetReader {
@@ -59,11 +56,14 @@ final class PgResultSetReader implements ResultSetReader {
 
     private final StmtTask task;
 
+    private final TaskAdjutant adjutant;
+
     private MutableCurrentRow currentRow;
 
 
     private PgResultSetReader(StmtTask task) {
         this.task = task;
+        this.adjutant = task.adjutant();
     }
 
     @Override
@@ -268,7 +268,23 @@ final class PgResultSetReader implements ResultSetReader {
                 columnValue = new String(valueBytes, rowMeta.clientCharset);
                 break;
             case REF_CURSOR: {
+                final String cursorName = new String(valueBytes, rowMeta.clientCharset);
+                columnValue = PgRefCursor.cursorOfColumn(cursorName, meta, this.adjutant);
+            }
+            break;
+            case REF_CURSOR_ARRAY: {
+                final String source = new String(valueBytes, rowMeta.clientCharset);
 
+                final int arrayDimension;
+                arrayDimension = ColumnArrays.readArrayDimension(source);
+
+                final Class<?> stringArrayClass;
+                stringArrayClass = PgArrays.arrayClassOf(String.class, arrayDimension);
+
+                final Object stringArray;
+                stringArray = ColumnArrays.parseArray(source, meta, rowMeta, stringArrayClass);
+
+                columnValue = new RefCursorArray(source, convertToRefCursorArray(stringArray, meta));
             }
             break;
             default:
@@ -276,6 +292,36 @@ final class PgResultSetReader implements ResultSetReader {
 
         }
         return columnValue;
+    }
+
+
+    /**
+     * @see #readColumnFromText(ByteBuf, int, PgRowMeta, PgColumnMeta)
+     */
+    private Object convertToRefCursorArray(final Object stringArray, final PgColumnMeta meta) {
+        final int dimension, length;
+        dimension = PgArrays.dimensionOf(stringArray.getClass());
+        length = Array.getLength(stringArray);
+
+        final boolean oneDimension;
+        oneDimension = dimension == 1;
+
+        final Object cursorArray;
+        cursorArray = Array.newInstance(RefCursor.class, dimension);
+
+        Object stringElement;
+        for (int i = 0; i < length; i++) {
+            stringElement = Array.get(stringArray, i);
+
+            if (stringElement == null) {
+                Array.set(cursorArray, i, null);
+            } else if (oneDimension) {
+                Array.set(cursorArray, i, PgRefCursor.cursorOfColumn((String) stringElement, meta, this.adjutant));
+            } else {
+                Array.set(cursorArray, i, convertToRefCursorArray(stringElement, meta));
+            }
+        }
+        return cursorArray;
     }
 
 
@@ -516,186 +562,19 @@ final class PgResultSetReader implements ResultSetReader {
     }
 
 
-    private static final class PgRefCursor extends VendorRefCursor {
+    private static final class RefCursorArray {
 
-        private final PgColumnMeta meta;
+        private final String source;
 
-        private final TaskAdjutant adjutant;
+        private final Object cursorArray;
 
-        private PgRefCursor(String name, PgColumnMeta meta, TaskAdjutant adjutant) {
-            super(name);
-            this.meta = meta;
-            this.adjutant = adjutant;
-        }
-
-        @Override
-        public <T> Publisher<T> first(Function<CurrentRow, T> function, Consumer<ResultStates> consumer) {
-            return null;
-        }
-
-        @Override
-        public OrderedFlux first() {
-            return null;
-        }
-
-        @Override
-        public <T> Publisher<T> last(Function<CurrentRow, T> function, Consumer<ResultStates> consumer) {
-            return null;
-        }
-
-        @Override
-        public OrderedFlux last() {
-            return null;
-        }
-
-        @Override
-        public <T> Publisher<T> prior(Function<CurrentRow, T> function, Consumer<ResultStates> consumer) {
-            return null;
-        }
-
-        @Override
-        public OrderedFlux prior() {
-            return null;
-        }
-
-        @Override
-        public <T> Publisher<T> next(Function<CurrentRow, T> function, Consumer<ResultStates> consumer) {
-            return null;
-        }
-
-        @Override
-        public OrderedFlux next() {
-            return null;
-        }
-
-        @Override
-        public <T> Publisher<T> absolute(long count, Function<CurrentRow, T> function, Consumer<ResultStates> consumer) {
-            return null;
-        }
-
-        @Override
-        public OrderedFlux absolute(long count) {
-            return null;
-        }
-
-        @Override
-        public <T> Publisher<T> relative(long count, Function<CurrentRow, T> function, Consumer<ResultStates> consumer) {
-            return null;
-        }
-
-        @Override
-        public OrderedFlux relative(long count) {
-            return null;
-        }
-
-        @Override
-        public <T> Publisher<T> forward(long count, Function<CurrentRow, T> function, Consumer<ResultStates> consumer) {
-            return null;
-        }
-
-        @Override
-        public OrderedFlux forward(long count) {
-            return null;
-        }
-
-        @Override
-        public <T> Publisher<T> forwardAll(Function<CurrentRow, T> function, Consumer<ResultStates> consumer) {
-            return null;
-        }
-
-        @Override
-        public OrderedFlux forwardAll() {
-            return null;
-        }
-
-        @Override
-        public <T> Publisher<T> allAndClose(Function<CurrentRow, T> function, Consumer<ResultStates> consumer) {
-            return null;
-        }
-
-        @Override
-        public OrderedFlux allAndClose() {
-            return null;
-        }
-
-        @Override
-        public <T> Publisher<T> backward(long count, Function<CurrentRow, T> function, Consumer<ResultStates> consumer) {
-            return null;
-        }
-
-        @Override
-        public OrderedFlux backward(long count) {
-            return null;
-        }
-
-        @Override
-        public <T> Publisher<T> backwardAll(Function<CurrentRow, T> function, Consumer<ResultStates> consumer) {
-            return null;
-        }
-
-        @Override
-        public OrderedFlux backwardAll() {
-            return null;
-        }
-
-        @Override
-        public <T> Publisher<T> close() {
-            return null;
-        }
-
-        @Override
-        public String toString() {
-            return PgStrings.builder()
-                    .append(getClass().getName())
-                    .append("[ name : ")
-                    .append(this.name)
-                    .append(" , index : ")
-                    .append(this.meta.columnIndex)
-                    .append(" , label : ")
-                    .append(this.meta.columnLabel)
-                    .append(" , hash : ")
-                    .append(System.identityHashCode(this))
-                    .append(" ]")
-                    .toString();
-        }
-
-        private ParamStmt createFetchStmt(final int fetchSize, final Consumer<ResultStates> consumer) {
-            final StringBuilder builder = new StringBuilder(40);
-            final List<ParamValue> paramList = PgCollections.arrayList(2);
-
-            builder.append("FETCH");
-            if (fetchSize == 0) {
-                builder.append(" ALL");
-            } else {
-                builder.append(" FORWARD ?");
-                paramList.add(JdbdValues.paramValue(0, PgType.INTEGER, fetchSize));
-            }
-            builder.append(" FROM ? ");
-            paramList.add(JdbdValues.paramValue(paramList.size(), PgType.TEXT, this.name));
-            return Stmts.paramFetchStmt(builder.toString(), paramList, consumer, fetchSize);
+        private RefCursorArray(String source, Object cursorArray) {
+            this.source = source;
+            this.cursorArray = cursorArray;
         }
 
 
-        private <T> Mono<T> closeCursor() {
-            return Mono.empty();
-        }
-
-        private <T> Mono<T> handleFetchEnd(@Nullable Throwable error) {
-            final Mono<T> mono;
-            if (error == null) {
-                mono = Mono.defer(this::closeCursor);
-            } else if (error instanceof PgServerException) {
-                // postgre protocol : current transaction is aborted, commands ignored until end of transaction
-                mono = Mono.error(error);
-            } else {
-                mono = Mono.defer(this::closeCursor)
-                        .then(Mono.error(error));
-            }
-            return mono;
-        }
-
-
-    }//PgRefCursor
+    }// RefCursorArray
 
 
     private static abstract class PgDataRow extends VendorDataRow {
@@ -786,6 +665,10 @@ final class PgResultSetReader implements ResultSetReader {
                     case POINT:
                         columnValue = PgGeometries.point((String) source);
                         break;
+                    case REF_CURSOR_ARRAY:
+                        // postgre array first java type always is String.class
+                        columnValue = ((RefCursorArray) source).source;
+                        break;
                     default:
                         columnValue = source;
                 }
@@ -811,7 +694,9 @@ final class PgResultSetReader implements ResultSetReader {
             final DataType dataType = meta.dataType;
             try {
                 final T columnValue;
-                if (dataType.isArray()) {
+                if (dataType == PgType.REF_CURSOR_ARRAY) {
+                    columnValue = convertRefCursorArray(source, meta, columnClass);
+                } else if (dataType.isArray()) {
                     if (!columnClass.isArray()
                             || (dataType == PgType.BYTEA_ARRAY && PgArrays.dimensionOf(columnClass) < 2)) {
                         throw PgExceptions.cannotConvertColumnValue(meta, source, columnClass, null);
@@ -830,6 +715,7 @@ final class PgResultSetReader implements ResultSetReader {
                 throw PgExceptions.cannotConvertColumnValue(meta, source, columnClass, e);
             }
         }
+
 
         @Override
         public final <T> List<T> getList(final int indexBasedZero, final Class<T> elementClass,
@@ -862,6 +748,27 @@ final class PgResultSetReader implements ResultSetReader {
         }
 
 
+        /**
+         * @see #get(int, Class)
+         */
+        @SuppressWarnings("unchecked")
+        private <T> T convertRefCursorArray(final Object source, final PgColumnMeta meta, final Class<T> columnClass) {
+            final T columnValue;
+            final Class<?> componentClass;
+            if (columnClass == String.class) {
+                columnValue = (T) ((RefCursorArray) source).source;
+            } else if (!columnClass.isArray()) {
+                throw PgExceptions.cannotConvertColumnValue(meta, source, columnClass, null);
+            } else if ((componentClass = PgArrays.underlyingComponent(columnClass)) == RefCursor.class) {
+                columnValue = (T) ((RefCursorArray) source).cursorArray;
+            } else if (componentClass == String.class) {
+                columnValue = ColumnArrays.parseArray(((RefCursorArray) source).source, meta, rowMeta, columnClass);
+            } else {
+                throw PgExceptions.cannotConvertColumnValue(meta, source, columnClass, null);
+            }
+            return columnValue;
+        }
+
         @SuppressWarnings("unchecked")
         private <T> T convertSimpleColumn(final PgType dataType, final Object source, final PgColumnMeta meta,
                                           final Class<T> columnClass) {
@@ -874,7 +781,7 @@ final class PgResultSetReader implements ResultSetReader {
                     } else if (columnClass == LocalTime.class) {
                         columnValue = parseLocalTime((String) source, meta, this.rowMeta.serverEnv.dateStyle());
                     } else {
-                        throw JdbdExceptions.cannotConvertColumnValue(meta, source, columnClass, null);
+                        throw PgExceptions.cannotConvertColumnValue(meta, source, columnClass, null);
                     }
                 }
                 break;
@@ -884,7 +791,7 @@ final class PgResultSetReader implements ResultSetReader {
                     } else if (columnClass == OffsetTime.class) {
                         columnValue = parseOffsetTime((String) source, meta, this.rowMeta.serverEnv.dateStyle());
                     } else {
-                        throw JdbdExceptions.cannotConvertColumnValue(meta, source, columnClass, null);
+                        throw PgExceptions.cannotConvertColumnValue(meta, source, columnClass, null);
                     }
                 }
                 break;
@@ -947,7 +854,7 @@ final class PgResultSetReader implements ResultSetReader {
                     } else if (columnClass == UUID.class) {
                         columnValue = UUID.fromString((String) source);
                     } else {
-                        throw JdbdExceptions.cannotConvertColumnValue(meta, source, columnClass, null);
+                        throw PgExceptions.cannotConvertColumnValue(meta, source, columnClass, null);
                     }
                 }
                 break;
@@ -957,7 +864,17 @@ final class PgResultSetReader implements ResultSetReader {
                     } else if (columnClass == Point.class) {
                         columnValue = PgGeometries.point((String) source);
                     } else {
-                        throw JdbdExceptions.cannotConvertColumnValue(meta, source, columnClass, null);
+                        throw PgExceptions.cannotConvertColumnValue(meta, source, columnClass, null);
+                    }
+                }
+                break;
+                case REF_CURSOR: {
+                    if (columnClass == String.class) {
+                        columnValue = ((PgRefCursor) source).name();
+                    } else if (columnClass == RefCursor.class) {
+                        columnValue = source;
+                    } else {
+                        throw PgExceptions.cannotConvertColumnValue(meta, source, columnClass, null);
                     }
                 }
                 break;
