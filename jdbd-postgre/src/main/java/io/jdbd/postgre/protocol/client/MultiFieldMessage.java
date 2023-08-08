@@ -43,9 +43,14 @@ abstract class MultiFieldMessage extends PgMessage {
     static final byte LINE = 'L';
     static final byte ROUTINE = 'R';
 
+    /**
+     * postgre don't support this field,just for {@link Option#VENDOR_CODE}.
+     */
+    static final byte VENDOR_CODE = -1;
+
     static final Map<Byte, String> FIELD_NAME_MAP = createFieldNameMap();
 
-    static final Map<Option<String>, Byte> OPTION_MAP = createOptionMap();
+    static final Map<Option<?>, Byte> OPTION_MAP = createOptionMap();
 
     final Map<Byte, String> fieldMap;
 
@@ -107,17 +112,30 @@ abstract class MultiFieldMessage extends PgMessage {
      * @param endIndex message end index,exclusive.
      * @return a unmodified map, key : field name,value : field value.
      */
-    static Map<Byte, String> readFields(final ByteBuf messageBody, final int endIndex, Charset charset) {
-        final Map<Byte, String> map = PgCollections.hashMap();
+    static Map<Byte, Object> readFields(final ByteBuf messageBody, final int endIndex, Charset charset) {
+        final Map<Byte, Object> map = PgCollections.hashMap();
 
         byte field;
+        String valueText;
+        Object fieldValue;
         while (messageBody.readerIndex() < endIndex) {
             field = messageBody.readByte();
             if (field == 0) {
                 break;
             }
-            map.put(field, Messages.readString(messageBody, charset));
+            valueText = Messages.readString(messageBody, charset);
+            switch (field) {
+                case LINE:
+                case POSITION:
+                    fieldValue = Integer.parseInt(valueText);
+                    break;
+                default:
+                    fieldValue = valueText;
+            }
+            map.put(field, fieldValue);
         }
+        map.put(VENDOR_CODE, 0); // add vendor code
+
         messageBody.readerIndex(endIndex);// avoid filler.
         return Collections.unmodifiableMap(map);
     }
@@ -170,32 +188,32 @@ abstract class MultiFieldMessage extends PgMessage {
     /**
      * @return a unmodified map.
      */
-    private static Map<Option<String>, Byte> createOptionMap() {
-        final Map<Option<String>, Byte> map = PgCollections.hashMap((int) (18 / 0.75));
+    private static Map<Option<?>, Byte> createOptionMap() {
+        final Map<Option<?>, Byte> map = PgCollections.hashMap((int) (18 / 0.75));
 
-        map.put(PgErrorOrNotice.PG_MSG_SEVERITY_S, SEVERITY_S);
-        map.put(PgErrorOrNotice.PG_MSG_SEVERITY_V, SEVERITY_V);
         map.put(Option.SQL_STATE, SQLSTATE);
+        map.put(Option.VENDOR_CODE, VENDOR_CODE);
         map.put(Option.MESSAGE, MESSAGE);
+        map.put(PgErrorOrNotice.PG_MSG_SEVERITY_S, SEVERITY_S);
 
+        map.put(PgErrorOrNotice.PG_MSG_SEVERITY_V, SEVERITY_V);
         map.put(PgErrorOrNotice.PG_MSG_DETAIL, DETAIL);
         map.put(PgErrorOrNotice.PG_MSG_HINT, HINT);
         map.put(PgErrorOrNotice.PG_MSG_POSITION, POSITION);
-        map.put(PgErrorOrNotice.PG_MSG_INTERNAL_POSITION, INTERNAL_POSITION);
 
+        map.put(PgErrorOrNotice.PG_MSG_INTERNAL_POSITION, INTERNAL_POSITION);
         map.put(PgErrorOrNotice.PG_MSG_INTERNAL_QUERY, INTERNAL_QUERY);
         map.put(PgErrorOrNotice.PG_MSG_WHERE, WHERE);
         map.put(PgErrorOrNotice.PG_MSG_SCHEMA, SCHEMA);
-        map.put(PgErrorOrNotice.PG_MSG_TABLE, TABLE);
 
+        map.put(PgErrorOrNotice.PG_MSG_TABLE, TABLE);
         map.put(PgErrorOrNotice.PG_MSG_COLUMN, COLUMN);
         map.put(PgErrorOrNotice.PG_MSG_DATATYPE, DATATYPE);
         map.put(PgErrorOrNotice.PG_MSG_CONSTRAINT, CONSTRAINT);
-        map.put(PgErrorOrNotice.PG_MSG_FILE, FILE);
 
+        map.put(PgErrorOrNotice.PG_MSG_FILE, FILE);
         map.put(PgErrorOrNotice.PG_MSG_LINE, LINE);
         map.put(PgErrorOrNotice.PG_MSG_ROUTINE, ROUTINE);
-
         return Collections.unmodifiableMap(map);
     }
 

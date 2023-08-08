@@ -32,19 +32,19 @@ final class PgServerException extends ServerException {
     }
 
     static PgServerException readBody(final ByteBuf cumulateBuffer, final int endIndex, Charset charset) {
-        final Map<Byte, String> fieldMap;
+        final Map<Byte, Object> fieldMap;
         fieldMap = MultiFieldMessage.readFields(cumulateBuffer, endIndex, charset);
         return new PgServerException(fieldMap);
     }
 
 
-    private final Map<Byte, String> fieldMap;
+    private final Map<Byte, Object> fieldMap;
 
     /**
      * private constructor
      */
-    private PgServerException(Map<Byte, String> fieldMap) {
-        super(fieldMap.getOrDefault(MultiFieldMessage.MESSAGE, ""), fieldMap.get(MultiFieldMessage.SQLSTATE), 0);
+    private PgServerException(Map<Byte, Object> fieldMap) {
+        super((String) fieldMap.getOrDefault(MultiFieldMessage.MESSAGE, ""), (String) fieldMap.get(MultiFieldMessage.SQLSTATE), 0);
         this.fieldMap = fieldMap;
     }
 
@@ -57,14 +57,7 @@ final class PgServerException extends ServerException {
         if (code == null) {
             return null;
         }
-
-        final T value;
-        if (option.javaType() == Integer.class) {
-            value = (T) getIntegerPart(code);
-        } else {
-            value = (T) this.fieldMap.get(code);
-        }
-        return value;
+        return (T) this.fieldMap.get(code);
     }
 
     @Override
@@ -80,16 +73,6 @@ final class PgServerException extends ServerException {
                 .toString();
     }
 
-    private Integer getIntegerPart(final byte type) {
-        String s = this.fieldMap.get(type);
-        int integer;
-        if (s == null) {
-            integer = 0;
-        } else {
-            integer = Integer.parseInt(s);
-        }
-        return integer;
-    }
 
 
 }
