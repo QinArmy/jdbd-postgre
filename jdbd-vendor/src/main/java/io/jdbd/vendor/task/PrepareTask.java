@@ -34,7 +34,7 @@ public interface PrepareTask {
 
     String getSql();
 
-    Mono<Void> abandonBind();
+   void abandonBind();
 
     @Nullable
     Warning getWarning();

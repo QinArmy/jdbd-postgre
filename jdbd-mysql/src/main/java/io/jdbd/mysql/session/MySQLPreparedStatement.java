@@ -121,7 +121,7 @@ final class MySQLPreparedStatement extends MySQLStatement<PreparedStatement> imp
         if (error != null) {
             this.stmtTask.closeOnBindError(error); // close prepare statement.
             clearStatementToAvoidReuse();
-            throw MySQLExceptions.wrap(error);
+            throw error;
         }
         return this;
     }
@@ -374,11 +374,16 @@ final class MySQLPreparedStatement extends MySQLStatement<PreparedStatement> imp
         return flux;
     }
 
+    @Override
+    public Publisher<RefCursor> executeCursor() {
+        return null;
+    }
 
     @Override
-    public Publisher<DatabaseSession> abandonBind() {
-        return this.stmtTask.abandonBind()
-                .thenReturn(this.session);
+    public DatabaseSession abandonBind() {
+        clearStatementToAvoidReuse();
+        this.stmtTask.abandonBind();
+        return this.session;
     }
 
 

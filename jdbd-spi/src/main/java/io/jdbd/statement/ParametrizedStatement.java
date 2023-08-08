@@ -37,11 +37,11 @@ public interface ParametrizedStatement extends Statement {
      * @param indexBasedZero parameter placeholder index based zero, the first value is 0 .
      * @param dataType       parameter type is following type : <ul>
      *                       <li>{@link io.jdbd.meta.JdbdType} generic sql type,this method convert {@link io.jdbd.meta.JdbdType} to appropriate {@link io.jdbd.meta.SQLType},if fail throw {@link  JdbdException}</li>
-     *                       <li>{@link io.jdbd.meta.SQLType} database build-in type. It is defined by driver developer.</li>
+     *                       <li>{@link io.jdbd.meta.SQLType} driver have known database build-in data type. It is defined by driver developer.</li>
      *                       <li>the {@link DataType} that application developer define type and it's {@link DataType#typeName()} is supported by database.
      *                             <ul>
      *                                 <li>If {@link DataType#typeName()} is database build-in type,this method convert dataType to appropriate {@link io.jdbd.meta.SQLType} . now {@link DataType#isUserDefined()} return false, or throw {@link JdbdException}.</li>
-     *                                 <li>Else if database support user_defined type,then use dataType. now {@link DataType#isUserDefined()} return true, or throw {@link JdbdException}.</li>
+     *                                 <li>Else if database support user_defined type,then use dataType. now {@link DataType#isUserDefined()} should return true,if it's user_defined type</li>
      *                                 <li>Else throw {@link JdbdException}</li>
      *                             </ul>
      *                       </li>
@@ -63,21 +63,31 @@ public interface ParametrizedStatement extends Statement {
      *                          </li>
      *                       </ul>
      * @return <strong>this</strong>
-     * @throws JdbdException throw when : <ul>
-     *                       <li>this statement instance is reused.Because jdbd is reactive and multi-thread and jdbd provide :
-     *                              <ol>
-     *                                  <li>{@link MultiResultStatement#executeBatchUpdate()}</li>
-     *                                  <li>{@link MultiResultStatement#executeBatchQuery()} </li>
-     *                                  <li>{@link MultiResultStatement#executeBatchAsMulti()}</li>
-     *                                  <li>{@link MultiResultStatement#executeBatchAsFlux()}</li>
-     *                              </ol>
-     *                              ,you don't need to reuse statement instance.
-     *                       </li>
-     *                       <li>indexBasedZero error</li>
-     *                       <i>dataType is {@link io.jdbd.meta.JdbdType#UNKNOWN} or {@link io.jdbd.meta.JdbdType#DIALECT_TYPE}</i>
-     *                       <li>dataType is null or dataType is supported by database.</li>
-     *                       <li>the java type of value isn't supported by appropriate dataType</li>
-     *                       </ul>
+     * @throws NullPointerException throw when dataType is null.
+     * @throws JdbdException        throw when : <ul>
+     *                              <li>this statement instance is reused.Because jdbd is reactive and multi-thread and jdbd provide :
+     *                                     <ol>
+     *                                         <li>{@link MultiResultStatement#executeBatchUpdate()}</li>
+     *                                         <li>{@link MultiResultStatement#executeBatchQuery()} </li>
+     *                                         <li>{@link MultiResultStatement#executeBatchAsMulti()}</li>
+     *                                         <li>{@link MultiResultStatement#executeBatchAsFlux()}</li>
+     *                                     </ol>
+     *                                     ,so you don't need to reuse statement instance.
+     *                              </li>
+     *                              <li>value is {@link OutParameter} type and {@link #isSupportOutParameter()} return false.</li>
+     *                              <li>indexBasedZero error</li>
+     *                              <li>dataType is following :
+     *                                     <ul>
+     *                                         <li>{@link io.jdbd.meta.JdbdType#UNKNOWN}</li>
+     *                                         <li>{@link io.jdbd.meta.JdbdType#DIALECT_TYPE}</li>
+     *                                         <li>{@link io.jdbd.meta.JdbdType#USER_DEFINED}</li>
+     *                                         <li>{@link io.jdbd.meta.JdbdType#REF_CURSOR}</li>
+     *                                         <li>{@link io.jdbd.meta.JdbdType#ARRAY}</li>
+     *                                     </ul>
+     *                              </li>
+     *                              <li>dataType isn't supported by database.</li>
+     *                              <li>dataType is {@link io.jdbd.meta.JdbdType#NULL} and value isn't null</li>
+     *                              </ul>
      * @see io.jdbd.meta.JdbdType
      * @see io.jdbd.meta.SQLType
      * @see Point

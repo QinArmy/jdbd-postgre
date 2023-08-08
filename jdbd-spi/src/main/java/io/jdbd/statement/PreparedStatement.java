@@ -3,7 +3,6 @@ package io.jdbd.statement;
 import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
-import io.jdbd.result.RefCursor;
 import io.jdbd.result.ResultRowMeta;
 import io.jdbd.result.Warning;
 import io.jdbd.session.ChunkOption;
@@ -20,7 +19,7 @@ import java.util.function.Function;
  * This interface is reactive version of {@code java.sql.PreparedStatement}
  * </p>
  * <p>
- * You must invoke one of following :
+ * You should invoke one of following :
  * <ul>
  *     <li>{@link #executeUpdate()}</li>
  *     <li>{@link #executeQuery()}</li>
@@ -30,12 +29,9 @@ import java.util.function.Function;
  *     <li>{@link #executeBatchQuery()}</li>
  *     <li>{@link #executeBatchAsMulti()}</li>
  *     <li>{@link #executeBatchAsFlux()}</li>
- *     <li>{@link #executeCursor()}, you must invoke {@link RefCursor#close()} after {@link #executeCursor()} success</li>
+ *     <li>{@link #executeCursor()}</li>
  *     <li>{@link #abandonBind()}</li>
  * </ul>
- * or {@link DatabaseSession} of this {@link PreparedStatement}
- * can't execute any new {@link Statement},because this session will wait(maybe in task queue)
- * for you invoke one of above.
  * </p>
  * <p>
  *     <strong>NOTE</strong>: {@link PreparedStatement} is auto close after you invoke executeXxx() method,or binding occur error,so
@@ -112,7 +108,7 @@ public interface PreparedStatement extends BindSingleStatement {
      * if success emit {@link DatabaseSession} that create this {@link PreparedStatement}.
      * @throws JdbdException emit(not throw), when after invoking executeXxx().
      */
-    Publisher<DatabaseSession> abandonBind();
+    DatabaseSession abandonBind();
 
 
 }

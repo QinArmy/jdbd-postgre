@@ -11,8 +11,6 @@ package io.jdbd.meta;
  */
 public enum JdbdType implements DataType {
 
-    UNKNOWN,
-
     /**
      * Identifies the generic SQL value {@code NULL} . This enum instance representing sql type is unknown and value is null.
      * <p>
@@ -211,10 +209,6 @@ public enum JdbdType implements DataType {
      */
     INTERVAL,
 
-    /**
-     * Identifies the generic SQL type {@code ARRAY}.
-     */
-    ARRAY,
 
 
     /**
@@ -230,12 +224,6 @@ public enum JdbdType implements DataType {
     JSON,
 
     JSONB,
-    /**
-     * Identifies the generic SQL type {@code REF_CURSOR}.
-     *
-     * @see io.jdbd.result.RefCursor
-     */
-    REF_CURSOR,
 
     /**
      * Identifies the generic SQL type {@code GEOMETRY}, for example Point , LineString,polygon
@@ -243,6 +231,24 @@ public enum JdbdType implements DataType {
      * @see <a href="https://www.ogc.org/standards/sfa">Simple Feature Access - Part 1: Common Architecture PDF</a>
      */
     GEOMETRY,
+
+
+    UNKNOWN,
+
+
+    /**
+     * Identifies the generic SQL type {@code ARRAY}.
+     */
+    ARRAY,
+
+    /**
+     * Identifies the generic SQL type {@code REF_CURSOR}.
+     *
+     * @see io.jdbd.result.RefCursor
+     */
+    REF_CURSOR,
+
+
 
     /**
      * Indicates that the user-defined data type  , this enum instance is only returned by {@link io.jdbd.result.ResultRowMeta#getJdbdType(int)}.

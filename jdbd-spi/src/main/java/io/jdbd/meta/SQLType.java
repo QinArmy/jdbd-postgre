@@ -3,6 +3,10 @@ package io.jdbd.meta;
 import io.jdbd.lang.Nullable;
 
 /**
+ * <p>
+ * This interface representing driver have known database build-in data type.
+ * </p>
+ *
  * @since 1.0
  */
 public interface SQLType extends DataType {

@@ -18,6 +18,7 @@ import java.util.Set;
 public abstract class MySQLBinds extends JdbdBinds {
 
 
+    //TODO add alias mapping
     private static final Map<String, MySQLType> MYSQL_TYPE_MAP = createSqlTypeMap(MySQLType.values());
 
     @Nullable
@@ -28,7 +29,11 @@ public abstract class MySQLBinds extends JdbdBinds {
         } else if (dataType instanceof MySQLType) {
             type = (MySQLType) dataType;
         } else if (!(dataType instanceof JdbdType)) {
-            type = MYSQL_TYPE_MAP.get(dataType.typeName().toUpperCase(Locale.ROOT));
+            if (dataType.isUserDefined()) { // mysql don't support user defined type.
+                type = null;
+            } else {
+                type = MYSQL_TYPE_MAP.get(dataType.typeName().toUpperCase(Locale.ROOT));
+            }
         } else switch ((JdbdType) dataType) {
             case NULL:
                 type = MySQLType.NULL;
@@ -159,9 +164,10 @@ public abstract class MySQLBinds extends JdbdBinds {
             case ROWID:
             case PERIOD:
             case INTERVAL:
-            case DATALINK:
             case DIALECT_TYPE:
             case UNKNOWN:
+            case REF_CURSOR:
+            case USER_DEFINED:
             default:
                 type = null;
         }
