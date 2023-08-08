@@ -157,7 +157,7 @@ abstract class PgCommandTask extends PgTask implements StmtTask {
 
             switch (msgType) {
                 case Messages.E: {// ErrorResponse message
-                    addError(ErrorMessage.readAsError(cumulateBuffer, clientCharset));
+                    addError(PgServerException.read(cumulateBuffer, clientCharset));
                     continueRead = Messages.hasOneMessage(cumulateBuffer);
                 }
                 break;

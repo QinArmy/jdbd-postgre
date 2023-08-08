@@ -1,5 +1,6 @@
 package io.jdbd.postgre.protocol.client;
 
+import io.jdbd.postgre.PgConstant;
 import io.jdbd.postgre.util.PgCollections;
 import io.jdbd.session.Option;
 import io.netty.buffer.ByteBuf;
@@ -9,7 +10,6 @@ import java.util.Collections;
 import java.util.Map;
 
 /**
- * @see ErrorMessage
  * @see NoticeMessage
  */
 abstract class MultiFieldMessage extends PgMessage {
@@ -74,6 +74,25 @@ abstract class MultiFieldMessage extends PgMessage {
     }
 
 
+    static void appendFieldToString(final StringBuilder builder, final Map<Byte, ?> fieldMap,
+                                    final boolean firstItem) {
+        final String line = System.lineSeparator();
+        int index = 0;
+        for (Map.Entry<Byte, ?> e : fieldMap.entrySet()) {
+            if (index > 0 || !firstItem) {
+                builder.append(PgConstant.COMMA);
+            }
+            builder.append(line)
+                    .append(keyByteAsFieldName(e.getKey()))
+                    .append("=")
+                    .append(e.getValue());
+
+            index++;
+
+        }
+    }
+
+
     /*################################## blow packet static method ##################################*/
 
     /**
@@ -87,9 +106,8 @@ abstract class MultiFieldMessage extends PgMessage {
      *
      * @param endIndex message end index,exclusive.
      * @return a unmodified map, key : field name,value : field value.
-     * @see ErrorMessage
      */
-    static Map<Byte, String> readMultiFields(final ByteBuf messageBody, final int endIndex, Charset charset) {
+    static Map<Byte, String> readFields(final ByteBuf messageBody, final int endIndex, Charset charset) {
         final Map<Byte, String> map = PgCollections.hashMap();
 
         byte field;

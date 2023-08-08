@@ -4,7 +4,6 @@ import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.env.Enums;
 import io.jdbd.postgre.env.PgHost;
 import io.jdbd.postgre.env.PgKey;
-import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PgFunctions;
 import io.jdbd.vendor.task.GssWrapper;
 import io.netty.buffer.ByteBuf;
@@ -272,8 +271,7 @@ final class GssUnitTask extends PostgreUnitTask {
         final int type = cumulateBuffer.getChar(cumulateBuffer.readerIndex());
         switch (type) {
             case Messages.E: {
-                ErrorMessage error = ErrorMessage.read(cumulateBuffer, this.adjutant.clientCharset());
-                addException(PgExceptions.createErrorException(error));
+                addException(PgServerException.read(cumulateBuffer, this.adjutant.clientCharset()));
                 taskEnd = true;
             }
             break;

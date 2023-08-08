@@ -33,4 +33,8 @@ public abstract class ServerException extends JdbdException {
     public abstract <T> T valueOf(Option<T> option);
 
 
+    @Override
+    public abstract String toString();
+
+
 }

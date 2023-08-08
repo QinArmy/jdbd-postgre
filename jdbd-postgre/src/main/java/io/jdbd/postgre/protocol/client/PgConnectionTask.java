@@ -226,9 +226,9 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
             case Messages.E: {
                 // error,server close connection.
                 taskEnd = true;
-                ErrorMessage error = ErrorMessage.read(cumulateBuffer, this.adjutant.clientCharset());
-                addError(PgExceptions.createErrorException(error));
-                LOG.debug("Read StartUpResponse error:{}", error);
+                PgServerException error = PgServerException.read(cumulateBuffer, this.adjutant.clientCharset());
+                addError(error);
+                LOG.debug("Read StartUpResponse error:{}", error.getMessage());
             }
             break;
             case Messages.R: {
@@ -361,8 +361,7 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
 
             switch (msgType) {
                 case Messages.E: { // ErrorResponse message
-                    ErrorMessage error = ErrorMessage.readBody(cumulateBuffer, nextMsgIndex, clientCharset);
-                    addError(PgExceptions.createErrorException(error));
+                    addError(PgServerException.readBody(cumulateBuffer, nextMsgIndex, clientCharset));
                 }
                 break loop;
                 case Messages.S: {// ParameterStatus message

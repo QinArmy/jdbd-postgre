@@ -1,17 +1,12 @@
 package io.jdbd.postgre.util;
 
 import io.jdbd.JdbdException;
-import io.jdbd.postgre.protocol.client.ErrorMessage;
 import io.jdbd.vendor.stmt.ParamValue;
 import io.jdbd.vendor.util.JdbdExceptions;
 
 
 public abstract class PgExceptions extends JdbdExceptions {
 
-
-    public static JdbdException createErrorException(ErrorMessage error) {
-        return new JdbdException(error.getMessage(), error.getSQLState(), 0);
-    }
 
 
     public static JdbdException createObjectTooLargeError() {
