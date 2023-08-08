@@ -34,6 +34,17 @@ public final class Option<T> {
 
     public static final Option<Boolean> IN_TRANSACTION = Option.from("IN TRANSACTION", Boolean.class);
 
+    /**
+     * @see io.jdbd.result.ServerException#valueOf(Option)
+     */
+    public static final Option<String> SQL_STATE = Option.from("SQL STATE", String.class);
+    public static final Option<String> MESSAGE = Option.from("MESSAGE", String.class);
+
+    /**
+     * @see io.jdbd.result.ServerException#valueOf(Option)
+     */
+    public static final Option<Integer> VENDOR_CODE = Option.from("VENDOR CODE", Integer.class);
+
     private final String name;
 
     private final Class<T> javaType;
@@ -89,8 +100,7 @@ public final class Option<T> {
 
     /*-------------------below private method -------------------*/
 
-    private void readObject(ObjectInputStream in) throws IOException,
-            ClassNotFoundException {
+    private void readObject(ObjectInputStream in) throws IOException {
         throw new InvalidObjectException("can't deserialize Option");
     }
 

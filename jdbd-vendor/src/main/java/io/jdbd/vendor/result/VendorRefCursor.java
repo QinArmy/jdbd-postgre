@@ -65,6 +65,10 @@ public abstract class VendorRefCursor implements RefCursor {
         return this.forwardAll(function, Stmts.IGNORE_RESULT_STATES);
     }
 
+    @Override
+    public final <T> Publisher<T> allAndClose(Function<CurrentRow, T> function) {
+        return this.allAndClose(function, Stmts.IGNORE_RESULT_STATES);
+    }
 
     @Override
     public final <T> Publisher<T> backward(long count, Function<CurrentRow, T> function) {

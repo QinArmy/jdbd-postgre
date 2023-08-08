@@ -2,7 +2,6 @@ package io.jdbd.result;
 
 import io.jdbd.JdbdException;
 import io.jdbd.session.Closeable;
-import io.jdbd.session.DatabaseSession;
 import org.reactivestreams.Publisher;
 
 import java.util.function.Consumer;
@@ -15,12 +14,15 @@ import java.util.function.Function;
  * <p>
  * The cursor will be close in following scenarios :
  *     <ul>
- *         <li>the any method of {@link RefCursor} emit {@link JdbdException}</li>
+ *         <li>the any method of {@link RefCursor} emit {@link Throwable}</li>
+ *         <li>You invoke {@link #allAndClose(Function)}</li>
+ *         <li>You invoke {@link #allAndClose(Function, Consumer)}</li>
+ *         <li>You invoke {@link #allAndClose()}</li>
  *         <li>You invoke {@link #close()}</li>
  *     </ul>
- * If the methods of {@link RefCursor} don't emit any {@link Throwable},then you must invoke {@link #close()}  for closing cursor,
- * or the {@link DatabaseSession} that create this {@link RefCursor}
- * can't possibly execute any new {@link io.jdbd.statement.Statement}.
+ * If the methods of {@link RefCursor} don't emit any {@link Throwable},then you should close cursor.
+ * If you don't close cursor ,the {@link io.jdbd.session.DatabaseSession} that create this {@link RefCursor} can still execute new {@link io.jdbd.statement.Statement},
+ * but you shouldn't do this.
  * </p>
  *
  * @see io.jdbd.meta.JdbdType#REF_CURSOR
@@ -61,7 +63,7 @@ public interface RefCursor extends Closeable {
      *                                  <li>driver don't support this method</li>
      *                                  <li>session close</li>
      *                                  <li>cursor have closed</li>
-     *                                  <li>server response error</li>
+     *                                  <li>server response error,see {@link ServerException}</li>
      *                              </ul>
      */
     <T> Publisher<T> first(Function<CurrentRow, T> function, Consumer<ResultStates> consumer);
@@ -76,7 +78,7 @@ public interface RefCursor extends Closeable {
      *                           <li>driver don't support this method</li>
      *                           <li>session close</li>
      *                           <li>cursor have closed</li>
-     *                           <li>server response error</li>
+     *                           <li>server response error,see {@link ServerException}</li>
      *                       </ul>
      */
     OrderedFlux first();
@@ -109,7 +111,7 @@ public interface RefCursor extends Closeable {
      *                                  <li>driver don't support this method</li>
      *                                  <li>session close</li>
      *                                  <li>cursor have closed</li>
-     *                                  <li>server response error</li>
+     *                                  <li>server response error,see {@link ServerException}</li>
      *                              </ul>
      */
     <T> Publisher<T> last(Function<CurrentRow, T> function, Consumer<ResultStates> consumer);
@@ -124,7 +126,7 @@ public interface RefCursor extends Closeable {
      *                           <li>driver don't support this method</li>
      *                           <li>session close</li>
      *                           <li>cursor have closed</li>
-     *                           <li>server response error</li>
+     *                           <li>server response error,see {@link ServerException}</li>
      *                       </ul>
      */
     OrderedFlux last();
@@ -157,7 +159,7 @@ public interface RefCursor extends Closeable {
      *                                  <li>driver don't support this method</li>
      *                                  <li>session close</li>
      *                                  <li>cursor have closed</li>
-     *                                  <li>server response error</li>
+     *                                  <li>server response error,see {@link ServerException}</li>
      *                              </ul>
      */
     <T> Publisher<T> prior(Function<CurrentRow, T> function, Consumer<ResultStates> consumer);
@@ -172,7 +174,7 @@ public interface RefCursor extends Closeable {
      *                           <li>driver don't support this method</li>
      *                           <li>session close</li>
      *                           <li>cursor have closed</li>
-     *                           <li>server response error</li>
+     *                           <li>server response error,see {@link ServerException}</li>
      *                       </ul>
      */
     OrderedFlux prior();
@@ -205,7 +207,7 @@ public interface RefCursor extends Closeable {
      *                                  <li>driver don't support this method</li>
      *                                  <li>session close</li>
      *                                  <li>cursor have closed</li>
-     *                                  <li>server response error</li>
+     *                                  <li>server response error,see {@link ServerException}</li>
      *                              </ul>
      */
     <T> Publisher<T> next(Function<CurrentRow, T> function, Consumer<ResultStates> consumer);
@@ -220,7 +222,7 @@ public interface RefCursor extends Closeable {
      *                           <li>driver don't support this method</li>
      *                           <li>session close</li>
      *                           <li>cursor have closed</li>
-     *                           <li>server response error</li>
+     *                           <li>server response error,see {@link ServerException}</li>
      *                       </ul>
      */
     OrderedFlux next();
@@ -257,7 +259,7 @@ public interface RefCursor extends Closeable {
      *                                      <li>driver don't support this method</li>
      *                                      <li>session close</li>
      *                                      <li>cursor have closed</li>
-     *                                      <li>server response error</li>
+     *                                      <li>server response error,see {@link ServerException}</li>
      *                                  </ul>
      */
     <T> Publisher<T> absolute(long count, Function<CurrentRow, T> function, Consumer<ResultStates> consumer);
@@ -276,7 +278,7 @@ public interface RefCursor extends Closeable {
      *                                      <li>driver don't support this method</li>
      *                                      <li>session close</li>
      *                                      <li>cursor have closed</li>
-     *                                      <li>server response error</li>
+     *                                      <li>server response error,see {@link ServerException}</li>
      *                                  </ul>
      */
     OrderedFlux absolute(long count);
@@ -312,7 +314,7 @@ public interface RefCursor extends Closeable {
      *                                      <li>driver don't support this method</li>
      *                                      <li>session close</li>
      *                                      <li>cursor have closed</li>
-     *                                      <li>server response error</li>
+     *                                      <li>server response error,see {@link ServerException}</li>
      *                                  </ul>
      */
     <T> Publisher<T> relative(long count, Function<CurrentRow, T> function, Consumer<ResultStates> consumer);
@@ -330,7 +332,7 @@ public interface RefCursor extends Closeable {
      *                                      <li>driver don't support this method</li>
      *                                      <li>session close</li>
      *                                      <li>cursor have closed</li>
-     *                                      <li>server response error</li>
+     *                                      <li>server response error,see {@link ServerException}</li>
      *                                  </ul>
      */
     OrderedFlux relative(long count);
@@ -365,7 +367,7 @@ public interface RefCursor extends Closeable {
      *                                      <li>driver don't support this method</li>
      *                                      <li>session close</li>
      *                                      <li>cursor have closed</li>
-     *                                      <li>server response error</li>
+     *                                      <li>server response error,see {@link ServerException}</li>
      *                                  </ul>
      */
     <T> Publisher<T> forward(long count, Function<CurrentRow, T> function, Consumer<ResultStates> consumer);
@@ -382,7 +384,7 @@ public interface RefCursor extends Closeable {
      *                                      <li>driver don't support this method</li>
      *                                      <li>session close</li>
      *                                      <li>cursor have closed</li>
-     *                                      <li>server response error</li>
+     *                                      <li>server response error,see {@link ServerException}</li>
      *                                  </ul>
      */
     OrderedFlux forward(long count);
@@ -415,7 +417,7 @@ public interface RefCursor extends Closeable {
      *                                  <li>driver don't support this method</li>
      *                                  <li>session close</li>
      *                                  <li>cursor have closed</li>
-     *                                  <li>server response error</li>
+     *                                  <li>server response error,see {@link ServerException}</li>
      *                              </ul>
      */
     <T> Publisher<T> forwardAll(Function<CurrentRow, T> function, Consumer<ResultStates> consumer);
@@ -430,10 +432,58 @@ public interface RefCursor extends Closeable {
      *                           <li>driver don't support this method</li>
      *                           <li>session close</li>
      *                           <li>cursor have closed</li>
-     *                           <li>server response error</li>
+     *                           <li>server response error,see {@link ServerException}</li>
      *                       </ul>
      */
     OrderedFlux forwardAll();
+
+    /*-------------------below allAndClose method-------------------*/
+
+    /**
+     * <p>
+     * This method is equivalent to following :
+     * <pre>
+     *         <code><br/>
+     *             // cursor is instance of RefCursor
+     *             cursor.allAndClose(function,states->{}) ; // ignore ResultStates instance.
+     *         </code>
+     *     </pre>
+     * </p>
+     *
+     * @see #allAndClose(Function, Consumer)
+     */
+    <T> Publisher<T> allAndClose(Function<CurrentRow, T> function);
+
+    /**
+     * <p>
+     * Fetch all remaining rows and close cursor.
+     * </p>
+     *
+     * @throws NullPointerException emit(not throw) when function is null or consumer is null.
+     * @throws JdbdException        emit(not throw) when
+     *                              <ul>
+     *                                  <li>driver don't support this method</li>
+     *                                  <li>session close</li>
+     *                                  <li>cursor have closed</li>
+     *                                  <li>server response error,see {@link ServerException}</li>
+     *                              </ul>
+     */
+    <T> Publisher<T> allAndClose(Function<CurrentRow, T> function, Consumer<ResultStates> consumer);
+
+    /**
+     * <p>
+     * Fetch all remaining rows and close cursor.
+     * </p>
+     *
+     * @throws JdbdException emit(not throw) when
+     *                       <ul>
+     *                           <li>driver don't support this method</li>
+     *                           <li>session close</li>
+     *                           <li>cursor have closed</li>
+     *                           <li>server response error,see {@link ServerException}</li>
+     *                       </ul>
+     */
+    OrderedFlux allAndClose();
 
     /*-------------------below backward method-------------------*/
 
@@ -466,7 +516,7 @@ public interface RefCursor extends Closeable {
      *                                      <li>driver don't support this method</li>
      *                                      <li>session close</li>
      *                                      <li>cursor have closed</li>
-     *                                      <li>server response error</li>
+     *                                      <li>server response error,see {@link ServerException}</li>
      *                                  </ul>
      */
     <T> Publisher<T> backward(long count, Function<CurrentRow, T> function, Consumer<ResultStates> consumer);
@@ -483,7 +533,7 @@ public interface RefCursor extends Closeable {
      *                                      <li>driver don't support this method</li>
      *                                      <li>session close</li>
      *                                      <li>cursor have closed</li>
-     *                                      <li>server response error</li>
+     *                                      <li>server response error,see {@link ServerException}</li>
      *                                  </ul>
      */
     OrderedFlux backward(long count);
@@ -516,7 +566,7 @@ public interface RefCursor extends Closeable {
      *                                  <li>driver don't support this method</li>
      *                                  <li>session close</li>
      *                                  <li>cursor have closed</li>
-     *                                  <li>server response error</li>
+     *                                  <li>server response error,see {@link ServerException}</li>
      *                              </ul>
      */
     <T> Publisher<T> backwardAll(Function<CurrentRow, T> function, Consumer<ResultStates> consumer);
@@ -531,7 +581,7 @@ public interface RefCursor extends Closeable {
      *                           <li>driver don't support this method</li>
      *                           <li>session close</li>
      *                           <li>cursor have closed</li>
-     *                           <li>server response error</li>
+     *                           <li>server response error,see {@link ServerException}</li>
      *                       </ul>
      */
     OrderedFlux backwardAll();
@@ -550,7 +600,7 @@ public interface RefCursor extends Closeable {
      *                       <ul>
      *                           <li>session close</li>
      *                           <li>cursor have closed</li>
-     *                           <li>server response error</li>
+     *                           <li>server response error,see {@link ServerException}</li>
      *                       </ul>
      */
     @Override

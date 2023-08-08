@@ -609,6 +609,16 @@ final class PgResultSetReader implements ResultSetReader {
         }
 
         @Override
+        public <T> Publisher<T> allAndClose(Function<CurrentRow, T> function, Consumer<ResultStates> consumer) {
+            return null;
+        }
+
+        @Override
+        public OrderedFlux allAndClose() {
+            return null;
+        }
+
+        @Override
         public <T> Publisher<T> backward(long count, Function<CurrentRow, T> function, Consumer<ResultStates> consumer) {
             return null;
         }

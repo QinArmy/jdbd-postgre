@@ -157,8 +157,8 @@ abstract class MultiFieldMessage extends PgMessage {
 
         map.put(PgErrorOrNotice.PG_MSG_SEVERITY_S, SEVERITY_S);
         map.put(PgErrorOrNotice.PG_MSG_SEVERITY_V, SEVERITY_V);
-        map.put(PgErrorOrNotice.PG_MSG_SQLSTATE, SQLSTATE);
-        map.put(PgErrorOrNotice.PG_MSG_MESSAGE, MESSAGE);
+        map.put(Option.SQL_STATE, SQLSTATE);
+        map.put(Option.MESSAGE, MESSAGE);
 
         map.put(PgErrorOrNotice.PG_MSG_DETAIL, DETAIL);
         map.put(PgErrorOrNotice.PG_MSG_HINT, HINT);

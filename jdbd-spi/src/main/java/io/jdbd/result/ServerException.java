@@ -7,7 +7,7 @@ import io.jdbd.session.Option;
 
 /**
  * <p>
- * Emit, when server return error message.
+ * Emit(not throw), when server return error message.
  * </p>
  *
  * @since 1.0
@@ -25,6 +25,9 @@ public abstract class ServerException extends JdbdException {
      * </p>
      *
      * @return null , if field not exists.
+     * @see Option#MESSAGE
+     * @see Option#SQL_STATE
+     * @see Option#VENDOR_CODE
      */
     @Nullable
     public abstract <T> T valueOf(Option<T> option);

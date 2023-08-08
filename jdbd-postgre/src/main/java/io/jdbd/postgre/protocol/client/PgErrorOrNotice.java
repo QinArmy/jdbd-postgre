@@ -12,9 +12,6 @@ public interface PgErrorOrNotice {
      */
     Option<String> PG_MSG_SEVERITY_S = Option.from("PG_MSG_FIELD_SEVERITY_S", String.class);
     Option<String> PG_MSG_SEVERITY_V = Option.from("PG_MSG_FIELD_SEVERITY_V", String.class);
-    Option<String> PG_MSG_SQLSTATE = Option.from("PG_MSG_FIELD_SQLSTATE", String.class);
-    Option<String> PG_MSG_MESSAGE = Option.from("PG_MSG_FIELD_MESSAGE", String.class);
-
     Option<String> PG_MSG_DETAIL = Option.from("PG_MSG_FIELD_DETAIL", String.class);
     Option<String> PG_MSG_HINT = Option.from("PG_MSG_FIELD_HINT", String.class);
     Option<String> PG_MSG_POSITION = Option.from("PG_MSG_FIELD_POSITION", String.class);
