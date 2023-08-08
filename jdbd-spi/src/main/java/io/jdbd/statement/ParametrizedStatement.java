@@ -33,6 +33,14 @@ public interface ParametrizedStatement extends Statement {
      * <p>
      * Bind parameter value to statement that exists SQL parameter placeholder and SQL parameter placeholder must be {@code ?}
      * </p>
+     * <p>
+     * <strong>NOTE</strong> : the driver developer must provide the java doc in the implementation of this method for explaining :
+     * <ul>
+     *     <li>the rule of {@link DataType} converting </li>
+     *     <li>the rule of {@link DataType} supporting java type</li>
+     * </ul>
+     *
+     * </p>
      *
      * @param indexBasedZero parameter placeholder index based zero, the first value is 0 .
      * @param dataType       parameter type is following type : <ul>
