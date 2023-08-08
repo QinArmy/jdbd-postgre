@@ -457,6 +457,7 @@ public interface RefCursor extends Closeable {
     /**
      * <p>
      * Fetch all remaining rows and close cursor.
+     * This method is equivalent to {@link #forwardAll(Function, Consumer)} and {@link #close()}.
      * </p>
      *
      * @throws NullPointerException emit(not throw) when function is null or consumer is null.
@@ -473,6 +474,7 @@ public interface RefCursor extends Closeable {
     /**
      * <p>
      * Fetch all remaining rows and close cursor.
+     * This method is equivalent to {@link #forwardAll(Function, Consumer)} and {@link #close()}.
      * </p>
      *
      * @throws JdbdException emit(not throw) when
@@ -598,8 +600,7 @@ public interface RefCursor extends Closeable {
      * @return the {@link Publisher} that emit nothing or emit {@link JdbdException}
      * @throws JdbdException emit(not throw) when
      *                       <ul>
-     *                           <li>session close</li>
-     *                           <li>cursor have closed</li>
+     *                           <li>session have closed</li>
      *                           <li>server response error,see {@link ServerException}</li>
      *                       </ul>
      */

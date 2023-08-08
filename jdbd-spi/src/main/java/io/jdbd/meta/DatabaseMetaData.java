@@ -1,8 +1,9 @@
 package io.jdbd.meta;
 
+import io.jdbd.session.SessionMetaSpec;
 import org.reactivestreams.Publisher;
 
-public interface DatabaseMetaData {
+public interface DatabaseMetaData extends SessionMetaSpec {
 
     Publisher<DatabaseProductMetaData> getDatabaseProduct();
 
@@ -14,6 +15,5 @@ public interface DatabaseMetaData {
 
     Publisher<TableIndexMetaData> getIndexes(DatabaseTableMetaData tableMeta);
 
-    boolean supportSavePoints();
 
 }

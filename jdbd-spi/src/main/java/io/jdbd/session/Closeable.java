@@ -9,6 +9,7 @@ import org.reactivestreams.Publisher;
  *     <ul>
  *         <li>{@link DatabaseSessionFactory}</li>
  *         <li>{@link DatabaseSession}</li>
+ *         <li>{@link io.jdbd.result.RefCursor}</li>
  *     </ul>
  * </p>
  *
@@ -17,6 +18,11 @@ import org.reactivestreams.Publisher;
 public interface Closeable {
 
     /**
+     * <p>
+     * Close underlying resource.
+     * </p>
+     *
+     * @param <T> representing any java type,because this method usually is used with concatWith(Publisher) method.
      * @return the {@link Publisher} that emit nothing or emit {@link JdbdException}
      */
     <T> Publisher<T> close();

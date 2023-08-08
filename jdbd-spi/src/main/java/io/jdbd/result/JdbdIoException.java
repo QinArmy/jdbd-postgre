@@ -2,6 +2,7 @@ package io.jdbd.result;
 
 import io.jdbd.JdbdException;
 
+@Deprecated
 public class JdbdIoException extends JdbdException {
 
     public JdbdIoException(String message) {

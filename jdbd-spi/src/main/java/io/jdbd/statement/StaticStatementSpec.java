@@ -12,8 +12,8 @@ import java.util.function.Function;
  * <p>
  * This interface is base interface of following:
  *     <ul>
- *         <li>{@link Statement}</li>
- *         <li>{@link DatabaseSession}</li>
+ *         <li>{@link StaticStatement},it execute static statement with statement options. eg: timeout</li>
+ *         <li>{@link DatabaseSession},it execute static statement without any statement options. eg: timeout</li>
  *     </ul>
  * </p>
  *

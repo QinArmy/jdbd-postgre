@@ -21,7 +21,7 @@ import org.reactivestreams.Publisher;
  *
  * @since 1.0
  */
-public interface DatabaseSession extends StaticStatementSpec, Closeable {
+public interface DatabaseSession extends StaticStatementSpec, SessionMetaSpec, Closeable {
 
     /**
      * @see DatabaseSessionFactory#name()
@@ -77,19 +77,6 @@ public interface DatabaseSession extends StaticStatementSpec, Closeable {
 
     MultiStatement multiStatement() throws JdbdException;
 
-    /**
-     * @see java.sql.DatabaseMetaData#supportsSavepoints()
-     */
-    boolean isSupportSavePoints() throws JdbdException;
-
-    boolean isSupportStmtVar() throws JdbdException;
-
-    boolean isSupportMultiStatement() throws JdbdException;
-
-    boolean isSupportOutParameter() throws JdbdException;
-
-
-    boolean isSupportStoredProcedures() throws JdbdException;
 
 
     Publisher<SavePoint> setSavePoint();
