@@ -2,15 +2,12 @@ package io.jdbd.session;
 
 import io.jdbd.lang.Nullable;
 
-public interface TransactionOption {
+public interface TransactionOption extends OptionSpec {
 
     @Nullable
     Isolation getIsolation();
 
     boolean isReadOnly();
-
-    @Nullable
-    <T> T valueOf(Option<T> key);
 
 
     static TransactionOption option(@Nullable Isolation isolation, boolean readOnly) {

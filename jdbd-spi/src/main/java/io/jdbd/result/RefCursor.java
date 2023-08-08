@@ -2,6 +2,7 @@ package io.jdbd.result;
 
 import io.jdbd.JdbdException;
 import io.jdbd.session.Closeable;
+import io.jdbd.session.OptionSpec;
 import org.reactivestreams.Publisher;
 
 import java.util.function.Consumer;
@@ -28,7 +29,7 @@ import java.util.function.Function;
  * @see io.jdbd.meta.JdbdType#REF_CURSOR
  * @since 1.0
  */
-public interface RefCursor extends Closeable {
+public interface RefCursor extends OptionSpec, Closeable {
 
     /**
      * @return cursor name

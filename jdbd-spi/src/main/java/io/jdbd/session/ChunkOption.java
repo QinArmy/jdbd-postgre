@@ -17,7 +17,7 @@ import java.util.function.Function;
  *
  * @since 1.0
  */
-public interface ChunkOption {
+public interface ChunkOption extends OptionSpec {
 
     /**
      * <p>

@@ -1,6 +1,8 @@
 package io.jdbd.result;
 
-public interface Warning {
+import io.jdbd.session.OptionSpec;
+
+public interface Warning extends OptionSpec {
 
     /**
      * @return message that contain warning.

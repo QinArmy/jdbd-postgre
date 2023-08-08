@@ -13,7 +13,7 @@ import io.jdbd.JdbdException;
  *
  * @since 1.0
  */
-public interface SessionMetaSpec {
+public interface SessionMetaSpec extends OptionSpec {
 
 
     /**

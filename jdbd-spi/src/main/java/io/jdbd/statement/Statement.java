@@ -6,6 +6,7 @@ import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
 import io.jdbd.session.ChunkOption;
 import io.jdbd.session.DatabaseSession;
+import io.jdbd.session.OptionSpec;
 import io.jdbd.type.*;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
@@ -33,7 +34,7 @@ import java.util.function.Function;
  * @see PreparedStatement
  * @see MultiStatement
  */
-public interface Statement {
+public interface Statement extends OptionSpec {
 
 
     /**

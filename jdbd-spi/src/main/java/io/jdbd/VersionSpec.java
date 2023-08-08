@@ -1,6 +1,8 @@
 package io.jdbd;
 
-public interface VersionSpec {
+import io.jdbd.session.OptionSpec;
+
+public interface VersionSpec extends OptionSpec {
 
     /**
      * Retrieves the driver's major version number. Initially this should be 1.

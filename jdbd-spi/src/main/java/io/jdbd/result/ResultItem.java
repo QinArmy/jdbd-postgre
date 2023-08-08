@@ -1,5 +1,7 @@
 package io.jdbd.result;
 
+import io.jdbd.session.OptionSpec;
+
 /**
  * <p>
  * This interface representing one item of result (update/query result).
@@ -29,7 +31,7 @@ package io.jdbd.result;
  * @see CurrentRow
  * @since 1.0
  */
-public interface ResultItem {
+public interface ResultItem extends OptionSpec {
 
 
     /**

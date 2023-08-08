@@ -16,7 +16,7 @@ import org.reactivestreams.Publisher;
  *
  * @since 1.0
  */
-public interface DatabaseSessionFactory extends Closeable {
+public interface DatabaseSessionFactory extends OptionSpec, Closeable {
 
     /**
      * @return factory name. see {@link io.jdbd.Driver#FACTORY_NAME}

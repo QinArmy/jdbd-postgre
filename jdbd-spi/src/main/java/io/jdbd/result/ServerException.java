@@ -3,6 +3,7 @@ package io.jdbd.result;
 import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.session.Option;
+import io.jdbd.session.OptionSpec;
 
 
 /**
@@ -12,7 +13,7 @@ import io.jdbd.session.Option;
  *
  * @since 1.0
  */
-public abstract class ServerException extends JdbdException {
+public abstract class ServerException extends JdbdException implements OptionSpec {
 
 
     protected ServerException(String message, @Nullable String sqlState, int vendorCode) {
