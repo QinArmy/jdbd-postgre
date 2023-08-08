@@ -3,6 +3,8 @@ package io.jdbd.session;
 import io.jdbd.JdbdException;
 import org.reactivestreams.Publisher;
 
+import java.util.List;
+
 
 public interface LocalDatabaseSession extends DatabaseSession {
 
@@ -22,7 +24,11 @@ public interface LocalDatabaseSession extends DatabaseSession {
 
     Publisher<LocalDatabaseSession> commit();
 
+    Publisher<LocalDatabaseSession> commit(List<Option<?>> optionList);
+
     Publisher<LocalDatabaseSession> rollback();
+
+    Publisher<LocalDatabaseSession> rollback(List<Option<?>> optionList);
 
 
 }

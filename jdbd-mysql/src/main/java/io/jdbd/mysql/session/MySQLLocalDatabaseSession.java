@@ -6,9 +6,13 @@ import io.jdbd.pool.PoolLocalDatabaseSession;
 import io.jdbd.result.ResultStates;
 import io.jdbd.session.HandleMode;
 import io.jdbd.session.LocalDatabaseSession;
+import io.jdbd.session.Option;
 import io.jdbd.session.TransactionOption;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
+
+import java.util.Collections;
+import java.util.List;
 
 /**
  * <p>
@@ -51,30 +55,27 @@ class MySQLLocalDatabaseSession extends MySQLDatabaseSession<LocalDatabaseSessio
     }
 
     @Override
-    public final Mono<LocalDatabaseSession> commit() {
-        return this.protocol.commit()
-                .flatMap(this::afterCommit);
+    public final Publisher<LocalDatabaseSession> commit() {
+        return this.commit(Collections.emptyList());
     }
 
     @Override
-    public final Mono<LocalDatabaseSession> rollback() {
-        return this.protocol.rollback()
-                .flatMap(this::afterRollback);
+    public final Mono<LocalDatabaseSession> commit(List<Option<?>> optionList) {
+        return this.protocol.commit(optionList)
+                .thenReturn(this);
     }
 
-    private Mono<LocalDatabaseSession> afterCommit(ResultStates states) {
-        if (states.inTransaction()) {
-            return Mono.error(MySQLExceptions.commitTransactionFailure(this.protocol.threadId()));
-        }
-        return Mono.just(this);
+    @Override
+    public final Publisher<LocalDatabaseSession> rollback() {
+        return this.rollback(Collections.emptyList());
     }
 
-    private Mono<LocalDatabaseSession> afterRollback(ResultStates states) {
-        if (states.inTransaction()) {
-            return Mono.error(MySQLExceptions.rollbackTransactionFailure(this.protocol.threadId()));
-        }
-        return Mono.just(this);
+    @Override
+    public final Mono<LocalDatabaseSession> rollback(List<Option<?>> optionList) {
+        return this.protocol.rollback(optionList)
+                .thenReturn(this);
     }
+
 
     private Mono<LocalDatabaseSession> afterStartTransaction(ResultStates states) {
         if (states.inTransaction()) {

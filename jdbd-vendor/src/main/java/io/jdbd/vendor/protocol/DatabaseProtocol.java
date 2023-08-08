@@ -160,9 +160,9 @@ public interface DatabaseProtocol extends OptionSpec, Closeable {
 
     boolean inTransaction();
 
-    Mono<ResultStates> commit();
+    Mono<ResultStates> commit(List<Option<?>> optionList);
 
-    Mono<ResultStates> rollback();
+    Mono<ResultStates> rollback(List<Option<?>> optionList);
 
 
     boolean isClosed();

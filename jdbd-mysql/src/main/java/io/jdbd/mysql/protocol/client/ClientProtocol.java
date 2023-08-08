@@ -2,6 +2,7 @@ package io.jdbd.mysql.protocol.client;
 
 import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
+import io.jdbd.mysql.env.MySQLKey;
 import io.jdbd.mysql.protocol.Constants;
 import io.jdbd.mysql.protocol.MySQLProtocol;
 import io.jdbd.mysql.protocol.MySQLServerVersion;
@@ -14,6 +15,7 @@ import io.jdbd.vendor.task.PrepareTask;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
 
@@ -28,9 +30,9 @@ final class ClientProtocol implements MySQLProtocol {
 
     }
 
-    private static final String COMMIT_MULTI_SQL = "COMMIT ; SET @@session.autocommit = 1";
+    private static final String COMMIT = "COMMIT";
 
-    private static final String ROLLBACK_MULTI_SQL = "ROLLBACK ; SET @@session.autocommit = 1";
+    private static final String ROLLBACK = "ROLLBACK";
 
     private static final Option<Boolean> WITH_CONSISTENT_SNAPSHOT = Option.from("WITH CONSISTENT SNAPSHOT", Boolean.class);
 
@@ -303,25 +305,59 @@ final class ClientProtocol implements MySQLProtocol {
 
 
     @Override
-    public Mono<ResultStates> commit() {
-        return Flux.from(ComQueryTask.executeAsFlux(Stmts.multiStmt(COMMIT_MULTI_SQL), this.adjutant))
+    public Mono<ResultStates> commit(List<Option<?>> optionList) {
+        return Flux.from(ComQueryTask.executeAsFlux(Stmts.multiStmt(COMMIT), this.adjutant))
                 .last()
                 .map(ResultStates.class::cast);
     }
 
     @Override
-    public Mono<ResultStates> rollback() {
-        return Flux.from(ComQueryTask.executeAsFlux(Stmts.multiStmt(ROLLBACK_MULTI_SQL), this.adjutant))
+    public Mono<ResultStates> rollback(List<Option<?>> optionList) {
+        return Flux.from(ComQueryTask.executeAsFlux(Stmts.multiStmt(ROLLBACK), this.adjutant))
                 .last()
                 .map(ResultStates.class::cast);
     }
 
 
     @Override
-    public Mono<Void> close() {
+    public <T> Mono<T> close() {
         return QuitTask.quit(this.adjutant);
     }
 
+    @SuppressWarnings("unchecked")
+    @Override
+    public <T> T valueOf(final @Nullable Option<T> option) {
+        final TaskAdjutant adjutant = this.adjutant;
+        if (!adjutant.isActive()) {
+            throw MySQLExceptions.sessionHaveClosed();
+        }
+        final int serverStatus = adjutant.serverStatus();
+        final Object value;
+        if (option == null) {
+            value = null;
+        } else if (option == Option.AUTO_COMMIT) {
+            value = (serverStatus & Terminator.SERVER_STATUS_AUTOCOMMIT) != 0;
+        } else if (option == Option.IN_TRANSACTION) {
+            value = Terminator.inTransaction(serverStatus);
+        } else if (option == Option.READ_ONLY) {
+            value = (serverStatus & Terminator.SERVER_STATUS_IN_TRANS_READONLY) != 0;
+        } else if (option == Option.BACKSLASH_ESCAPES) {
+            value = (serverStatus & Terminator.SERVER_STATUS_NO_BACKSLASH_ESCAPES) == 0;
+        } else if (option == Option.BINARY_HEX_ESCAPES) {
+            value = Boolean.TRUE;
+        } else if (option == Option.CLIENT_ZONE) {
+            value = adjutant.sessionEnv().connZone();
+        } else if (option == Option.SERVER_ZONE) {
+            value = adjutant.sessionEnv().serverZone();
+        } else if (option == Option.CLIENT_CHARSET) {
+            value = adjutant.sessionEnv().charsetClient();
+        } else if (option == Option.AUTO_RECONNECT) {
+            value = adjutant.host().properties().getOrDefault(MySQLKey.AUTO_RECONNECT);
+        } else {
+            value = null;
+        }
+        return (T) value;
+    }
 
     @Override
     public Mono<Void> reset() {
@@ -364,11 +400,11 @@ final class ClientProtocol implements MySQLProtocol {
                 error = MySQLExceptions.transactionExistsRejectStart(this.threadId());
                 break;
             case COMMIT_IF_EXISTS:
-                builder.append(COMMIT_MULTI_SQL)
+                builder.append(COMMIT)
                         .append(Constants.SPACE_SEMICOLON_SPACE);
                 break;
             case ROLLBACK_IF_EXISTS:
-                builder.append(ROLLBACK_MULTI_SQL)
+                builder.append(ROLLBACK)
                         .append(Constants.SPACE_SEMICOLON_SPACE);
                 break;
             default:

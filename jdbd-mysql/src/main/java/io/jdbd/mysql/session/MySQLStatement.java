@@ -179,17 +179,10 @@ abstract class MySQLStatement<S extends Statement> implements Statement, StmtOpt
     @Override
     public final <T> T valueOf(Option<T> option) {
         final T value;
-        if (option == Option.AUTO_COMMIT
-                || option == Option.IN_TRANSACTION
-                || option == Option.READ_ONLY
-                || option == Option.CLIENT_ZONE
-                || option == Option.SERVER_ZONE
-                || option == Option.CLIENT_CHARSET
-                || option == Option.BACKSLASH_ESCAPES
-                || option == Option.BINARY_HEX_ESCAPES) {
-            value = this.session.protocol.valueOf(option);
-        } else {
+        if (option == Option.AUTO_RECONNECT) {
             value = null;
+        } else {
+            value = this.session.protocol.valueOf(option);
         }
         return value;
     }

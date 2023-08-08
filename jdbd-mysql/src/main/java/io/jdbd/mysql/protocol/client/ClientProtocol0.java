@@ -23,6 +23,7 @@ import io.jdbd.statement.StaticStatement;
  *     </ul>
  * </p>
  */
+@Deprecated
 public interface ClientProtocol0 extends MySQLProtocol {
 
 

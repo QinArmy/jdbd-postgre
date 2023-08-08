@@ -83,21 +83,7 @@ abstract class MySQLSessionMetaSpec implements SessionMetaSpec {
      */
     @Override
     public final <T> T valueOf(Option<T> option) throws JdbdException {
-        final T value;
-        if (option == Option.AUTO_COMMIT
-                || option == Option.IN_TRANSACTION
-                || option == Option.READ_ONLY
-                || option == Option.CLIENT_ZONE
-                || option == Option.SERVER_ZONE
-                || option == Option.CLIENT_CHARSET
-                || option == Option.BACKSLASH_ESCAPES
-                || option == Option.BINARY_HEX_ESCAPES
-                || option == Option.AUTO_RECONNECT) {
-            value = this.protocol.valueOf(option);
-        } else {
-            value = null;
-        }
-        return value;
+        return this.protocol.valueOf(option);
     }
 
 }

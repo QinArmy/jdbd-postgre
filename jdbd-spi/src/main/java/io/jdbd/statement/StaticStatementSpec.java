@@ -59,6 +59,20 @@ public interface StaticStatementSpec {
      */
     <R> Publisher<R> executeQuery(String sql, Function<CurrentRow, R> function, Consumer<ResultStates> statesConsumer);
 
+    /**
+     * <p>
+     * Declare one cursor.
+     * </p>
+     *
+     * @param sql the statement that declare cursor.
+     * @return emit one {@link RefCursor} or {@link io.jdbd.JdbdException}
+     * @throws io.jdbd.JdbdException emit(not throw) when :
+     *                               <ul>
+     *                                   <li>{@link DatabaseSession#isSupportRefCursor()} return false</li>
+     *                                   <li>session have closed</li>
+     *                                   <li>server response error message,see {@link ServerException}</li>
+     *                               </ul>
+     */
     Publisher<RefCursor> declareCursor(String sql);
 
 

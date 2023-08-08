@@ -15,7 +15,7 @@ import java.util.function.Consumer;
  */
 final class QuitTask extends MySQLTask {
 
-    static Mono<Void> quit(TaskAdjutant adjutant) {
+    static <T> Mono<T> quit(TaskAdjutant adjutant) {
         return Mono.create(sink -> {
             try {
                 QuitTask task = new QuitTask(adjutant, sink);
@@ -29,11 +29,11 @@ final class QuitTask extends MySQLTask {
 
     private static final Logger LOG = LoggerFactory.getLogger(QuitTask.class);
 
-    private final MonoSink<Void> sink;
+    private final MonoSink<?> sink;
 
     private boolean taskEnd;
 
-    private QuitTask(TaskAdjutant adjutant, MonoSink<Void> sink) {
+    private QuitTask(TaskAdjutant adjutant, MonoSink<?> sink) {
         super(adjutant, sink::error);
         this.sink = sink;
     }
