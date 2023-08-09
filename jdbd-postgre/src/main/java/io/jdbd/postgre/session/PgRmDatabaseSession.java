@@ -22,6 +22,8 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
  * <p>
  * This class is implementation of {@link RmDatabaseSession} with Postgre client protocol.
  * </p>
+ *
+ * @since 1.0
  */
 class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implements RmDatabaseSession {
 
@@ -143,7 +145,7 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
         final StringBuilder builder = new StringBuilder();
 
         builder.append("PREPARE TRANSACTION ");
-        this.protocol.bindIdentifier(builder, xidToString(triple.xid));// must use pair.xid
+        this.protocol.bindIdentifier(builder, xidToString(triple.xid));// must use triple.xid
         return this.protocol.update(Stmts.stmt(builder.toString()))
                 .then(Mono.defer(() -> handlePrepareSuccess(triple)));
     }
@@ -179,7 +181,7 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
         } else {
             final StringBuilder builder = new StringBuilder(80);
             builder.append("COMMIT PREPARED ");
-            this.protocol.bindIdentifier(builder, xidToString(triple.xid)); // must use pair.xid
+            this.protocol.bindIdentifier(builder, xidToString(triple.xid)); // must use triple.xid
             mono = this.protocol.update(Stmts.stmt(builder.toString()));
         }
         return mono.then(Mono.defer(() -> handleCommitOrRollbackSuccess(triple)));
@@ -219,12 +221,7 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
 
     @Override
     public final Publisher<RmDatabaseSession> forget(final Xid xid, final Map<Option<?>, ?> optionMap) {
-        //TODO postgre doesn't support this , throw error ?
-        final XaStatesTriple triple = this.xaTriple;
-        if (!Objects.equals(xid, triple.xid)) {
-            return Mono.error(PgExceptions.xaTransactionNotStart(triple.xid));
-        }
-        return Mono.just(this);
+        return Mono.error(new XaException("postgre don't support forget command", XaException.XAER_RMERR));
     }
 
     @Override

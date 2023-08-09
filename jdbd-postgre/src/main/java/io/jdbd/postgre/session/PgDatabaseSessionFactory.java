@@ -22,20 +22,11 @@ public class PgDatabaseSessionFactory implements DatabaseSessionFactory {
      * @throws UrlException      when url error.
      * @throws PropertyException when properties error.
      */
-    public static PgDatabaseSessionFactory create(final String url, final Map<String, String> properties) {
+    public static PgDatabaseSessionFactory create(final String url, final Map<String, String> properties,
+                                                  final boolean pool) {
         final PgUrl pgUrl;
         pgUrl = PgUrl.create(url, properties);
         return new PgDatabaseSessionFactory(pgUrl, false);
-    }
-
-    /**
-     * @throws UrlException      when url error.
-     * @throws PropertyException when properties error.
-     */
-    public static PgDatabaseSessionFactory forPoolVendor(final String url, final Map<String, String> properties) {
-        final PgUrl pgUrl;
-        pgUrl = PgUrl.create(url, properties);
-        return new PgDatabaseSessionFactory(pgUrl, true);
     }
 
 
@@ -79,13 +70,6 @@ public class PgDatabaseSessionFactory implements DatabaseSessionFactory {
         // TODO complete me
         return ClientProtocolFactory.single(this.sessionAdjutant, 0)
                 .map(this::createXaSession);
-    }
-
-
-    @Override
-    public boolean isSupportXaTransaction() {
-        //always true,postgre support xa transaction.
-        return true;
     }
 
     @Override

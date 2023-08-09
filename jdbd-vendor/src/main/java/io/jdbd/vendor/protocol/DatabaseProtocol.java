@@ -18,22 +18,22 @@ import java.util.function.Function;
 
 public interface DatabaseProtocol extends OptionSpec, Closeable {
 
- long identifier();
+    long identifier();
 
- Function<CurrentRow, ResultRow> ROW_FUNC = CurrentRow::asResultRow;
+    Function<CurrentRow, ResultRow> ROW_FUNC = CurrentRow::asResultRow;
 
 
- void bindIdentifier(StringBuilder builder, String identifier);
+    void bindIdentifier(StringBuilder builder, String identifier);
 
- /**
-  * <p>
-  * This method is underlying api of {@link StaticStatementSpec#executeUpdate(String)} method.
-  * </p>
-  */
- Mono<ResultStates> update(StaticStmt stmt);
+    /**
+     * <p>
+     * This method is underlying api of {@link StaticStatementSpec#executeUpdate(String)} method.
+     * </p>
+     */
+    Mono<ResultStates> update(StaticStmt stmt);
 
- /**
-  * <p>
+    /**
+     * <p>
      * This method is underlying api of below methods:
      * <ul>
      *     <li>{@link StaticStatementSpec#executeQuery(String)}</li>
@@ -161,17 +161,13 @@ public interface DatabaseProtocol extends OptionSpec, Closeable {
     ServerVersion serverVersion();
 
 
- Mono<ResultStates> startTransaction(TransactionOption option, HandleMode mode);
-
-
-   Mono<Void> setTransactionOption(TransactionOption option);
-
+    Mono<ResultStates> startTransaction(TransactionOption option, HandleMode mode);
 
     boolean inTransaction();
 
- Mono<ResultStates> commit(Map<Option<?>, ?> optionMap);
+    Mono<ResultStates> commit(Map<Option<?>, ?> optionMap);
 
- Mono<ResultStates> rollback(Map<Option<?>, ?> optionMap);
+    Mono<ResultStates> rollback(Map<Option<?>, ?> optionMap);
 
 
     boolean isClosed();
