@@ -64,10 +64,19 @@ public interface DatabaseSession extends StaticStatementSpec, SessionMetaSpec, C
     Publisher<TransactionStatus> transactionStatus();
 
 
+    /**
+     * <p>
+     * Crete one static statement instance.
+     * </p>
+     * <p>
+     * This method don't check session whether open or not.
+     * </p>
+     */
     StaticStatement statement();
 
     /**
      * <p>
+     * This method create one server-prepared statement.
      * This method is similarly to {@code java.sql.Connection#prepareStatement(String)}
      * except that is async emit a {@link PreparedStatement}.
      * </p>
@@ -75,10 +84,15 @@ public interface DatabaseSession extends StaticStatementSpec, SessionMetaSpec, C
      * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
      * </p>
      *
-     * @return A Reactive Streams {@link Publisher} with basic rx operators that completes successfully by
-     * emitting an element, or with an error. Like {@code reactor.core.publisher.Mono}
+     * @return the {@link Publisher} emit just one element or {@link Throwable}. Like {@code reactor.core.publisher.Mono}
+     * @throws JdbdException emit(not throw)
+     *                       <ul>
+     *                           <li>sql error</li>
+     *                           <li>session have closed</li>
+     *                           <li>database server response error message , see {@link io.jdbd.result.ServerException}</li>
+     *                       </ul>
      */
-    Publisher<PreparedStatement> prepare(String sql);
+    Publisher<PreparedStatement> prepare(String sql) throws JdbdException;
 
     /**
      * <p>
@@ -93,7 +107,7 @@ public interface DatabaseSession extends StaticStatementSpec, SessionMetaSpec, C
      *
      * @see #bindStatement(String, boolean)
      */
-    BindStatement bindStatement(String sql) throws JdbdException;
+    BindStatement bindStatement(String sql);
 
     /**
      * <p>
@@ -152,8 +166,9 @@ public interface DatabaseSession extends StaticStatementSpec, SessionMetaSpec, C
 
     /**
      * <p>
-     *     <strong>NOTE</strong> : driver don't send message to database server before subscribing.
+     * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
      * </p>
+     *
      * @return the {@link Publisher} that completes successfully by
      * emitting an element(<strong>this</strong>), or with an error. Like {@code  reactor.core.publisher.Mono}
      */
@@ -175,7 +190,9 @@ public interface DatabaseSession extends StaticStatementSpec, SessionMetaSpec, C
      * <p>
      * The implementation of this method must provide java doc(html list) for explaining supporting {@link Option} list.
      * </p>
-     *
+     * <p>
+     * The implementation of this method must support {@link Option#AUTO_RECONNECT}.
+     * </p>
      * <p>
      * The implementation of this method perhaps support some of following :
      *     <ul>
@@ -187,7 +204,6 @@ public interface DatabaseSession extends StaticStatementSpec, SessionMetaSpec, C
      *         <li>{@link Option#CLIENT_CHARSET}</li>
      *         <li>{@link Option#BACKSLASH_ESCAPES}</li>
      *         <li>{@link Option#BINARY_HEX_ESCAPES}</li>
-     *         <li>{@link Option#AUTO_RECONNECT}</li>
      *     </ul>
      * </p>
      *

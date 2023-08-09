@@ -61,7 +61,7 @@ public interface Statement extends OptionSpec {
      *                 </ul>
      * @param value    nullable the parameter value; be following type :
      *                 <ul>
-     *                    <li>generic java type,for example : {@link Boolean} , {@link Integer} , {@link String} , byte[],{@link Integer[]} ,{@link java.time.LocalDateTime} , {@link java.time.Duration} ,{@link java.time.YearMonth} ,{@link java.util.BitSet},{@link java.util.List}</li>
+     *                    <li>generic java type,for example : {@link Boolean} , {@link Integer} , {@link String} , byte[],{@code Integer[]} ,{@link java.time.LocalDateTime} , {@link java.time.Duration} ,{@link java.time.YearMonth} ,{@link java.util.BitSet},{@link java.util.List}</li>
      *                    <li>{@link Point} spatial point type</li>
      *                    <li>{@link Interval} the composite of {@link java.time.Period} and {@link java.time.Duration}</li>
      *                    <li>{@link Parameter} :
@@ -90,7 +90,7 @@ public interface Statement extends OptionSpec {
      *                              <li>name have no text</li>
      *                              <li>name duplication</li>
      *                              <li>indexBasedZero error</li>
-     *                              <li>dataType is following :
+     *                              <li>dataType is one of following :
      *                                   <ul>
      *                                                <li>{@link io.jdbd.meta.JdbdType#UNKNOWN}</li>
      *                                                <li>{@link io.jdbd.meta.JdbdType#DIALECT_TYPE}</li>

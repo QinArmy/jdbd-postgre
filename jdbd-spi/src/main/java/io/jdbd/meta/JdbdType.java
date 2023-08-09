@@ -233,13 +233,9 @@ public enum JdbdType implements DataType {
     GEOMETRY,
 
 
+
     UNKNOWN,
 
-
-    /**
-     * Identifies the generic SQL type {@code ARRAY}.
-     */
-    ARRAY,
 
     /**
      * Identifies the generic SQL type {@code REF_CURSOR}.
@@ -248,6 +244,11 @@ public enum JdbdType implements DataType {
      */
     REF_CURSOR,
 
+
+    /**
+     * Identifies the generic SQL type {@code ARRAY}.
+     */
+    ARRAY,
 
 
     /**

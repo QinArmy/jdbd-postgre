@@ -58,7 +58,7 @@ public abstract class MySQLExceptions extends JdbdExceptions {
     }
 
     /**
-     * @return {@link IllegalArgumentException}
+     * @return {@link IllegalArgumentException} not {@link JdbdException}
      * @see io.jdbd.session.DatabaseSession#bindStatement(String, boolean)
      */
     public static IllegalArgumentException bindSqlHaveNoText() {
