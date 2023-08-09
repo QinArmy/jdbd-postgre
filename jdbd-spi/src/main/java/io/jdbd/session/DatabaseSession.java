@@ -21,6 +21,16 @@ import java.util.Map;
  *         <li>{@link io.jdbd.pool.PoolRmDatabaseSession}</li>
  *     </ul>
  * </p>
+ * <p>
+ *     Application developer can create statement by following methods :
+ *     <ul>
+ *         <li>{@link #statement()}</li>
+ *         <li>{@link #prepare(String)}</li>
+ *         <li>{@link #bindStatement(String)}</li>
+ *         <li>{@link #bindStatement(String, boolean)}</li>
+ *         <li>{@link #multiStatement()}</li>
+ *     </ul>
+ * </p>
  *
  * @since 1.0
  */

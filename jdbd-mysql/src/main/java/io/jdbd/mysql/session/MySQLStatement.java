@@ -127,7 +127,13 @@ abstract class MySQLStatement<S extends Statement> implements Statement, StmtOpt
 
     @SuppressWarnings("unchecked")
     @Override
-    public final S setTimeout(int seconds) {
+    public final S setTimeout(final int seconds) {
+        if (seconds < 0) {
+            final IllegalArgumentException error;
+            error = MySQLExceptions.timeoutIsNegative(seconds);
+            closeOnBindError(error);
+            throw error;
+        }
         this.timeoutSeconds = seconds;
         return (S) this;
     }

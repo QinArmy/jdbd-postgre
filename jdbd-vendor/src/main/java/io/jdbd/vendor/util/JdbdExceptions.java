@@ -131,6 +131,30 @@ public abstract class JdbdExceptions {
         return new JdbdException(String.format("%s don't support exporter.", database));
     }
 
+    /**
+     * @return {@link IllegalArgumentException} not {@link JdbdException}
+     * @see io.jdbd.session.DatabaseSession#bindStatement(String, boolean)
+     */
+    public static IllegalArgumentException bindSqlHaveNoText() {
+        return new IllegalArgumentException("bind sql must have text.");
+    }
+
+    /**
+     * @return {@link IllegalArgumentException} not {@link JdbdException}
+     * @see io.jdbd.statement.Statement#setTimeout(int)
+     */
+    public static IllegalArgumentException timeoutIsNegative(int timeout) {
+        return new IllegalArgumentException(String.format("timeout[%s] is negative.", timeout));
+    }
+
+    /**
+     * @return {@link IllegalArgumentException} not {@link JdbdException}
+     * @see io.jdbd.statement.Statement#setFetchSize(int)
+     */
+    public static IllegalArgumentException fetchSizeIsNegative(int fetchSize) {
+        return new IllegalArgumentException(String.format("fetchSize[%s] is negative.", fetchSize));
+    }
+
 
     public static String safeClassName(@Nullable Object value) {
         return value == null ? "" : value.getClass().getName();
@@ -366,6 +390,10 @@ public abstract class JdbdExceptions {
 
     public static JdbdException dontSupportDeclareCursor(String database) {
         return new JdbdException(String.format("%s don't support declare cursor.", database));
+    }
+
+    public static JdbdException dontSupportStmtVar(String database) {
+        return new JdbdException(String.format("%s don't support stmt variable.", database));
     }
 
     public static JdbdException savePointNameIsEmpty() {

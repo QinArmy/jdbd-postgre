@@ -1,41 +1,59 @@
 package io.jdbd.postgre.session;
 
 import io.jdbd.JdbdException;
+import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
+import io.jdbd.postgre.PgDriver;
 import io.jdbd.postgre.PgType;
+import io.jdbd.postgre.util.PgExceptions;
+import io.jdbd.session.ChunkOption;
 import io.jdbd.session.DatabaseSession;
+import io.jdbd.session.Option;
 import io.jdbd.statement.Statement;
+import io.jdbd.vendor.stmt.NamedValue;
 import io.jdbd.vendor.stmt.StmtOption;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
-import reactor.util.annotation.Nullable;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
 
 /**
  * <p>
- * This class is base class of below:
+ * This class is base class of following :
  *     <ul>
+ *         <li>{@link PgStaticStatement}</li>
  *         <li>{@link PgPreparedStatement}</li>
+ *         <li>{@link PgBindStatement}</li>
+ *         <li>{@link PgMultiStatement}</li>
  *     </ul>
  * </p>
+ *
+ * @since 1.0
  */
-abstract class PgStatement implements Statement, StmtOption {
+abstract class PgStatement<S extends Statement> implements Statement, StmtOption {
 
-    final PgDatabaseSession session;
+    final PgDatabaseSession<?> session;
 
     private int timeout = 0;
 
-    private Function<Object, Publisher<byte[]>> importPublisher;
+    private int fetchSize = 0;
 
-    private Function<Object, Subscriber<byte[]>> exportPublisher;
+    private Function<ChunkOption, Publisher<byte[]>> importPublisher;
+
+    private Function<ChunkOption, Subscriber<byte[]>> exportPublisher;
 
 
-    PgStatement(PgDatabaseSession session) {
+    PgStatement(PgDatabaseSession<?> session) {
         this.session = session;
     }
 
+    @Override
+    public final S bindStmtVar(String name, DataType dataType, @Nullable Object value) throws JdbdException {
+        throw PgExceptions.dontSupportStmtVar(PgDriver.POSTGRE_SQL);
+    }
 
     @Override
     public final DatabaseSession getSession() {
@@ -48,37 +66,65 @@ abstract class PgStatement implements Statement, StmtOption {
     }
 
     @Override
-    public final Statement setTimeout(int seconds) {
+    public final boolean isSupportStmtVar() {
+        // always false, postgre don't support statement variable.
+        return false;
+    }
+
+
+    @Override
+    public <T> T valueOf(Option<T> option) {
+        return null;
+    }
+
+    @Override
+    public List<NamedValue> getStmtVarList() {
+        return Collections.emptyList();
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public final S setTimeout(int seconds) {
+        if (seconds < 0) {
+            final IllegalArgumentException error;
+            error = PgExceptions.timeoutIsNegative(seconds);
+            closeOnBindError(error);
+            throw error;
+        }
         this.timeout = seconds;
-        return this;
+        return (S) this;
     }
 
-
+    @SuppressWarnings("unchecked")
     @Override
-    public boolean setFetchSize(int fetchSize) {
-        return false;
+    public final S setFetchSize(final int fetchSize) {
+        if (fetchSize < 0) {
+            final IllegalArgumentException error;
+            error = PgExceptions.fetchSizeIsNegative(fetchSize);
+            closeOnBindError(error);
+            throw error;
+        }
+        this.fetchSize = fetchSize;
+        return (S) this;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
-    public final boolean setImportPublisher(Function<Object, Publisher<byte[]>> function) {
+    public final S setImportPublisher(Function<ChunkOption, Publisher<byte[]>> function) throws JdbdException {
         this.importPublisher = function;
-        return true;
+        return (S) this;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
-    public final boolean setExportSubscriber(Function<Object, Subscriber<byte[]>> function) {
+    public final S setExportSubscriber(Function<ChunkOption, Subscriber<byte[]>> function) throws JdbdException {
         this.exportPublisher = function;
-        return true;
+        return (S) this;
     }
 
     @Override
-    public boolean isSupportPublisher() {
-        return false;
-    }
-
-    @Override
-    public final boolean isSupportOutParameter() {
-        return true;
+    public final <T> S setOption(Option<T> option, @Nullable T value) throws JdbdException {
+        throw PgExceptions.dontSupportSetOption(option);
     }
 
 
@@ -87,8 +133,8 @@ abstract class PgStatement implements Statement, StmtOption {
 
 
     @Override
-    public int getFetchSize() {
-        return 0;
+    public final int getFetchSize() {
+        return this.fetchSize;
     }
 
     @Override
@@ -99,24 +145,23 @@ abstract class PgStatement implements Statement, StmtOption {
 
     @Nullable
     @Override
-    public final Function<Object, Publisher<byte[]>> getImportFunction() {
-        final Function<Object, Publisher<byte[]>> function = this.importPublisher;
-        if (function != null) {
-            this.importPublisher = null;
-        }
-        return function;
+    public final Function<ChunkOption, Publisher<byte[]>> getImportFunction() {
+        return this.importPublisher;
     }
 
     @Nullable
     @Override
-    public final Function<Object, Subscriber<byte[]>> getExportFunction() {
-        final Function<Object, Subscriber<byte[]>> function = this.exportPublisher;
-        if (function != null) {
-            this.exportPublisher = null;
-        }
-        return function;
+    public final Function<ChunkOption, Subscriber<byte[]>> getExportFunction() {
+        return this.exportPublisher;
     }
 
+
+    /**
+     * @see PgPreparedStatement
+     */
+    void closeOnBindError(Throwable error) {
+        // no-op
+    }
 
     /*################################## blow packet static method ##################################*/
 

@@ -12,6 +12,7 @@ import io.jdbd.type.*;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 
@@ -117,35 +118,47 @@ public interface Statement extends OptionSpec {
 
 
     /**
-     * <p>
-     * long data at least contains below two type.
-     * <ul>
-     *     <li>{@link java.nio.file.Path}</li>
-     *     <li><{@link org.reactivestreams.Publisher}/li>
-     * </ul>
-     * </p>
-     *
-     * @return true : support
+     * @return true : support {@link PublisherParameter}
      */
     boolean isSupportPublisher();
+
+    /**
+     * @return true : support {@link PathParameter}
+     */
+    boolean isSupportPath();
 
     boolean isSupportOutParameter();
 
     boolean isSupportStmtVar();
 
+    /**
+     * <p>
+     * Set statement timeout seconds,if timeout driver will kill query.
+     * </p>
+     *
+     * @param seconds <ul>
+     *                <li>0 : no limit,this is default value</li>
+     *                <li>positive : timeout seconds</li>
+     *                <li>negative : error</li>
+     *                </ul>
+     * @throws IllegalArgumentException throw when seconds is negative.
+     */
     Statement setTimeout(int seconds);
 
 
     /**
      * <p>
-     * Only below methods support this method:
+     * Currently,only following methods support this method:
      *     <ul>
-     *         <li>{@code #executeQuery()}</li>
-     *         <li>{@code #executeQuery(Consumer)}</li>
+     *         <li>{@link BindSingleStatement#executeQuery()}</li>
+     *         <li>{@link BindSingleStatement#executeQuery(Function)}</li>
+     *         <li>{@link BindSingleStatement#executeQuery(Function, Consumer)}</li>
+     *         <li>{@link BindSingleStatement#executeBatchQuery()}</li>
+     *         <li>{@link BindSingleStatement#executeBatchAsFlux()},if sql is query statement.</li>
      *     </ul>
      * </p>
      * <p>
-     * invoke before invoke {@code #executeQuery()} or {@code #executeQuery(Consumer)}.
+     *     Driver will fetch util you cancel subscribing.
      * </p>
      *
      * @param fetchSize fetch size ,positive support
@@ -168,7 +181,7 @@ public interface Statement extends OptionSpec {
 
     /**
      * <p>
-     * This implementation of this method should support following :
+     * This implementation of this method perhaps support some of following :
      *     <ul>
      *         <li>{@link Option#BACKSLASH_ESCAPES}</li>
      *         <li>{@link Option#BINARY_HEX_ESCAPES}</li>
@@ -184,6 +197,9 @@ public interface Statement extends OptionSpec {
 
     DatabaseSession getSession();
 
+    /**
+     * @throws ClassCastException throw when cast error
+     */
     <T extends DatabaseSession> T getSession(Class<T> sessionClass);
 
 }

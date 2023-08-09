@@ -132,6 +132,11 @@ public interface DatabaseProtocol extends OptionSpec, Closeable {
      */
     Mono<PrepareTask> prepare(String sql);
 
+    Mono<RefCursor> declareCursor(StaticStmt stmt);
+
+    Mono<RefCursor> paramDeclareCursor(ParamStmt stmt, boolean useServerPrepare);
+
+
     Mono<TransactionStatus> transactionStatus();
 
     Mono<Void> ping(int timeSeconds);

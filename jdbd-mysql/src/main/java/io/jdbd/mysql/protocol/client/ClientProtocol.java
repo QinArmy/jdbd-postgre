@@ -183,6 +183,15 @@ final class ClientProtocol implements MySQLProtocol {
         return ComPreparedTask.prepare(sql, this.adjutant);
     }
 
+    @Override
+    public Mono<RefCursor> declareCursor(StaticStmt stmt) {
+        return null;
+    }
+
+    @Override
+    public Mono<RefCursor> paramDeclareCursor(ParamStmt stmt, boolean useServerPrepare) {
+        return null;
+    }
 
     @Override
     public Mono<Void> reconnect() {

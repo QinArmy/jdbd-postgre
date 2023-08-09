@@ -17,6 +17,8 @@ public final class PgDriver implements Driver {
         return INSTANCE;
     }
 
+    public static final String POSTGRE_SQL = "PostgreSQL";
+
     public static final String DRIVER_VENDOR = "io.jdbd.postgre";
 
 

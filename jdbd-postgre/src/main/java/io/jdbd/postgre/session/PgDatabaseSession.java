@@ -31,7 +31,7 @@ import java.util.function.Function;
  *     </ul>
  * </p>
  */
-abstract class PgDatabaseSession implements DatabaseSession {
+abstract class PgDatabaseSession<S extends DatabaseSession> implements DatabaseSession {
 
     final SessionAdjutant adjutant;
 
