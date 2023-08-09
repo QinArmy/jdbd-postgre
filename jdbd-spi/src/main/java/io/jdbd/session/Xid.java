@@ -5,7 +5,7 @@ import io.jdbd.lang.Nullable;
 /**
  * @see RmDatabaseSession
  */
-public interface Xid extends OptionSpec {
+public interface Xid {
 
     /**
      * <p>

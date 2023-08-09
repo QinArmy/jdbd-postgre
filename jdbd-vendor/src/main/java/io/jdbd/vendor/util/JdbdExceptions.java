@@ -609,17 +609,18 @@ public abstract class JdbdExceptions {
     }
 
 
-    public static JdbdException xaInvalidFlagForStart(final int flags) {
-        return xaInvalidFlag(flags, "start(Xid xid,int flags)");
+    public static XaException xaInvalidFlagForStart(final int flags) {
+        return xaInvalidFlag(flags, "start");
     }
 
-    public static JdbdException xaInvalidFlagForEnd(final int flags) {
-        return xaInvalidFlag(flags, "end(Xid xid,int flags)");
+    public static XaException xaInvalidFlagForEnd(final int flags) {
+        return xaInvalidFlag(flags, "end");
     }
 
-    public static JdbdException xaInvalidFlagForRecover(final int flags) {
-        return xaInvalidFlag(flags, "recover(int flags)");
+    public static XaException xaInvalidFlagForRecover(final int flags) {
+        return xaInvalidFlag(flags, "recover");
     }
+
 
     public static JdbdException xaGtridNoText() {
         return new JdbdException("gtrid of xid must have text.", SQLStates.ER_XAER_NOTA, XAER_NOTA);
@@ -638,14 +639,38 @@ public abstract class JdbdExceptions {
         return new XaException("xid must not be null", XaException.XAER_INVAL);
     }
 
-    public static XaException xaTransactionNotStart(Xid xid) {
+    public static XaException xaTransactionNotStart(@Nullable Xid xid) {
         String m = String.format("xid[%s] not start", xid);
         return new XaException(m, XaException.XAER_PROTO);
     }
 
-    public static XaException xaTransactionDontSupportEndCommand(Xid xid, XaStates states) {
+    public static XaException xaTransactionRollbackOnly(@Nullable Xid xid) {
+        String m = String.format("xid[%s] is rollback-only.", xid);
+        return new XaException(m, XaException.XAER_PROTO);
+    }
+
+    public static XaException xaTransactionDontSupportEndCommand(@Nullable Xid xid, XaStates states) {
         String m = String.format("xid[%s] %s don't support end command", xid, states);
         return new XaException(m, XaException.XAER_PROTO);
+    }
+
+    public static XaException xaTransactionDontSupportPrepareCommand(@Nullable Xid xid, XaStates states) {
+        String m = String.format("xid[%s] %s don't support prepare command", xid, states);
+        return new XaException(m, XaException.XAER_PROTO);
+    }
+
+    public static XaException xaTransactionDontSupportRollbackCommand(@Nullable Xid xid, XaStates states) {
+        String m = String.format("xid[%s] %s don't support rollback command", xid, states);
+        return new XaException(m, XaException.XAER_PROTO);
+    }
+
+    public static XaException xaTransactionDontSupportCommitCommand(@Nullable Xid xid, XaStates states) {
+        String m = String.format("xid[%s] %s don't support commit command", xid, states);
+        return new XaException(m, XaException.XAER_PROTO);
+    }
+
+    public static XaException xaDontSupportSuspendResume() {
+        return new XaException("suspend/resume not implemented", XaException.XAER_RMERR);
     }
 
 
@@ -665,9 +690,9 @@ public abstract class JdbdExceptions {
     }
 
 
-    private static JdbdException xaInvalidFlag(final int flags, final String method) {
+    private static XaException xaInvalidFlag(final int flags, final String method) {
         String m = String.format("XA invalid flag[%s] for method %s", Integer.toBinaryString(flags), method);
-        return new JdbdException(m, SQLStates.ER_XAER_INVAL, XAER_INVAL);
+        return new XaException(m, XaException.XAER_INVAL);
     }
 
 
