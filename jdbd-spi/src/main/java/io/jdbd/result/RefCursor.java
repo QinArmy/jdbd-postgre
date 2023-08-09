@@ -270,8 +270,8 @@ public interface RefCursor extends OptionSpec, Closeable {
      *         <code><br/>
      *     // cursor is instance of RefCursor
      *     Flux.from(cursor.fetch(FORWARD_ALL,function,consumer))
-     *            .onErrorResume(error -> closeOnError(cursor,error))
-     *            .concatWith(Mono.defer(()-> Mono.from(this.close())));
+     *            .concatWith(Mono.defer(()-> Mono.from(this.close())))
+     *            .onErrorResume(error -> closeOnError(cursor,error));
      *
      *    private &lt;T> Mono&lt;T> closeOnError(RefCursor cursor,Throwable error){
      *        return Mono.defer(()-> Mono.from(cursor.close()))
@@ -285,15 +285,15 @@ public interface RefCursor extends OptionSpec, Closeable {
 
     /**
      * <p>
-     * This method is equivalent to {@link #fetch(CursorDirection FORWARD_ALL, Function, Consumer)} and {@link #close()}.
+     * This method is equivalent to {@link #fetch(CursorDirection FORWARD_ALL)} and {@link #close()}.
      * </p>
      * <p>
      * <pre>
      *         <code><br/>
      *     // cursor is instance of RefCursor
      *     Flux.from(cursor.fetch(FORWARD_ALL))
-     *            .onErrorResume(error -> closeOnError(cursor,error))
-     *            .concatWith(Mono.defer(()-> Mono.from(this.close())));
+     *            .concatWith(Mono.defer(()-> Mono.from(this.close())))
+     *            .onErrorResume(error -> closeOnError(cursor,error));
      *
      *    private &lt;T> Mono&lt;T> closeOnError(RefCursor cursor,Throwable error){
      *        return Mono.defer(()-> Mono.from(cursor.close()))
@@ -408,11 +408,7 @@ public interface RefCursor extends OptionSpec, Closeable {
      * </p>
      *
      * @return the {@link Publisher} that emit nothing or emit {@link JdbdException}
-     * @throws JdbdException emit(not throw) when
-     *                       <ul>
-     *                           <li>session have closed</li>
-     *                           <li>server response error,see {@link ServerException}</li>
-     *                       </ul>
+     * @throws JdbdException emit(not throw) when only server response error,see {@link ServerException}.
      */
     @Override
     <T> Publisher<T> close();
