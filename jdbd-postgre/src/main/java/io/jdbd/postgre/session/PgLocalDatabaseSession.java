@@ -3,91 +3,97 @@ package io.jdbd.postgre.session;
 import io.jdbd.JdbdException;
 import io.jdbd.pool.PoolLocalDatabaseSession;
 import io.jdbd.postgre.protocol.client.PgProtocol;
-import io.jdbd.result.BatchQuery;
-import io.jdbd.result.ResultRow;
 import io.jdbd.session.HandleMode;
 import io.jdbd.session.LocalDatabaseSession;
+import io.jdbd.session.Option;
 import io.jdbd.session.TransactionOption;
-import io.jdbd.statement.BindStatement;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
 
-import java.util.List;
+import java.util.Collections;
+import java.util.Map;
 
-class PgLocalDatabaseSession extends PgDatabaseSession implements LocalDatabaseSession {
+
+/**
+ * <p>
+ * This class is a implementation of {@link LocalDatabaseSession} with postgre client protocol.
+ * </p>
+ *
+ * @since 1.0
+ */
+class PgLocalDatabaseSession extends PgDatabaseSession<LocalDatabaseSession> implements LocalDatabaseSession {
 
 
-    static PgLocalDatabaseSession create(SessionAdjutant adjutant, PgProtocol protocol) {
-        return new PgLocalDatabaseSession(adjutant, protocol);
+    static PgLocalDatabaseSession create(PgDatabaseSessionFactory factory, PgProtocol protocol) {
+        return new PgLocalDatabaseSession(factory, protocol);
     }
 
-    static PgLocalDatabaseSession forPoolVendor(SessionAdjutant adjutant, PgProtocol protocol) {
-        return new PgPoolLocalDatabaseSession(adjutant, protocol);
+    static PgLocalDatabaseSession forPoolVendor(PgDatabaseSessionFactory factory, PgProtocol protocol) {
+        return new PgPoolLocalDatabaseSession(factory, protocol);
     }
 
 
-    private PgLocalDatabaseSession(SessionAdjutant adjutant, PgProtocol protocol) {
-        super(adjutant, protocol);
+    private PgLocalDatabaseSession(PgDatabaseSessionFactory factory, PgProtocol protocol) {
+        super(factory, protocol);
+    }
+
+    @Override
+    public final Publisher<LocalDatabaseSession> startTransaction(TransactionOption option) {
+        return this.protocol.startTransaction(option, Collections.emptyMap(), HandleMode.ERROR_IF_EXISTS)
+                .thenReturn(this);
+    }
+
+    @Override
+    public final Publisher<LocalDatabaseSession> startTransaction(TransactionOption option, HandleMode mode) {
+        return this.protocol.startTransaction(option, Collections.emptyMap(), mode)
+                .thenReturn(this);
+    }
+
+    @Override
+    public final Publisher<LocalDatabaseSession> startTransaction(TransactionOption option,
+                                                                  Map<Option<?>, ?> optionMap, HandleMode mode) {
+        return this.protocol.startTransaction(option, optionMap, mode)
+                .thenReturn(this);
+    }
+
+    @Override
+    public final boolean inTransaction() throws JdbdException {
+        return this.protocol.inTransaction();
     }
 
 
     @Override
-    public final Mono<LocalDatabaseSession> startTransaction(TransactionOption option) {
-        return null;
+    public final Publisher<LocalDatabaseSession> commit() {
+        return this.protocol.commit(Collections.emptyMap())
+                .thenReturn(this);
     }
 
 
     @Override
-    public BindStatement bindStatement(String sql, boolean forceServerPrepared) throws JdbdException {
-        return null;
-    }
-
-    @Override
-    public boolean isSupportStmtVar() throws JdbdException {
-        return false;
-    }
-
-    @Override
-    public boolean isSupportOutParameter() throws JdbdException {
-        return false;
-    }
-
-    @Override
-    public Publisher<LocalDatabaseSession> startTransaction(TransactionOption option, HandleMode mode) {
-        return null;
-    }
-
-    @Override
-    public boolean inTransaction() throws JdbdException {
-        return false;
-    }
-
-    @Override
-    public Publisher<ResultRow> executeQuery(String sql) {
-        return null;
-    }
-
-    @Override
-    public BatchQuery executeBatchQuery(List<String> sqlGroup) {
-        return null;
-    }
-
-    @Override
-    public final Mono<LocalDatabaseSession> commit() {
-        return null;
+    public final Publisher<LocalDatabaseSession> commit(Map<Option<?>, ?> optionMap) {
+        return this.protocol.commit(optionMap)
+                .thenReturn(this);
     }
 
     @Override
     public final Mono<LocalDatabaseSession> rollback() {
-        return null;
+        return this.protocol.rollback(Collections.emptyMap())
+                .thenReturn(this);
+    }
+
+    @Override
+    public final Publisher<LocalDatabaseSession> rollback(Map<Option<?>, ?> optionMap) {
+        return this.protocol.rollback(optionMap)
+                .thenReturn(this);
     }
 
 
     private static final class PgPoolLocalDatabaseSession extends PgLocalDatabaseSession
             implements PoolLocalDatabaseSession {
 
-        private PgPoolLocalDatabaseSession(SessionAdjutant adjutant, PgProtocol protocol) {
-            super(adjutant, protocol);
+
+        private PgPoolLocalDatabaseSession(PgDatabaseSessionFactory factory, PgProtocol protocol) {
+            super(factory, protocol);
         }
 
         @Override
@@ -102,7 +108,14 @@ class PgLocalDatabaseSession extends PgDatabaseSession implements LocalDatabaseS
                     .thenReturn(this);
         }
 
-    }
+        @Override
+        public Publisher<PoolLocalDatabaseSession> reconnect() {
+            return this.protocol.reconnect()
+                    .thenReturn(this);
+        }
+
+
+    }//PgPoolLocalDatabaseSession
 
 
 }

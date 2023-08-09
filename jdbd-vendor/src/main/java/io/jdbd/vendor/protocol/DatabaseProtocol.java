@@ -12,25 +12,28 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
 public interface DatabaseProtocol extends OptionSpec, Closeable {
 
-    long identifier();
+ long identifier();
 
-    Function<CurrentRow, ResultRow> ROW_FUNC = CurrentRow::asResultRow;
+ Function<CurrentRow, ResultRow> ROW_FUNC = CurrentRow::asResultRow;
 
 
-    /**
-     * <p>
-     * This method is underlying api of {@link StaticStatementSpec#executeUpdate(String)} method.
-     * </p>
-     */
-    Mono<ResultStates> update(StaticStmt stmt);
+ void bindIdentifier(StringBuilder builder, String identifier);
 
-    /**
-     * <p>
+ /**
+  * <p>
+  * This method is underlying api of {@link StaticStatementSpec#executeUpdate(String)} method.
+  * </p>
+  */
+ Mono<ResultStates> update(StaticStmt stmt);
+
+ /**
+  * <p>
      * This method is underlying api of below methods:
      * <ul>
      *     <li>{@link StaticStatementSpec#executeQuery(String)}</li>
@@ -151,7 +154,6 @@ public interface DatabaseProtocol extends OptionSpec, Closeable {
 
     boolean supportOutParameter();
 
-    boolean supportSavePoints();
 
     boolean supportStmtVar();
 
@@ -159,17 +161,17 @@ public interface DatabaseProtocol extends OptionSpec, Closeable {
     ServerVersion serverVersion();
 
 
-    Mono<ResultStates> startTransaction(TransactionOption option, HandleMode mode);
+ Mono<ResultStates> startTransaction(TransactionOption option, Map<Option<?>, ?> optionMap, HandleMode mode);
 
 
-    Mono<Void> setTransactionOption(TransactionOption option, HandleMode mode);
+ Mono<Void> setTransactionOption(TransactionOption option, Map<Option<?>, ?> optionMap);
 
 
     boolean inTransaction();
 
-    Mono<ResultStates> commit(List<Option<?>> optionList);
+ Mono<ResultStates> commit(Map<Option<?>, ?> optionMap);
 
-    Mono<ResultStates> rollback(List<Option<?>> optionList);
+ Mono<ResultStates> rollback(Map<Option<?>, ?> optionMap);
 
 
     boolean isClosed();

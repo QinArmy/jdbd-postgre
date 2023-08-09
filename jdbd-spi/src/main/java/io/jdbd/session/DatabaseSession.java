@@ -185,6 +185,9 @@ public interface DatabaseSession extends StaticStatementSpec, DatabaseMetaSpec, 
     Publisher<? extends DatabaseSession> rollbackToSavePoint(SavePoint savepoint);
 
 
+    DatabaseSession bindIdentifier(StringBuilder builder, String identifier);
+
+
     boolean isClosed();
 
 

@@ -2,7 +2,12 @@ package io.jdbd.session;
 
 import org.reactivestreams.Publisher;
 
+import java.util.Map;
+
 /**
+ * <p>
+ * This interface representing database session that support global transaction.
+ * </p>
  * <p>
  * This interface extends {@link DatabaseSession} for support XA interface based on
  * the X/Open CAE Specification (Distributed Transaction Processing: The XA Specification).
@@ -34,12 +39,8 @@ public interface RmDatabaseSession extends DatabaseSession {
 
     Publisher<RmDatabaseSession> setTransactionOption(TransactionOption option);
 
-    /**
-     * <p>
-     * Set transaction options for next transaction.
-     * </p>
-     */
-    Publisher<RmDatabaseSession> setTransactionOption(TransactionOption option, HandleMode mode);
+    Publisher<RmDatabaseSession> setTransactionOption(TransactionOption option, Map<Option<?>, ?> optionMap);
+
 
     @Override
     Publisher<RmDatabaseSession> releaseSavePoint(SavePoint savepoint);
@@ -64,17 +65,34 @@ public interface RmDatabaseSession extends DatabaseSession {
      */
     Publisher<RmDatabaseSession> start(Xid xid, int flags);
 
+    Publisher<RmDatabaseSession> start(Xid xid, int flags, Map<Option<?>, ?> optionMap);
+
     Publisher<RmDatabaseSession> end(Xid xid, int flags);
+
+    Publisher<RmDatabaseSession> end(Xid xid, int flags, Map<Option<?>, ?> optionMap);
 
     Publisher<Integer> prepare(Xid xid);
 
+    Publisher<Integer> prepare(Xid xid, Map<Option<?>, ?> optionMap);
+
     Publisher<RmDatabaseSession> commit(Xid xid, boolean onePhase);
+
+    Publisher<RmDatabaseSession> commit(Xid xid, boolean onePhase, Map<Option<?>, ?> optionMap);
 
     Publisher<RmDatabaseSession> rollback(Xid xid);
 
+    Publisher<RmDatabaseSession> rollback(Xid xid, Map<Option<?>, ?> optionMap);
+
     Publisher<RmDatabaseSession> forget(Xid xid);
 
+    Publisher<RmDatabaseSession> forget(Xid xid, Map<Option<?>, ?> optionMap);
+
     Publisher<Xid> recover(int flags);
+
+    Publisher<Xid> recover(int flags, Map<Option<?>, ?> optionMap);
+
+    @Override
+    RmDatabaseSession bindIdentifier(StringBuilder builder, String identifier);
 
 
 }

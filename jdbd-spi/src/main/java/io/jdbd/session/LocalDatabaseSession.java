@@ -3,15 +3,23 @@ package io.jdbd.session;
 import io.jdbd.JdbdException;
 import org.reactivestreams.Publisher;
 
-import java.util.List;
+import java.util.Map;
 
-
+/**
+ * <p>
+ * This interface representing database session that support local transaction.
+ * </p>
+ *
+ * @since 1.0
+ */
 public interface LocalDatabaseSession extends DatabaseSession {
 
 
     Publisher<LocalDatabaseSession> startTransaction(TransactionOption option);
 
     Publisher<LocalDatabaseSession> startTransaction(TransactionOption option, HandleMode mode);
+
+    Publisher<LocalDatabaseSession> startTransaction(TransactionOption option, Map<Option<?>, ?> optionMap, HandleMode mode);
 
     boolean inTransaction() throws JdbdException;
 
@@ -24,11 +32,15 @@ public interface LocalDatabaseSession extends DatabaseSession {
 
     Publisher<LocalDatabaseSession> commit();
 
-    Publisher<LocalDatabaseSession> commit(List<Option<?>> optionList);
+    Publisher<LocalDatabaseSession> commit(Map<Option<?>, ?> optionMap);
 
     Publisher<LocalDatabaseSession> rollback();
 
-    Publisher<LocalDatabaseSession> rollback(List<Option<?>> optionList);
+    Publisher<LocalDatabaseSession> rollback(Map<Option<?>, ?> optionMap);
+
+
+    @Override
+    LocalDatabaseSession bindIdentifier(StringBuilder builder, String identifier);
 
 
 }

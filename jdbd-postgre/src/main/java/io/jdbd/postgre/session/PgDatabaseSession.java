@@ -17,6 +17,7 @@ import io.jdbd.statement.PreparedStatement;
 import io.jdbd.statement.StaticStatement;
 import io.jdbd.vendor.protocol.DatabaseProtocol;
 import io.jdbd.vendor.result.MultiResults;
+import io.jdbd.vendor.result.NamedSavePoint;
 import io.jdbd.vendor.stmt.Stmts;
 import io.jdbd.vendor.task.PrepareTask;
 import org.reactivestreams.Publisher;
@@ -24,6 +25,8 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -37,10 +40,14 @@ import java.util.function.Function;
  *         <li>{@link PgRmDatabaseSession}</li>
  *     </ul>
  * </p>
+ *
+ * @since 1.0
  */
 abstract class PgDatabaseSession<S extends DatabaseSession> extends PgDatabaseMetaSpec implements DatabaseSession {
 
     final PgDatabaseSessionFactory factory;
+
+    private final AtomicInteger savePointIndex = new AtomicInteger(0);
 
     PgDatabaseSession(PgDatabaseSessionFactory factory, PgProtocol protocol) {
         super(protocol);
@@ -146,6 +153,9 @@ abstract class PgDatabaseSession<S extends DatabaseSession> extends PgDatabaseMe
 
     @Override
     public final DatabaseMetaData databaseMetaData() {
+        if (this.protocol.isClosed()) {
+            throw PgExceptions.sessionHaveClosed();
+        }
         return PgDatabaseMetaData.create(this.protocol);
     }
 
@@ -181,24 +191,60 @@ abstract class PgDatabaseSession<S extends DatabaseSession> extends PgDatabaseMe
 
     @Override
     public final Publisher<SavePoint> setSavePoint() {
-        return null;
+        final StringBuilder builder;
+        builder = PgStrings.builder()
+                .append("$jdbd-")
+                .append(this.savePointIndex.getAndIncrement())
+                .append('-')
+                .append(ThreadLocalRandom.current().nextInt(Integer.MAX_VALUE));
+        return this.setSavePoint(builder.toString());
     }
 
     @Override
     public final Publisher<SavePoint> setSavePoint(String name) {
-        return null;
+        if (!PgStrings.hasText(name)) {
+            return Mono.error(PgExceptions.savePointNameIsEmpty());
+        }
+        final StringBuilder builder = new StringBuilder(25);
+        builder.append("SAVEPOINT");
+        this.protocol.bindIdentifier(builder, name);
+        return this.protocol.update(Stmts.stmt(builder.toString()))
+                .thenReturn(NamedSavePoint.fromName(name));
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public final Publisher<S> releaseSavePoint(SavePoint savepoint) {
-        return null;
+        if (!(savepoint instanceof NamedSavePoint && PgStrings.hasText(savepoint.name()))) {
+            return Mono.error(PgExceptions.unknownSavePoint(savepoint));
+        }
+
+        final StringBuilder builder = new StringBuilder(30);
+        builder.append("RELEASE SAVEPOINT");
+        this.protocol.bindIdentifier(builder, savepoint.name());
+        return this.protocol.update(Stmts.stmt(builder.toString()))
+                .thenReturn((S) this);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
-    public final Publisher<S> rollbackToSavePoint(SavePoint savepoint) {
-        return null;
+    public final Publisher<S> rollbackToSavePoint(final SavePoint savepoint) {
+        if (!(savepoint instanceof NamedSavePoint && PgStrings.hasText(savepoint.name()))) {
+            return Mono.error(PgExceptions.unknownSavePoint(savepoint));
+        }
+        final StringBuilder builder = new StringBuilder(30);
+        builder.append("ROLLBACK TO SAVEPOINT");
+        this.protocol.bindIdentifier(builder, savepoint.name());
+        return this.protocol.update(Stmts.stmt(builder.toString()))
+                .thenReturn((S) this);
     }
 
+    @SuppressWarnings("unchecked")
+    @Override
+    public final S bindIdentifier(StringBuilder builder, String identifier) {
+        this.protocol.bindIdentifier(builder, identifier);
+        return (S) this;
+    }
 
     @Override
     public final boolean isClosed() {
