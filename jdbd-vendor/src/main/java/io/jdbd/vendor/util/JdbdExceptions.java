@@ -122,6 +122,7 @@ public abstract class JdbdExceptions {
         return new JdbdException(m);
     }
 
+
     public static JdbdException dontSupportImporter(String database) {
         return new JdbdException(String.format("%s don't support importer.", database));
     }
@@ -419,7 +420,7 @@ public abstract class JdbdExceptions {
         if (cause == null) {
             e = new JdbdException(m, SQLStates.INVALID_PARAMETER_VALUE, 0);
         } else {
-            e = new JdbdException(m, SQLStates.INVALID_PARAMETER_VALUE, 0, cause);
+            e = new JdbdException(m, cause, SQLStates.INVALID_PARAMETER_VALUE, 0);
         }
         return e;
 
@@ -633,6 +634,19 @@ public abstract class JdbdExceptions {
     }
 
 
+    public static XaException xidIsNull() {
+        return new XaException("xid must not be null", XaException.XAER_INVAL);
+    }
+
+    public static XaException xaTransactionNotStart(Xid xid) {
+        String m = String.format("xid[%s] not start", xid);
+        return new XaException(m, XaException.XAER_PROTO);
+    }
+
+    public static XaException xaTransactionDontSupportEndCommand(Xid xid, XaStates states) {
+        String m = String.format("xid[%s] %s don't support end command", xid, states);
+        return new XaException(m, XaException.XAER_PROTO);
+    }
 
 
     /*################################## blow protected method ##################################*/

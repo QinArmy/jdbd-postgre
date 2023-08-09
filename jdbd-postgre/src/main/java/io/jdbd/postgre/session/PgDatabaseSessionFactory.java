@@ -1,11 +1,10 @@
 package io.jdbd.postgre.session;
 
-import io.jdbd.DriverVersion;
-import io.jdbd.postgre.PgDriver;
 import io.jdbd.postgre.env.PgKey;
 import io.jdbd.postgre.env.PgUrl;
 import io.jdbd.postgre.protocol.client.ClientProtocolFactory;
 import io.jdbd.postgre.protocol.client.PgProtocol;
+import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.session.DatabaseSessionFactory;
 import io.jdbd.session.LocalDatabaseSession;
 import io.jdbd.session.RmDatabaseSession;
@@ -15,6 +14,7 @@ import reactor.core.publisher.Mono;
 import reactor.netty.resources.LoopResources;
 
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class PgDatabaseSessionFactory implements DatabaseSessionFactory {
 
@@ -45,9 +45,13 @@ public class PgDatabaseSessionFactory implements DatabaseSessionFactory {
 
     private final PgUrl pgUrl;
 
+    private String name;
+
     private final boolean forPoolVendor;
 
     private final PgSessionAdjutant sessionAdjutant;
+
+    private final AtomicBoolean closed = new AtomicBoolean(false);
 
 
     private PgDatabaseSessionFactory(PgUrl pgUrl, boolean forPoolVendor) {
@@ -58,32 +62,36 @@ public class PgDatabaseSessionFactory implements DatabaseSessionFactory {
 
 
     @Override
-    public Mono<LocalDatabaseSession> localSession() {
+    public Publisher<LocalDatabaseSession> localSession() {
+        if (this.closed.get()) {
+            return Mono.error(PgExceptions.factoryClosed(this.name));
+        }
         // TODO complete me
         return ClientProtocolFactory.single(this.sessionAdjutant, 0)
                 .map(this::createTxSession);
     }
 
     @Override
-    public Mono<RmDatabaseSession> rmSession() {
+    public Publisher<RmDatabaseSession> rmSession() {
+        if (this.closed.get()) {
+            return Mono.error(PgExceptions.factoryClosed(this.name));
+        }
         // TODO complete me
         return ClientProtocolFactory.single(this.sessionAdjutant, 0)
                 .map(this::createXaSession);
     }
 
+
     @Override
-    public DriverVersion getDriverVersion() {
-        return PgDriver.getVersion();
+    public boolean isSupportXaTransaction() {
+        //always true,postgre support xa transaction.
+        return true;
     }
 
     @Override
-    public ProductFamily getProductFamily() {
-        return ProductFamily.Postgre;
-    }
-
-    @Override
-    public Publisher<Void> close() {
-        return null;
+    public <T> Publisher<T> close() {
+        this.closed.set(true);
+        return Mono.empty();
     }
 
     /*################################## blow private method ##################################*/

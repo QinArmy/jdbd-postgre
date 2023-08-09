@@ -4,6 +4,7 @@ import io.jdbd.lang.NonNull;
 import io.jdbd.lang.Nullable;
 import io.jdbd.pool.PoolRmDatabaseSession;
 import io.jdbd.postgre.protocol.client.PgProtocol;
+import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.session.*;
 import org.reactivestreams.Publisher;
@@ -46,15 +47,7 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
     public final Publisher<TransactionStatus> transactionStatus() {
         final XaStatesPair currentXaPair = this.xaPair;
         return this.protocol.transactionStatus()
-                .map(status -> {
-                    TransactionStatus transactionStatus;
-                    if (currentXaPair == DEFAULT_XA_PAIR) {
-                        transactionStatus = status;
-                    } else {
-                        transactionStatus = new PgXaTransactionStatus(currentXaPair, status);
-                    }
-                    return transactionStatus;
-                });
+                .map(status -> this.mapTransactionStatus(status, currentXaPair));
     }
 
 
@@ -64,14 +57,34 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
     }
 
     @Override
-    public final Publisher<RmDatabaseSession> start(Xid xid, int flags, TransactionOption option) {
+    public final Publisher<RmDatabaseSession> start(final @Nullable Xid xid, final int flags,
+                                                    final TransactionOption option) {
         final XaStatesPair currentXaPair = this.xaPair;
-        if (currentXaPair != DEFAULT_XA_PAIR) {
-            return Mono.error(new XaException());
-        }
 
-        return null;
+        final XaException error;
+        if (currentXaPair != DEFAULT_XA_PAIR || this.protocol.inTransaction()) {
+            error = new XaException("session is busy with another transaction", XaException.XAER_PROTO);
+        } else if (xid == null) {
+            error = PgExceptions.xidIsNull();
+        } else if ((flags & TM_RESUME) != 0) {
+            error = new XaException("suspend/resume not implemented", XaException.XAER_RMERR);
+        } else if ((flags & TM_JOIN) != 0) {
+            error = new XaException("join not implemented", XaException.XAER_RMERR);
+        } else if (flags != TM_NO_FLAGS) {
+            error = new XaException(String.format("Invalid flags[%s]", flags), XaException.XAER_INVAL);
+        } else if (XA_PAIR.compareAndSet(this, DEFAULT_XA_PAIR, new XaStatesPair(xid, XaStates.STARTED))) {
+            error = null;
+        } else {
+            error = new XaException("session is busy with another transaction", XaException.XAER_PROTO);
+        }
+        if (error != null) {
+            return Mono.error(error);
+        }
+        return this.protocol.startTransaction(option, HandleMode.ERROR_IF_EXISTS)
+                .onErrorMap(this::onStartLocalTransactionError)
+                .thenReturn(this);
     }
+
 
     @Override
     public final Publisher<RmDatabaseSession> end(Xid xid, int flags) {
@@ -79,7 +92,15 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
     }
 
     @Override
-    public final Publisher<RmDatabaseSession> end(Xid xid, int flags, Map<Option<?>, ?> optionMap) {
+    public final Publisher<RmDatabaseSession> end(final Xid xid, final int flags, final Map<Option<?>, ?> optionMap) {
+        final XaStatesPair currentXaPair = this.xaPair;
+
+        final XaException error;
+        if (!Objects.equals(xid, currentXaPair.xid)) {
+            error = PgExceptions.xaTransactionNotStart(xid);
+        } else if (currentXaPair.xaStates != XaStates.STARTED) {
+            error = PgExceptions.xaTransactionDontSupportEndCommand(xid, currentXaPair.xaStates);
+        }
         return null;
     }
 
@@ -132,6 +153,24 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
     public final Publisher<Xid> recover(int flags, Map<Option<?>, ?> optionMap) {
         return null;
     }
+
+    /**
+     * @see #transactionStatus()
+     */
+    private TransactionStatus mapTransactionStatus(TransactionStatus status, XaStatesPair currentXaPair) {
+        final TransactionStatus transactionStatus;
+        if (currentXaPair == DEFAULT_XA_PAIR) {
+            transactionStatus = status;
+        } else {
+            transactionStatus = new PgXaTransactionStatus(currentXaPair, status);
+        }
+        return transactionStatus;
+    }
+
+    private XaException onStartLocalTransactionError(Throwable cause) {
+        return new XaException("start xa transaction occur error.", cause, XaException.XAER_RMERR);
+    }
+
 
     private static final class PgPoolRmDatabaseSession extends PgRmDatabaseSession implements PoolRmDatabaseSession {
 

@@ -133,30 +133,41 @@ public class XaException extends JdbdException {
      */
     public static final int XAER_OUTSIDE = -9;
 
-    public XaException(String message) {
+    private final int xaCode;
+
+    public XaException(String message, int xaCode) {
         super(message);
+        this.xaCode = xaCode;
     }
 
-    public XaException(String message, @Nullable String sqlState, int vendorCode) {
+    public XaException(String message, @Nullable String sqlState, int vendorCode, int xaCode) {
         super(message, sqlState, vendorCode);
+        this.xaCode = xaCode;
     }
 
-    public XaException(String message, Throwable cause, @Nullable String sqlState, int vendorCode) {
+    public XaException(String message, Throwable cause, @Nullable String sqlState,
+                       int vendorCode, int xaCode) {
         super(message, cause, sqlState, vendorCode);
+        this.xaCode = xaCode;
     }
 
-    public XaException(String message, Throwable cause) {
+    public XaException(String message, Throwable cause, int xaCode) {
         super(message, cause);
-    }
-
-    public XaException(String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
-        super(message, cause, enableSuppression, writableStackTrace);
+        this.xaCode = xaCode;
     }
 
     public XaException(String message, Throwable cause, boolean enableSuppression,
-                       boolean writableStackTrace, @Nullable String sqlState, int vendorCode) {
-        super(message, cause, enableSuppression, writableStackTrace, sqlState, vendorCode);
+                       boolean writableStackTrace, int xaCode) {
+        super(message, cause, enableSuppression, writableStackTrace);
+        this.xaCode = xaCode;
     }
+
+    public XaException(String message, Throwable cause, boolean enableSuppression,
+                       boolean writableStackTrace, @Nullable String sqlState, int vendorCode, int xaCode) {
+        super(message, cause, enableSuppression, writableStackTrace, sqlState, vendorCode);
+        this.xaCode = xaCode;
+    }
+
 
 
 }

@@ -32,10 +32,23 @@ public interface DatabaseSessionFactory extends OptionSpec, Closeable {
 
     /**
      * <p>
+     * Create one session that support XA transaction.
+     * </p>
+     * <p>
      * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
      * </p>
+     *
+     * @throws io.jdbd.JdbdException emit(not throw) when
+     *                               <ul>
+     *                                   <li>{@link #isSupportXaTransaction()} return false</li>
+     *                                   <li>network error</li>
+     *                                   <li>server response error message,see {@link io.jdbd.result.ServerException}</li>
+     *                               </ul>
      */
     Publisher<RmDatabaseSession> rmSession();
+
+
+    boolean isSupportXaTransaction();
 
 
     /**
