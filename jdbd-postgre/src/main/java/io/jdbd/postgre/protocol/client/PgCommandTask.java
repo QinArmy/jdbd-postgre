@@ -69,7 +69,7 @@ abstract class PgCommandTask extends PgTask implements StmtTask {
     /**
      * <p>
      * This constructor for : <ul>
-     * <li>{@link CursorTask}</li>
+     * <li>{@link PgCursorTask}</li>
      * </ul>
      * </p>
      * <p>
@@ -78,7 +78,7 @@ abstract class PgCommandTask extends PgTask implements StmtTask {
      */
     PgCommandTask(TaskAdjutant adjutant) {
         super(adjutant);
-        assert this instanceof CursorTask;
+        assert this instanceof PgCursorTask;
         this.resultSetReader = PgResultSetReader.create(this);
     }
 

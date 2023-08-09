@@ -5,8 +5,10 @@ import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.util.PgCollections;
 import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.result.CurrentRow;
+import io.jdbd.result.CursorDirection;
 import io.jdbd.result.OrderedFlux;
 import io.jdbd.result.ResultStates;
+import io.jdbd.session.Option;
 import io.jdbd.statement.BindSingleStatement;
 import io.jdbd.vendor.result.VendorRefCursor;
 import io.jdbd.vendor.stmt.JdbdValues;
@@ -14,6 +16,7 @@ import io.jdbd.vendor.stmt.ParamStmt;
 import io.jdbd.vendor.stmt.ParamValue;
 import io.jdbd.vendor.stmt.Stmts;
 import org.reactivestreams.Publisher;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
@@ -23,138 +26,88 @@ import java.util.function.Function;
 abstract class PgRefCursor extends VendorRefCursor {
 
     static PgRefCursor cursorOfColumn(String name, PgColumnMeta meta, TaskAdjutant adjutant) {
-        return new ColumnRefCursor(name, CursorTask.create(name, adjutant), meta);
+        return new ColumnRefCursor(name, PgCursorTask.create(name, adjutant), meta);
     }
 
     static PgRefCursor cursorOfStatement(String name, TaskAdjutant adjutant) {
-        return new StatementRefCursor(name, CursorTask.create(name, adjutant));
+        return new StatementRefCursor(name, PgCursorTask.create(name, adjutant));
     }
 
-    private final CursorTask task;
+    private final PgCursorTask task;
 
     /**
      * private constructor
      */
-    private PgRefCursor(String name, CursorTask task) {
+    private PgRefCursor(String name, PgCursorTask task) {
         super(name);
         this.task = task;
     }
 
+
     @Override
-    public final <T> Publisher<T> first(Function<CurrentRow, T> function, Consumer<ResultStates> consumer) {
+    public final <T> Publisher<T> fetch(CursorDirection direction, Function<CurrentRow, T> function, Consumer<ResultStates> consumer) {
+        return Flux.from(fetch(direction, function))
+                .onErrorResume(this::closeOnError)
+                .concatWith(Mono.defer(() -> Mono.from(this.close())));
+
+    }
+
+    private <T> Mono<T> closeOnError(Throwable error) {
+        return Mono.defer(() -> Mono.from(this.close()))
+                .then(Mono.error(error));
+    }
+
+
+    @Override
+    public final OrderedFlux fetch(CursorDirection direction) {
         return null;
     }
 
     @Override
-    public final OrderedFlux first() {
+    public final <T> Publisher<T> fetch(CursorDirection direction, long count, Function<CurrentRow, T> function, Consumer<ResultStates> consumer) {
         return null;
     }
 
     @Override
-    public final <T> Publisher<T> last(Function<CurrentRow, T> function, Consumer<ResultStates> consumer) {
+    public final OrderedFlux fetch(CursorDirection direction, long count) {
         return null;
     }
 
     @Override
-    public final OrderedFlux last() {
+    public final <T> Publisher<T> forwardAllAndClosed(Function<CurrentRow, T> function) {
         return null;
     }
 
     @Override
-    public final <T> Publisher<T> prior(Function<CurrentRow, T> function, Consumer<ResultStates> consumer) {
+    public final <T> Publisher<T> forwardAllAndClosed(Function<CurrentRow, T> function, Consumer<ResultStates> consumer) {
         return null;
     }
 
     @Override
-    public final OrderedFlux prior() {
+    public final OrderedFlux forwardAllAndClosed() {
         return null;
     }
 
     @Override
-    public final <T> Publisher<T> next(Function<CurrentRow, T> function, Consumer<ResultStates> consumer) {
+    public final Publisher<ResultStates> move(CursorDirection direction) {
         return null;
     }
 
     @Override
-    public final OrderedFlux next() {
+    public final Publisher<ResultStates> move(CursorDirection direction, int count) {
         return null;
     }
 
     @Override
-    public final <T> Publisher<T> absolute(long count, Function<CurrentRow, T> function, Consumer<ResultStates> consumer) {
-        return null;
+    public final <T> Mono<T> close() {
+        return Mono.empty();
     }
+
 
     @Override
-    public final OrderedFlux absolute(long count) {
+    public final <T> T valueOf(Option<T> option) {
         return null;
     }
-
-    @Override
-    public final <T> Publisher<T> relative(long count, Function<CurrentRow, T> function, Consumer<ResultStates> consumer) {
-        return null;
-    }
-
-    @Override
-    public final OrderedFlux relative(long count) {
-        return null;
-    }
-
-    @Override
-    public final <T> Publisher<T> forward(long count, Function<CurrentRow, T> function, Consumer<ResultStates> consumer) {
-        return null;
-    }
-
-    @Override
-    public final OrderedFlux forward(long count) {
-        return null;
-    }
-
-    @Override
-    public final <T> Publisher<T> forwardAll(Function<CurrentRow, T> function, Consumer<ResultStates> consumer) {
-        return null;
-    }
-
-    @Override
-    public final OrderedFlux forwardAll() {
-        return null;
-    }
-
-    @Override
-    public final <T> Publisher<T> allAndClose(Function<CurrentRow, T> function, Consumer<ResultStates> consumer) {
-        return null;
-    }
-
-    @Override
-    public final OrderedFlux allAndClose() {
-        return null;
-    }
-
-    @Override
-    public final <T> Publisher<T> backward(long count, Function<CurrentRow, T> function, Consumer<ResultStates> consumer) {
-        return null;
-    }
-
-    @Override
-    public final OrderedFlux backward(long count) {
-        return null;
-    }
-
-    @Override
-    public final <T> Publisher<T> backwardAll(Function<CurrentRow, T> function, Consumer<ResultStates> consumer) {
-        return null;
-    }
-
-    @Override
-    public final OrderedFlux backwardAll() {
-        return null;
-    }
-
-    @Override
-    public final <T> Publisher<T> close() {
-        return null;
-    }
-
 
     private ParamStmt createFetchStmt(final int fetchSize, final Consumer<ResultStates> consumer) {
         final StringBuilder builder = new StringBuilder(40);
@@ -196,7 +149,7 @@ abstract class PgRefCursor extends VendorRefCursor {
 
         private final PgColumnMeta meta;
 
-        private ColumnRefCursor(String name, CursorTask task, PgColumnMeta meta) {
+        private ColumnRefCursor(String name, PgCursorTask task, PgColumnMeta meta) {
             super(name, task);
             this.meta = meta;
         }
@@ -228,7 +181,7 @@ abstract class PgRefCursor extends VendorRefCursor {
      */
     private static final class StatementRefCursor extends PgRefCursor {
 
-        private StatementRefCursor(String name, CursorTask task) {
+        private StatementRefCursor(String name, PgCursorTask task) {
             super(name, task);
         }
 

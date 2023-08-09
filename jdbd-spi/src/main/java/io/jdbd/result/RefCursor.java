@@ -16,9 +16,9 @@ import java.util.function.Function;
  * The cursor will be close in following scenarios :
  *     <ul>
  *         <li>the any method of {@link RefCursor} emit {@link Throwable}</li>
- *         <li>You invoke {@link #allAndClose(Function)}</li>
- *         <li>You invoke {@link #allAndClose(Function, Consumer)}</li>
- *         <li>You invoke {@link #allAndClose()}</li>
+ *         <li>You invoke {@link #forwardAllAndClosed(Function)}</li>
+ *         <li>You invoke {@link #forwardAllAndClosed(Function, Consumer)}</li>
+ *         <li>You invoke {@link #forwardAllAndClosed()}</li>
  *         <li>You invoke {@link #close()}</li>
  *     </ul>
  * If the methods of {@link RefCursor} don't emit any {@link Throwable},then you should close cursor.
@@ -27,6 +27,7 @@ import java.util.function.Function;
  * </p>
  *
  * @see io.jdbd.meta.JdbdType#REF_CURSOR
+ * @see CursorDirection
  * @since 1.0
  */
 public interface RefCursor extends OptionSpec, Closeable {
@@ -36,7 +37,7 @@ public interface RefCursor extends OptionSpec, Closeable {
      */
     String name();
 
-    /*-------------------below first method-------------------*/
+    /*-------------------below fetch method-------------------*/
 
     /**
      * <p>
@@ -44,95 +45,64 @@ public interface RefCursor extends OptionSpec, Closeable {
      * <pre>
      *         <code><br/>
      *             // cursor is instance of RefCursor
-     *             cursor.first(function,states->{}) ; // ignore ResultStates instance.
+     *             cursor.fetch(direction,function,states->{}) ; // ignore ResultStates instance.
      *         </code>
      *     </pre>
      * </p>
      *
-     * @see #first(Function, Consumer)
+     * @see #fetch(CursorDirection, Function, Consumer)
      */
-    <T> Publisher<T> first(Function<CurrentRow, T> function);
+    <T> Publisher<T> fetch(CursorDirection direction, Function<CurrentRow, T> function);
 
     /**
      * <p>
-     * Fetch the first row of the query.
+     * Retrieve rows from a query using a cursor {@link #name()}.
      * </p>
      *
+     * @param direction must be one of following :
+     *                  <ul>
+     *                      <li>{@link CursorDirection#NEXT}</li>
+     *                      <li>{@link CursorDirection#PRIOR}</li>
+     *                      <li>{@link CursorDirection#FIRST}</li>
+     *                      <li>{@link CursorDirection#LAST}</li>
+     *                      <li>{@link CursorDirection#FORWARD_ALL}</li>
+     *                      <li>{@link CursorDirection#BACKWARD_ALL}</li>
+     *                  </ul>
      * @throws NullPointerException emit(not throw) when function is null or consumer is null.
      * @throws JdbdException        emit(not throw) when
      *                              <ul>
-     *                                  <li>driver don't support this method</li>
+     *                                  <li>driver don't support appropriate direction.</li>
      *                                  <li>session close</li>
      *                                  <li>cursor have closed</li>
      *                                  <li>server response error,see {@link ServerException}</li>
      *                              </ul>
      */
-    <T> Publisher<T> first(Function<CurrentRow, T> function, Consumer<ResultStates> consumer);
+    <T> Publisher<T> fetch(CursorDirection direction, Function<CurrentRow, T> function, Consumer<ResultStates> consumer);
 
     /**
      * <p>
-     * Fetch the first row of the query.
+     * Retrieve rows from a query using a cursor {@link #name()}.
      * </p>
      *
+     * @param direction must be one of following :
+     *                  <ul>
+     *                      <li>{@link CursorDirection#NEXT}</li>
+     *                      <li>{@link CursorDirection#PRIOR}</li>
+     *                      <li>{@link CursorDirection#FIRST}</li>
+     *                      <li>{@link CursorDirection#LAST}</li>
+     *                      <li>{@link CursorDirection#FORWARD_ALL}</li>
+     *                      <li>{@link CursorDirection#BACKWARD_ALL}</li>
+     *                  </ul>
      * @throws JdbdException emit(not throw) when
      *                       <ul>
-     *                           <li>driver don't support this method</li>
+     *                           <li>driver don't support appropriate direction.</li>
      *                           <li>session close</li>
      *                           <li>cursor have closed</li>
      *                           <li>server response error,see {@link ServerException}</li>
      *                       </ul>
      */
-    OrderedFlux first();
+    OrderedFlux fetch(CursorDirection direction);
 
-    /*-------------------below last method-------------------*/
-
-    /**
-     * <p>
-     * This method is equivalent to following :
-     * <pre>
-     *         <code><br/>
-     *             // cursor is instance of RefCursor
-     *             cursor.last(function,states->{}) ; // ignore ResultStates instance.
-     *         </code>
-     *     </pre>
-     * </p>
-     *
-     * @see #last(Function, Consumer)
-     */
-    <T> Publisher<T> last(Function<CurrentRow, T> function);
-
-    /**
-     * <p>
-     * Fetch the last row of the query.
-     * </p>
-     *
-     * @throws NullPointerException emit(not throw) when function is null or consumer is null.
-     * @throws JdbdException        emit(not throw) when
-     *                              <ul>
-     *                                  <li>driver don't support this method</li>
-     *                                  <li>session close</li>
-     *                                  <li>cursor have closed</li>
-     *                                  <li>server response error,see {@link ServerException}</li>
-     *                              </ul>
-     */
-    <T> Publisher<T> last(Function<CurrentRow, T> function, Consumer<ResultStates> consumer);
-
-    /**
-     * <p>
-     * Fetch the last row of the query.
-     * </p>
-     *
-     * @throws JdbdException emit(not throw) when
-     *                       <ul>
-     *                           <li>driver don't support this method</li>
-     *                           <li>session close</li>
-     *                           <li>cursor have closed</li>
-     *                           <li>server response error,see {@link ServerException}</li>
-     *                       </ul>
-     */
-    OrderedFlux last();
-
-    /*-------------------below prior method-------------------*/
 
     /**
      * <p>
@@ -140,151 +110,143 @@ public interface RefCursor extends OptionSpec, Closeable {
      * <pre>
      *         <code><br/>
      *             // cursor is instance of RefCursor
-     *             cursor.prior(function,states->{}) ; // ignore ResultStates instance.
+     *             cursor.fetch(direction,count,function,states->{}) ; // ignore ResultStates instance.
      *         </code>
      *     </pre>
      * </p>
      *
-     * @see #prior(Function, Consumer)
+     * @see #fetch(CursorDirection, long, Function, Consumer)
      */
-    <T> Publisher<T> prior(Function<CurrentRow, T> function);
+    <T> Publisher<T> fetch(CursorDirection direction, long count, Function<CurrentRow, T> function);
 
     /**
      * <p>
-     * Fetch the prior row.
+     * Retrieve rows from a query using a cursor {@link #name()}.
      * </p>
      *
-     * @throws NullPointerException emit(not throw) when function is null or consumer is null.
-     * @throws JdbdException        emit(not throw) when
-     *                              <ul>
-     *                                  <li>driver don't support this method</li>
-     *                                  <li>session close</li>
-     *                                  <li>cursor have closed</li>
-     *                                  <li>server response error,see {@link ServerException}</li>
-     *                              </ul>
-     */
-    <T> Publisher<T> prior(Function<CurrentRow, T> function, Consumer<ResultStates> consumer);
-
-    /**
-     * <p>
-     * Fetch the prior row.
-     * </p>
-     *
-     * @throws JdbdException emit(not throw) when
-     *                       <ul>
-     *                           <li>driver don't support this method</li>
-     *                           <li>session close</li>
-     *                           <li>cursor have closed</li>
-     *                           <li>server response error,see {@link ServerException}</li>
-     *                       </ul>
-     */
-    OrderedFlux prior();
-
-    /*-------------------below next method-------------------*/
-
-    /**
-     * <p>
-     * This method is equivalent to following :
-     * <pre>
-     *         <code><br/>
-     *             // cursor is instance of RefCursor
-     *             cursor.next(function,states->{}) ; // ignore ResultStates instance.
-     *         </code>
-     *     </pre>
-     * </p>
-     *
-     * @see #next(Function, Consumer)
-     */
-    <T> Publisher<T> next(Function<CurrentRow, T> function);
-
-    /**
-     * <p>
-     * Fetch the next row.
-     * </p>
-     *
-     * @throws NullPointerException emit(not throw) when function is null or consumer is null.
-     * @throws JdbdException        emit(not throw) when
-     *                              <ul>
-     *                                  <li>driver don't support this method</li>
-     *                                  <li>session close</li>
-     *                                  <li>cursor have closed</li>
-     *                                  <li>server response error,see {@link ServerException}</li>
-     *                              </ul>
-     */
-    <T> Publisher<T> next(Function<CurrentRow, T> function, Consumer<ResultStates> consumer);
-
-    /**
-     * <p>
-     * Fetch the next row.
-     * </p>
-     *
-     * @throws JdbdException emit(not throw) when
-     *                       <ul>
-     *                           <li>driver don't support this method</li>
-     *                           <li>session close</li>
-     *                           <li>cursor have closed</li>
-     *                           <li>server response error,see {@link ServerException}</li>
-     *                       </ul>
-     */
-    OrderedFlux next();
-
-    /*-------------------below absolute method-------------------*/
-
-    /**
-     * <p>
-     * This method is equivalent to following :
-     * <pre>
-     *         <code><br/>
-     *             // cursor is instance of RefCursor
-     *             cursor.absolute(count,function,states->{}) ; // ignore ResultStates instance.
-     *         </code>
-     *     </pre>
-     * </p>
-     *
-     * @see #absolute(long, Function, Consumer)
-     */
-    <T> Publisher<T> absolute(long count, Function<CurrentRow, T> function);
-
-    /**
-     * <p>
-     * Fetch the count'th row of the query, or the abs(count)'th row from the end if count is negative.<br/>
-     * Position before first row or after last row if count is out of range; in particular,<br/>
-     * ABSOLUTE 0 positions before the first row.
-     * </p>
-     *
-     * @param count positive
-     * @throws IllegalArgumentException emit(not throw) when count error.
-     * @throws NullPointerException     emit(not throw) when function is null or consumer is null.
+     * @param direction must be one of following :
+     *                  <ul>
+     *                      <li>{@link CursorDirection#ABSOLUTE}</li>
+     *                      <li>{@link CursorDirection#RELATIVE}</li>
+     *                      <li>{@link CursorDirection#FORWARD}</li>
+     *                      <li>{@link CursorDirection#BACKWARD}</li>
+     *                  </ul>
+     * @param count     row count   <ul>
+     *                  <li>
+     *                  {@link CursorDirection#ABSOLUTE}  :
+     *                                   <ul>
+     *                                       <li>positive : fetch the count'th row of the query. position after last row if count is out of range</li>
+     *                                       <li>negative : fetch the abs(count)'th row from the end. position before first row if count is out of range</li>
+     *                                       <li>0 positions before the first row,is out of range,throw error</li>
+     *                                   </ul>
+     *                               </li>
+     *                               <li>
+     *                                   {@link CursorDirection#RELATIVE}  :
+     *                                   <ul>
+     *                                       <li>positive : fetch the count'th succeeding row</li>
+     *                                       <li>negative : fetch the abs(count)'th prior row</li>
+     *                                       <li>RELATIVE 0 re-fetches the current row, if any.</li>
+     *                                   </ul>
+     *                               </li>
+     *                               <li>
+     *                                   {@link CursorDirection#FORWARD}  :
+     *                                   <ul>
+     *                                      <li>positive : fetch the next count rows.</li>
+     *                                      <li>0 : re-fetches the current row</li>
+     *                                      <li>negative : error</li>
+     *                                   </ul>
+     *                               </li>
+     *                               <li>
+     *                                   {@link CursorDirection#BACKWARD}  :
+     *                                   <ul>
+     *                                      <li>positive : Fetch the prior count rows (scanning backwards).</li>
+     *                                      <li>0 : re-fetches the current row</li>
+     *                                      <li>negative : error</li>
+     *                                   </ul>
+     *                               </li>
+     *                  </ul>
+     * @throws NullPointerException     emit(not throw) when
+     *                                  <ul>
+     *                                      <li>direction is null</li>
+     *                                      <li>function is null</li>
+     *                                      <li>consumer is null</li>
+     *                                  </ul>
+     * @throws IllegalArgumentException emit(not throw) when
+     *                                  <ul>
+     *                                      <li>direction error</li>
+     *                                      <li>count error</li>
+     *                                  </ul>
      * @throws JdbdException            emit(not throw) when
      *                                  <ul>
-     *                                      <li>driver don't support this method</li>
+     *                                      <li>driver don't support appropriate direction.</li>
      *                                      <li>session close</li>
      *                                      <li>cursor have closed</li>
-     *                                      <li>server response error,see {@link ServerException}</li>
+     *                                      <li>server response error message,see {@link ServerException}</li>
      *                                  </ul>
      */
-    <T> Publisher<T> absolute(long count, Function<CurrentRow, T> function, Consumer<ResultStates> consumer);
+    <T> Publisher<T> fetch(CursorDirection direction, long count, Function<CurrentRow, T> function, Consumer<ResultStates> consumer);
 
     /**
      * <p>
-     * Fetch the count'th row of the query, or the abs(count)'th row from the end if count is negative.<br/>
-     * Position before first row or after last row if count is out of range; in particular,<br/>
-     * ABSOLUTE 0 positions before the first row.
+     * Retrieve rows from a query using a cursor {@link #name()}.
      * </p>
      *
-     * @param count positive
-     * @throws IllegalArgumentException emit(not throw) then count error.
+     * @param direction must be one of following :
+     *                  <ul>
+     *                      <li>{@link CursorDirection#ABSOLUTE}</li>
+     *                      <li>{@link CursorDirection#RELATIVE}</li>
+     *                      <li>{@link CursorDirection#FORWARD}</li>
+     *                      <li>{@link CursorDirection#BACKWARD}</li>
+     *                  </ul>
+     * @param count     row count   <ul>
+     *                  <li>
+     *                  {@link CursorDirection#ABSOLUTE}  :
+     *                                   <ul>
+     *                                       <li>positive : fetch the count'th row of the query. position after last row if count is out of range</li>
+     *                                       <li>negative : fetch the abs(count)'th row from the end. position before first row if count is out of range</li>
+     *                                       <li>0 positions before the first row,is out of range,throw error</li>
+     *                                   </ul>
+     *                               </li>
+     *                               <li>
+     *                                   {@link CursorDirection#RELATIVE}  :
+     *                                   <ul>
+     *                                       <li>positive : fetch the count'th succeeding row</li>
+     *                                       <li>negative : fetch the abs(count)'th prior row</li>
+     *                                       <li>RELATIVE 0 re-fetches the current row, if any.</li>
+     *                                   </ul>
+     *                               </li>
+     *                               <li>
+     *                                   {@link CursorDirection#FORWARD}  :
+     *                                   <ul>
+     *                                      <li>positive : fetch the next count rows.</li>
+     *                                      <li>0 : re-fetches the current row</li>
+     *                                      <li>negative : error</li>
+     *                                   </ul>
+     *                               </li>
+     *                               <li>
+     *                                   {@link CursorDirection#BACKWARD}  :
+     *                                   <ul>
+     *                                      <li>positive : Fetch the prior count rows (scanning backwards).</li>
+     *                                      <li>0 : re-fetches the current row</li>
+     *                                      <li>negative : error</li>
+     *                                   </ul>
+     *                               </li>
+     *                  </ul>
+     * @throws NullPointerException     emit(not throw) when direction is null
+     * @throws IllegalArgumentException emit(not throw) when
+     *                                  <ul>
+     *                                      <li>direction error</li>
+     *                                      <li>count error</li>
+     *                                  </ul>
      * @throws JdbdException            emit(not throw) when
      *                                  <ul>
-     *                                      <li>driver don't support this method</li>
+     *                                      <li>driver don't support appropriate direction.</li>
      *                                      <li>session close</li>
      *                                      <li>cursor have closed</li>
-     *                                      <li>server response error,see {@link ServerException}</li>
+     *                                      <li>server response error message,see {@link ServerException}</li>
      *                                  </ul>
      */
-    OrderedFlux absolute(long count);
-
-    /*-------------------below relative method-------------------*/
+    OrderedFlux fetch(CursorDirection direction, long count);
 
     /**
      * <p>
@@ -292,302 +254,149 @@ public interface RefCursor extends OptionSpec, Closeable {
      * <pre>
      *         <code><br/>
      *             // cursor is instance of RefCursor
-     *             cursor.relative(count,function,states->{}) ; // ignore ResultStates instance.
+     *             cursor.forwardAllAndClosed(function,states->{}) ; // ignore ResultStates instance.
      *         </code>
      *     </pre>
      * </p>
-     *
-     * @see #relative(long, Function, Consumer)
      */
-    <T> Publisher<T> relative(long count, Function<CurrentRow, T> function);
+    <T> Publisher<T> forwardAllAndClosed(Function<CurrentRow, T> function);
 
     /**
      * <p>
-     * Fetch the count'th succeeding row, or the abs(count)'th prior row if count is negative. <br/>
-     * RELATIVE 0 re-fetches the current row, if any.
+     * This method is equivalent to {@link #fetch(CursorDirection FORWARD_ALL, Function, Consumer)} and {@link #close()}.
      * </p>
-     *
-     * @param count positive
-     * @throws IllegalArgumentException emit(not throw) when count error.
-     * @throws NullPointerException     emit(not throw) when function is null or consumer is null.
-     * @throws JdbdException            emit(not throw) when
-     *                                  <ul>
-     *                                      <li>driver don't support this method</li>
-     *                                      <li>session close</li>
-     *                                      <li>cursor have closed</li>
-     *                                      <li>server response error,see {@link ServerException}</li>
-     *                                  </ul>
-     */
-    <T> Publisher<T> relative(long count, Function<CurrentRow, T> function, Consumer<ResultStates> consumer);
-
-    /**
      * <p>
-     * Fetch the count'th succeeding row, or the abs(count)'th prior row if count is negative. <br/>
-     * RELATIVE 0 re-fetches the current row, if any.
-     * </p>
-     *
-     * @param count positive
-     * @throws IllegalArgumentException emit(not throw) then count error.
-     * @throws JdbdException            emit(not throw) when
-     *                                  <ul>
-     *                                      <li>driver don't support this method</li>
-     *                                      <li>session close</li>
-     *                                      <li>cursor have closed</li>
-     *                                      <li>server response error,see {@link ServerException}</li>
-     *                                  </ul>
-     */
-    OrderedFlux relative(long count);
-
-    /*-------------------below forward method-------------------*/
-
-    /**
-     * <p>
-     * This method is equivalent to following :
      * <pre>
      *         <code><br/>
-     *             // cursor is instance of RefCursor
-     *             cursor.forward(count,function,states->{}) ; // ignore ResultStates instance.
+     *     // cursor is instance of RefCursor
+     *     Flux.from(cursor.fetch(FORWARD_ALL,function,consumer))
+     *            .onErrorResume(error -> closeOnError(cursor,error))
+     *            .concatWith(Mono.defer(()-> Mono.from(this.close())));
+     *
+     *    private &lt;T> Mono&lt;T> closeOnError(RefCursor cursor,Throwable error){
+     *        return Mono.defer(()-> Mono.from(cursor.close()))
+     *                .then(Mono.error(error));
+     *    }
      *         </code>
      *     </pre>
      * </p>
-     *
-     * @see #forward(long, Function, Consumer)
      */
-    <T> Publisher<T> forward(long count, Function<CurrentRow, T> function);
+    <T> Publisher<T> forwardAllAndClosed(Function<CurrentRow, T> function, Consumer<ResultStates> consumer);
 
     /**
      * <p>
-     * Fetch the next count rows. FORWARD 0 re-fetches the current row.
+     * This method is equivalent to {@link #fetch(CursorDirection FORWARD_ALL, Function, Consumer)} and {@link #close()}.
      * </p>
-     *
-     * @param count positive
-     * @throws IllegalArgumentException emit(not throw) when count error.
-     * @throws NullPointerException     emit(not throw) when function is null or consumer is null.
-     * @throws JdbdException            emit(not throw) when
-     *                                  <ul>
-     *                                      <li>driver don't support this method</li>
-     *                                      <li>session close</li>
-     *                                      <li>cursor have closed</li>
-     *                                      <li>server response error,see {@link ServerException}</li>
-     *                                  </ul>
-     */
-    <T> Publisher<T> forward(long count, Function<CurrentRow, T> function, Consumer<ResultStates> consumer);
-
-    /**
      * <p>
-     * Fetch the next count rows. FORWARD 0 re-fetches the current row.
-     * </p>
-     *
-     * @param count positive
-     * @throws IllegalArgumentException emit(not throw) then count error.
-     * @throws JdbdException            emit(not throw) when
-     *                                  <ul>
-     *                                      <li>driver don't support this method</li>
-     *                                      <li>session close</li>
-     *                                      <li>cursor have closed</li>
-     *                                      <li>server response error,see {@link ServerException}</li>
-     *                                  </ul>
-     */
-    OrderedFlux forward(long count);
-
-    /*-------------------below forwardAll method-------------------*/
-
-    /**
-     * <p>
-     * This method is equivalent to following :
      * <pre>
      *         <code><br/>
-     *             // cursor is instance of RefCursor
-     *             cursor.forwardAll(function,states->{}) ; // ignore ResultStates instance.
+     *     // cursor is instance of RefCursor
+     *     Flux.from(cursor.fetch(FORWARD_ALL))
+     *            .onErrorResume(error -> closeOnError(cursor,error))
+     *            .concatWith(Mono.defer(()-> Mono.from(this.close())));
+     *
+     *    private &lt;T> Mono&lt;T> closeOnError(RefCursor cursor,Throwable error){
+     *        return Mono.defer(()-> Mono.from(cursor.close()))
+     *                .then(Mono.error(error));
+     *    }
      *         </code>
      *     </pre>
      * </p>
-     *
-     * @see #forwardAll(Function, Consumer)
      */
-    <T> Publisher<T> forwardAll(Function<CurrentRow, T> function);
+    OrderedFlux forwardAllAndClosed();
 
     /**
      * <p>
-     * Fetch all remaining rows.
+     * MOVE  a cursor without retrieving any data.
      * </p>
      *
-     * @throws NullPointerException emit(not throw) when function is null or consumer is null.
-     * @throws JdbdException        emit(not throw) when
-     *                              <ul>
-     *                                  <li>driver don't support this method</li>
-     *                                  <li>session close</li>
-     *                                  <li>cursor have closed</li>
-     *                                  <li>server response error,see {@link ServerException}</li>
-     *                              </ul>
-     */
-    <T> Publisher<T> forwardAll(Function<CurrentRow, T> function, Consumer<ResultStates> consumer);
-
-    /**
-     * <p>
-     * Fetch all remaining rows.
-     * </p>
-     *
-     * @throws JdbdException emit(not throw) when
-     *                       <ul>
-     *                           <li>driver don't support this method</li>
-     *                           <li>session close</li>
-     *                           <li>cursor have closed</li>
-     *                           <li>server response error,see {@link ServerException}</li>
-     *                       </ul>
-     */
-    OrderedFlux forwardAll();
-
-    /*-------------------below allAndClose method-------------------*/
-
-    /**
-     * <p>
-     * This method is equivalent to following :
-     * <pre>
-     *         <code><br/>
-     *             // cursor is instance of RefCursor
-     *             cursor.allAndClose(function,states->{}) ; // ignore ResultStates instance.
-     *         </code>
-     *     </pre>
-     * </p>
-     *
-     * @see #allAndClose(Function, Consumer)
-     */
-    <T> Publisher<T> allAndClose(Function<CurrentRow, T> function);
-
-    /**
-     * <p>
-     * Fetch all remaining rows and close cursor.
-     * This method is equivalent to {@link #forwardAll(Function, Consumer)} and {@link #close()}.
-     * </p>
-     *
-     * @throws NullPointerException emit(not throw) when function is null or consumer is null.
-     * @throws JdbdException        emit(not throw) when
-     *                              <ul>
-     *                                  <li>driver don't support this method</li>
-     *                                  <li>session close</li>
-     *                                  <li>cursor have closed</li>
-     *                                  <li>server response error,see {@link ServerException}</li>
-     *                              </ul>
-     */
-    <T> Publisher<T> allAndClose(Function<CurrentRow, T> function, Consumer<ResultStates> consumer);
-
-    /**
-     * <p>
-     * Fetch all remaining rows and close cursor.
-     * This method is equivalent to {@link #forwardAll(Function, Consumer)} and {@link #close()}.
-     * </p>
-     *
-     * @throws JdbdException emit(not throw) when
-     *                       <ul>
-     *                           <li>driver don't support this method</li>
-     *                           <li>session close</li>
-     *                           <li>cursor have closed</li>
-     *                           <li>server response error,see {@link ServerException}</li>
-     *                       </ul>
-     */
-    OrderedFlux allAndClose();
-
-    /*-------------------below backward method-------------------*/
-
-
-    /**
-     * <p>
-     * This method is equivalent to following :
-     * <pre>
-     *         <code><br/>
-     *             // cursor is instance of RefCursor
-     *             cursor.backward(count,function,states->{}) ; // ignore ResultStates instance.
-     *         </code>
-     *     </pre>
-     * </p>
-     *
-     * @see #backward(long, Function, Consumer)
-     */
-    <T> Publisher<T> backward(long count, Function<CurrentRow, T> function);
-
-    /**
-     * <p>
-     * Fetch the prior count rows (scanning backwards). BACKWARD 0 re-fetches the current row.
-     * </p>
-     *
-     * @param count positive
-     * @throws IllegalArgumentException emit(not throw) when count error.
-     * @throws NullPointerException     emit(not throw) when function is null or consumer is null.
+     * @param direction must be one of following :
+     *                  <ul>
+     *                      <li>{@link CursorDirection#NEXT}</li>
+     *                      <li>{@link CursorDirection#PRIOR}</li>
+     *                      <li>{@link CursorDirection#FIRST}</li>
+     *                      <li>{@link CursorDirection#LAST}</li>
+     *                      <li>{@link CursorDirection#FORWARD_ALL}</li>
+     *                      <li>{@link CursorDirection#BACKWARD_ALL}</li>
+     *                  </ul>
+     * @return the {@link Publisher} that emit one {@link ResultStates} or {@link Throwable}.
+     * @throws NullPointerException     emit(not throw) when direction is null
+     * @throws IllegalArgumentException emit(not throw) when direction error
      * @throws JdbdException            emit(not throw) when
      *                                  <ul>
-     *                                      <li>driver don't support this method</li>
+     *                                      <li>driver don't support this method.</li>
+     *                                      <li>driver don't support appropriate direction.</li>
      *                                      <li>session close</li>
      *                                      <li>cursor have closed</li>
-     *                                      <li>server response error,see {@link ServerException}</li>
+     *                                      <li>server response error message,see {@link ServerException}</li>
      *                                  </ul>
      */
-    <T> Publisher<T> backward(long count, Function<CurrentRow, T> function, Consumer<ResultStates> consumer);
+    Publisher<ResultStates> move(CursorDirection direction);
 
     /**
      * <p>
-     * Fetch the prior count rows (scanning backwards). BACKWARD 0 re-fetches the current row.
+     * MOVE  a cursor without retrieving any data.
      * </p>
      *
-     * @param count positive
-     * @throws IllegalArgumentException emit(not throw) then count error.
+     * @param direction must be one of following :
+     *                  <ul>
+     *                      <li>{@link CursorDirection#ABSOLUTE}</li>
+     *                      <li>{@link CursorDirection#RELATIVE}</li>
+     *                      <li>{@link CursorDirection#FORWARD}</li>
+     *                      <li>{@link CursorDirection#BACKWARD}</li>
+     *                  </ul>
+     * @param count     row count   <ul>
+     *                  <li>
+     *                  {@link CursorDirection#ABSOLUTE}  :
+     *                                   <ul>
+     *                                       <li>positive : move to the count'th row. position after last row if count is out of range</li>
+     *                                       <li>negative : move to the abs(count)'th row from the end. position before first row if count is out of range</li>
+     *                                       <li>0 positions before the first row,is out of range,throw error</li>
+     *                                   </ul>
+     *                               </li>
+     *                               <li>
+     *                                   {@link CursorDirection#RELATIVE}  :
+     *                                   <ul>
+     *                                       <li>positive : move to the count'th succeeding row</li>
+     *                                       <li>negative : move to the abs(count)'th prior row</li>
+     *                                       <li>RELATIVE 0 re-position the current row, if any.</li>
+     *                                   </ul>
+     *                               </li>
+     *                               <li>
+     *                                   {@link CursorDirection#FORWARD}  :
+     *                                   <ul>
+     *                                      <li>positive : move to the next count rows.</li>
+     *                                      <li>0 : re-position the current row</li>
+     *                                      <li>negative : error</li>
+     *                                   </ul>
+     *                               </li>
+     *                               <li>
+     *                                   {@link CursorDirection#BACKWARD}  :
+     *                                   <ul>
+     *                                      <li>positive : move to the prior count rows (scanning backwards).</li>
+     *                                      <li>0 : re-position the current row</li>
+     *                                      <li>negative : error</li>
+     *                                   </ul>
+     *                               </li>
+     *                  </ul>
+     * @return the {@link Publisher} that emit just one {@link ResultStates} or {@link Throwable}.
+     * @throws NullPointerException     emit(not throw) when direction is null
+     * @throws IllegalArgumentException emit(not throw) when
+     *                                  <ul>
+     *                                      <li>direction error</li>
+     *                                      <li>count error</li>
+     *                                  </ul>
      * @throws JdbdException            emit(not throw) when
      *                                  <ul>
-     *                                      <li>driver don't support this method</li>
+     *                                      <li>driver don't support this method.</li>
+     *                                      <li>driver don't support appropriate direction.</li>
      *                                      <li>session close</li>
      *                                      <li>cursor have closed</li>
-     *                                      <li>server response error,see {@link ServerException}</li>
+     *                                      <li>server response error message,see {@link ServerException}</li>
      *                                  </ul>
      */
-    OrderedFlux backward(long count);
+    Publisher<ResultStates> move(CursorDirection direction, int count);
 
-    /*-------------------below backwardAll method-------------------*/
-
-    /**
-     * <p>
-     * This method is equivalent to following :
-     * <pre>
-     *         <code><br/>
-     *             // cursor is instance of RefCursor
-     *             cursor.backwardAll(function,states->{}) ; // ignore ResultStates instance.
-     *         </code>
-     *     </pre>
-     * </p>
-     *
-     * @see #backwardAll(Function, Consumer)
-     */
-    <T> Publisher<T> backwardAll(Function<CurrentRow, T> function);
-
-    /**
-     * <p>
-     * Fetch all prior rows (scanning backwards).
-     * </p>
-     *
-     * @throws NullPointerException emit(not throw) when function is null or consumer is null.
-     * @throws JdbdException        emit(not throw) when
-     *                              <ul>
-     *                                  <li>driver don't support this method</li>
-     *                                  <li>session close</li>
-     *                                  <li>cursor have closed</li>
-     *                                  <li>server response error,see {@link ServerException}</li>
-     *                              </ul>
-     */
-    <T> Publisher<T> backwardAll(Function<CurrentRow, T> function, Consumer<ResultStates> consumer);
-
-    /**
-     * <p>
-     * Fetch all prior rows (scanning backwards).
-     * </p>
-     *
-     * @throws JdbdException emit(not throw) when
-     *                       <ul>
-     *                           <li>driver don't support this method</li>
-     *                           <li>session close</li>
-     *                           <li>cursor have closed</li>
-     *                           <li>server response error,see {@link ServerException}</li>
-     *                       </ul>
-     */
-    OrderedFlux backwardAll();
 
     /**
      * <p>

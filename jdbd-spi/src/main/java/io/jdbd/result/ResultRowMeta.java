@@ -165,6 +165,23 @@ public interface ResultRowMeta extends ResultItem {
     <T> T getOf(int indexBasedZero, Option<T> option) throws JdbdException;
 
 
+    /**
+     * <p>
+     * This method is equivalent to following :
+     * <pre>
+     *         <code><br/>
+     *             // rowMeta is instance of ResultRowMeta
+     *             final T value;
+     *             value = rowMeta.getOf(indexBasedZero,option) ;
+     *             if(value == null){
+     *                 throw new NullPointerException();
+     *             }
+     *         </code>
+     *     </pre>
+     * </p>
+     *
+     * @see #getOf(int, Option)
+     */
     <T> T getNonNullOf(int indexBasedZero, Option<T> option) throws JdbdException, NullPointerException;
 
 
@@ -276,15 +293,46 @@ public interface ResultRowMeta extends ResultItem {
      * </p>
      *
      * @param columnLabel column alias
-     * @return index base 0,the first column is 0, the second is 1, ..
+     * @return index based 0,the first column is 0, the second is 1, ..
      * @throws JdbdException if a database access error occurs
      */
     int getColumnIndex(String columnLabel) throws JdbdException;
 
+    /**
+     * <p>
+     * This method is equivalent to following :
+     * <pre>
+     *         <code><br/>
+     *             // rowMeta is instance of ResultRowMeta
+     *             final int columnIndex;
+     *             columnIndex = rowMeta.getColumnIndex(columnLabel);
+     *             rowMeta.getOf(columnIndex,option) ;
+     *         </code>
+     *     </pre>
+     * </p>
+     *
+     * @see #getColumnIndex(String)
+     * @see #getOf(int, Option)
+     */
     @Nullable
     <T> T getOf(String columnLabel, Option<T> option) throws JdbdException;
 
-
+    /**
+     * <p>
+     * This method is equivalent to following :
+     * <pre>
+     *         <code><br/>
+     *             // rowMeta is instance of ResultRowMeta
+     *             final int columnIndex;
+     *             columnIndex = rowMeta.getColumnIndex(columnLabel);
+     *             rowMeta.getNonNullOf(columnIndex,option) ;
+     *         </code>
+     *     </pre>
+     * </p>
+     *
+     * @see #getColumnIndex(String)
+     * @see #getNonNullOf(int, Option)
+     */
     <T> T getNonNullOf(String columnLabel, Option<T> option) throws JdbdException, NullPointerException;
 
 
