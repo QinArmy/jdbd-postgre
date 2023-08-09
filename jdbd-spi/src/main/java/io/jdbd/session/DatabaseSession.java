@@ -56,6 +56,11 @@ public interface DatabaseSession extends StaticStatementSpec, SessionMetaSpec, C
     DatabaseMetaData databaseMetaData() throws JdbdException;
 
 
+    /**
+     * <p>
+     * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
+     * </p>
+     */
     Publisher<TransactionStatus> transactionStatus();
 
 
@@ -65,6 +70,9 @@ public interface DatabaseSession extends StaticStatementSpec, SessionMetaSpec, C
      * <p>
      * This method is similarly to {@code java.sql.Connection#prepareStatement(String)}
      * except that is async emit a {@link PreparedStatement}.
+     * </p>
+     * <p>
+     * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
      * </p>
      *
      * @return A Reactive Streams {@link Publisher} with basic rx operators that completes successfully by
@@ -115,14 +123,27 @@ public interface DatabaseSession extends StaticStatementSpec, SessionMetaSpec, C
      */
     MultiStatement multiStatement() throws JdbdException;
 
-
+    /**
+     * <p>
+     * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
+     * </p>
+     */
     Publisher<SavePoint> setSavePoint();
 
 
+    /**
+     * <p>
+     * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
+     * </p>
+     */
     Publisher<SavePoint> setSavePoint(String name);
 
 
     /**
+     * <p>
+     * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
+     * </p>
+     *
      * @return the {@link Publisher} that completes successfully by
      * emitting an element(<strong>this</strong>), or with an error. Like {@code  reactor.core.publisher.Mono}
      */
@@ -130,6 +151,9 @@ public interface DatabaseSession extends StaticStatementSpec, SessionMetaSpec, C
 
 
     /**
+     * <p>
+     *     <strong>NOTE</strong> : driver don't send message to database server before subscribing.
+     * </p>
      * @return the {@link Publisher} that completes successfully by
      * emitting an element(<strong>this</strong>), or with an error. Like {@code  reactor.core.publisher.Mono}
      */

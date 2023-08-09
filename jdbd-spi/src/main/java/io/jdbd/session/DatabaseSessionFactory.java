@@ -23,9 +23,18 @@ public interface DatabaseSessionFactory extends OptionSpec, Closeable {
      */
     String name();
 
-
+    /**
+     * <p>
+     * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
+     * </p>
+     */
     Publisher<LocalDatabaseSession> localSession();
 
+    /**
+     * <p>
+     * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
+     * </p>
+     */
     Publisher<RmDatabaseSession> rmSession();
 
 

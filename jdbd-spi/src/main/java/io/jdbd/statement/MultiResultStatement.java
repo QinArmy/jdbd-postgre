@@ -31,11 +31,25 @@ import java.util.function.Function;
 public interface MultiResultStatement extends Statement {
 
 
+    /**
+     * <p>
+     * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
+     * </p>
+     */
     Publisher<ResultStates> executeBatchUpdate();
 
+    /**
+     * <p>
+     * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
+     * </p>
+     */
     BatchQuery executeBatchQuery();
 
     /**
+     * <p>
+     * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
+     * </p>
+     *
      * @see BindStatement#executeBatchAsMulti()
      * @see PreparedStatement#executeBatchAsMulti()
      * @see MultiStatement#executeBatchAsMulti()
@@ -43,6 +57,9 @@ public interface MultiResultStatement extends Statement {
     MultiResult executeBatchAsMulti();
 
     /**
+     * <p>
+     *     <strong>NOTE</strong> : driver don't send message to database server before subscribing.
+     * </p>
      * @see BindStatement#executeBatchAsMulti()
      * @see PreparedStatement#executeBatchAsMulti()
      * @see MultiStatement#executeBatchAsMulti()

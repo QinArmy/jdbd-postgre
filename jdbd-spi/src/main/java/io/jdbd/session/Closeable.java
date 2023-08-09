@@ -21,6 +21,13 @@ public interface Closeable {
      * <p>
      * Close underlying resource.
      * </p>
+     * <p>
+     * <strong>NOTE</strong> :
+     *     <ul>
+     *         <li>driver don't send message to database server before subscribing.</li>
+     *         <li>If have closed emit nothing</li>
+     *     </ul>
+     * </p>
      *
      * @param <T> representing any java type,because this method usually is used with concatWith(Publisher) method.
      * @return the {@link Publisher} that emit nothing or emit {@link JdbdException}

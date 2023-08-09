@@ -51,12 +51,20 @@ public interface BindSingleStatement extends ParametrizedStatement, MultiResultS
     BindSingleStatement addBatch() throws JdbdException;
 
     /**
+     * <p>
+     * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
+     * </p>
+     *
      * @see BindStatement#executeUpdate()
      * @see PreparedStatement#executeUpdate()
      */
     Publisher<ResultStates> executeUpdate();
 
     /**
+     * <p>
+     * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
+     * </p>
+     *
      * @see BindStatement#executeQuery()
      * @see PreparedStatement#executeQuery()
      */
@@ -67,8 +75,18 @@ public interface BindSingleStatement extends ParametrizedStatement, MultiResultS
     <R> Publisher<R> executeQuery(Function<CurrentRow, R> function);
 
 
+    /**
+     * <p>
+     * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
+     * </p>
+     */
     <R> Publisher<R> executeQuery(Function<CurrentRow, R> function, Consumer<ResultStates> statesConsumer);
 
+    /**
+     * <p>
+     * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
+     * </p>
+     */
     Publisher<RefCursor> declareCursor();
 
     /**
