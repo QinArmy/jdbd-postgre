@@ -107,9 +107,9 @@ public class PgDatabaseSessionFactory implements DatabaseSessionFactory {
     private RmDatabaseSession createXaSession(PgProtocol protocol) {
         final RmDatabaseSession session;
         if (this.forPoolVendor) {
-            session = PgXaDatabaseSession.forPoolVendor(this.sessionAdjutant, protocol);
+            session = PgRmDatabaseSession.forPoolVendor(this.sessionAdjutant, protocol);
         } else {
-            session = PgXaDatabaseSession.create(this.sessionAdjutant, protocol);
+            session = PgRmDatabaseSession.create(this.sessionAdjutant, protocol);
         }
         return session;
     }

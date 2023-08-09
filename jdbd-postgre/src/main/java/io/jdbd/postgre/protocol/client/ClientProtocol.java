@@ -45,7 +45,7 @@ final class ClientProtocol implements PgProtocol {
     }
 
     @Override
-    public long getId() {
+    public long identifier() {
         return this.adjutant.processId();
     }
 

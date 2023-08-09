@@ -7,7 +7,12 @@ import io.jdbd.vendor.util.JdbdExceptions;
 
 public abstract class PgExceptions extends JdbdExceptions {
 
+    private PgExceptions() {
+    }
 
+    public static JdbdException sqlHaveNoText() {
+        return new JdbdException("sql must have text.");
+    }
 
     public static JdbdException createObjectTooLargeError() {
         return new JdbdException("SQL too large to send over the protocol");

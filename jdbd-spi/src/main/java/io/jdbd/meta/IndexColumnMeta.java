@@ -1,21 +1,12 @@
 package io.jdbd.meta;
 
-public final class IndexColumnMeta {
+import io.jdbd.session.OptionSpec;
 
-    private final String columnName;
+public interface IndexColumnMeta extends OptionSpec {
 
-    private final Sorting sorting;
+    String columnName();
 
-    public IndexColumnMeta(String columnName, Sorting sorting) {
-        this.columnName = columnName;
-        this.sorting = sorting;
-    }
+    Sorting sorting();
 
-    public String getColumnName() {
-        return this.columnName;
-    }
 
-    public Sorting getSorting() {
-        return this.sorting;
-    }
 }

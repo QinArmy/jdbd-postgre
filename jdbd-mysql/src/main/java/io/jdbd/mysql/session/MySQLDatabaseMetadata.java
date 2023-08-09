@@ -21,22 +21,22 @@ final class MySQLDatabaseMetadata extends MySQLSessionMetaSpec implements Databa
     }
 
     @Override
-    public Publisher<DatabaseSchemaMetaData> getSchema() {
+    public Publisher<DatabaseSchemaMetaData> schemas() {
         return null;
     }
 
     @Override
-    public Publisher<DatabaseTableMetaData> getTables(DatabaseSchemaMetaData schemaMeta, String pattern) {
+    public Publisher<DatabaseTableMetaData> tableOfSchema(DatabaseSchemaMetaData schemaMeta, String pattern) {
         return null;
     }
 
     @Override
-    public Publisher<TableColumnMetaData> getColumns(DatabaseTableMetaData tableMeta) {
+    public Publisher<TableColumnMetaData> columnOfTable(DatabaseTableMetaData tableMeta) {
         return null;
     }
 
     @Override
-    public Publisher<TableIndexMetaData> getIndexes(DatabaseTableMetaData tableMeta) {
+    public Publisher<TableIndexMetaData> indexOfTable(DatabaseTableMetaData tableMeta) {
         return null;
     }
 }

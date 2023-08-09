@@ -33,12 +33,12 @@ import java.util.function.Consumer;
  *
  * @see PgDatabaseSession#bindStatement(String)
  */
-final class PgBindStatement extends PgStatement implements BindStatement {
+final class PgBindStatement extends PgStatement<BindStatement> implements BindStatement {
 
     /**
      * @see PgDatabaseSession#bindStatement(String)
      */
-    static PgBindStatement create(String sql, PgDatabaseSession session) {
+    static PgBindStatement create(String sql, PgDatabaseSession<?> session, boolean forceServerPrepared) {
         if (!PgStrings.hasText(sql)) {
             throw new IllegalArgumentException("sql must be have text.");
         }

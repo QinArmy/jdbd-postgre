@@ -2,9 +2,9 @@ package io.jdbd.mysql.session;
 
 import io.jdbd.JdbdException;
 import io.jdbd.mysql.protocol.MySQLProtocol;
+import io.jdbd.session.DatabaseMetaSpec;
 import io.jdbd.session.Option;
 import io.jdbd.session.ServerVersion;
-import io.jdbd.session.SessionMetaSpec;
 
 /**
  * <p>
@@ -17,7 +17,7 @@ import io.jdbd.session.SessionMetaSpec;
  *
  * @since 1.0
  */
-abstract class MySQLSessionMetaSpec implements SessionMetaSpec {
+abstract class MySQLSessionMetaSpec implements DatabaseMetaSpec {
 
     final MySQLProtocol protocol;
 
@@ -48,6 +48,10 @@ abstract class MySQLSessionMetaSpec implements SessionMetaSpec {
         return false;
     }
 
+    @Override
+    public final boolean iSupportLocalTransaction() {
+        return true;
+    }
 
     @Override
     public final boolean isSupportStmtVar() throws JdbdException {

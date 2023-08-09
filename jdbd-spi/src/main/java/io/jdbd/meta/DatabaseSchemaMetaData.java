@@ -1,24 +1,21 @@
 package io.jdbd.meta;
 
+
 import io.jdbd.lang.Nullable;
+import io.jdbd.session.OptionSpec;
 
-public final class DatabaseSchemaMetaData {
+public interface DatabaseSchemaMetaData extends OptionSpec {
 
-    private final String catalog;
-
-    private final String schema;
-
-    public DatabaseSchemaMetaData(@Nullable String catalog, String schema) {
-        this.catalog = catalog;
-        this.schema = schema;
-    }
+    /**
+     * @return the {@link DatabaseMetaData} that create this instance .
+     */
+    DatabaseMetaData databaseMeta();
 
     @Nullable
-    public String getCatalog() {
-        return this.catalog;
-    }
+    String catalog();
 
-    public String getSchema() {
-        return this.schema;
-    }
+    @Nullable
+    String schema();
+
+
 }

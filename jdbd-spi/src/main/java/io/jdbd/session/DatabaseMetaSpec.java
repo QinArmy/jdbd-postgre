@@ -1,19 +1,20 @@
 package io.jdbd.session;
 
 import io.jdbd.JdbdException;
+import io.jdbd.meta.DatabaseMetaData;
 
 /**
  * <p>
  * This interface is base interface of following :
  *     <ul>
  *         <li>{@link DatabaseSession}</li>
- *         <li>{@link io.jdbd.meta.DatabaseMetaData}</li>
+ *         <li>{@link DatabaseMetaData}</li>
  *     </ul>
  * </p>
  *
  * @since 1.0
  */
-public interface SessionMetaSpec extends OptionSpec {
+public interface DatabaseMetaSpec extends OptionSpec {
 
     /**
      * @throws JdbdException throw when session have closed.
@@ -51,6 +52,8 @@ public interface SessionMetaSpec extends OptionSpec {
      * @throws JdbdException throw if session have closed
      */
     boolean isSupportRefCursor() throws JdbdException;
+
+    boolean iSupportLocalTransaction();
 
 
 }

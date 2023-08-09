@@ -1,5 +1,7 @@
 package io.jdbd.session;
 
+import io.jdbd.Driver;
+
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
@@ -69,6 +71,8 @@ public final class Option<T> {
      */
     public static final Option<Integer> WARNING_COUNT = Option.from("WARNING COUNT", Integer.class);
 
+    public static final Option<String> USER = Option.from(Driver.USER, String.class);
+
 
     public static final Option<ZoneOffset> CLIENT_ZONE = Option.from("CLIENT ZONE", ZoneOffset.class);
 
@@ -87,6 +91,7 @@ public final class Option<T> {
     public static final Option<Boolean> BINARY_HEX_ESCAPES = Option.from("BINARY HEX ESCAPES", Boolean.class);
 
     public static final Option<Boolean> AUTO_RECONNECT = Option.from("AUTO RECONNECT", Boolean.class);
+
 
     private final String name;
 

@@ -6,5 +6,11 @@ public enum KeyMode {
     MULTIPLE_KEY,
     UNIQUE_KEY,
 
+    INDEX_KEY,
+
+    FULL_TEXT_KEY,
+
+    SPATIAL_KEY,
+
     UNKNOWN
 }

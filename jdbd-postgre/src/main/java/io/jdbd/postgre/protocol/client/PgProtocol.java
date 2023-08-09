@@ -4,7 +4,7 @@ import io.jdbd.vendor.protocol.DatabaseProtocol;
 
 public interface PgProtocol extends DatabaseProtocol {
 
-    long getId();
+    long identifier();
 
 
 

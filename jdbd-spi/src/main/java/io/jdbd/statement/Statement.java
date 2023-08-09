@@ -158,15 +158,27 @@ public interface Statement extends OptionSpec {
      *     </ul>
      * </p>
      * <p>
-     *     Driver will fetch util you cancel subscribing.
+     *     Driver will continue fetch util you cancel subscribing.
      * </p>
      *
-     * @param fetchSize fetch size ,positive support
+     * @param fetchSize <ul>
+     *                                   <li>0 : fetch all, this is default value</li>
+     *                                   <li>positive : fetch size</li>
+     *                                   <li>negative : error</li>
+     *                  </ul>
+     * @throws IllegalArgumentException throw when fetchSize is negative.
      */
     Statement setFetchSize(int fetchSize) throws JdbdException;
 
+    /**
+     * @throws JdbdException throw when driver don't this method.
+     */
     Statement setImportPublisher(Function<ChunkOption, Publisher<byte[]>> function) throws JdbdException;
 
+
+    /**
+     * @throws JdbdException throw when driver don't this method.
+     */
     Statement setExportSubscriber(Function<ChunkOption, Subscriber<byte[]>> function) throws JdbdException;
 
     /**

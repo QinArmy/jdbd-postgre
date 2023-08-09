@@ -12,11 +12,11 @@ import reactor.core.publisher.Mono;
  * This class is implementation of {@link RmDatabaseSession} with Postgre client protocol.
  * </p>
  */
-class PgXaDatabaseSession extends PgDatabaseSession implements RmDatabaseSession {
+class PgRmDatabaseSession extends PgDatabaseSession implements RmDatabaseSession {
 
 
-    static PgXaDatabaseSession create(SessionAdjutant adjutant, PgProtocol protocol) {
-        return new PgXaDatabaseSession(adjutant, protocol);
+    static PgRmDatabaseSession create(SessionAdjutant adjutant, PgProtocol protocol) {
+        return new PgRmDatabaseSession(adjutant, protocol);
     }
 
     static PgPoolXaDatabaseSession forPoolVendor(SessionAdjutant adjutant, PgProtocol protocol) {
@@ -24,7 +24,7 @@ class PgXaDatabaseSession extends PgDatabaseSession implements RmDatabaseSession
     }
 
 
-    private PgXaDatabaseSession(SessionAdjutant adjutant, PgProtocol protocol) {
+    private PgRmDatabaseSession(SessionAdjutant adjutant, PgProtocol protocol) {
         super(adjutant, protocol);
     }
 
@@ -65,7 +65,7 @@ class PgXaDatabaseSession extends PgDatabaseSession implements RmDatabaseSession
     }
 
 
-    private static final class PgPoolXaDatabaseSession extends PgXaDatabaseSession implements PoolRmDatabaseSession {
+    private static final class PgPoolXaDatabaseSession extends PgRmDatabaseSession implements PoolRmDatabaseSession {
 
         private PgPoolXaDatabaseSession(SessionAdjutant adjutant, PgProtocol protocol) {
             super(adjutant, protocol);

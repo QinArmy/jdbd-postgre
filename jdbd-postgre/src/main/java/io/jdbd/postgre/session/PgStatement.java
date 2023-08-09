@@ -39,7 +39,7 @@ abstract class PgStatement<S extends Statement> implements Statement, StmtOption
 
     private int timeout = 0;
 
-    private int fetchSize = 0;
+    int fetchSize = 0;
 
     private Function<ChunkOption, Publisher<byte[]>> importPublisher;
 
@@ -55,15 +55,6 @@ abstract class PgStatement<S extends Statement> implements Statement, StmtOption
         throw PgExceptions.dontSupportStmtVar(PgDriver.POSTGRE_SQL);
     }
 
-    @Override
-    public final DatabaseSession getSession() {
-        return this.session;
-    }
-
-    @Override
-    public final <T extends DatabaseSession> T getSession(Class<T> sessionClass) {
-        return sessionClass.cast(this.session);
-    }
 
     @Override
     public final boolean isSupportStmtVar() {
@@ -127,6 +118,15 @@ abstract class PgStatement<S extends Statement> implements Statement, StmtOption
         throw PgExceptions.dontSupportSetOption(option);
     }
 
+    @Override
+    public final DatabaseSession getSession() {
+        return this.session;
+    }
+
+    @Override
+    public final <T extends DatabaseSession> T getSession(Class<T> sessionClass) {
+        return sessionClass.cast(this.session);
+    }
 
 
     /*################################## blow StatementOption method ##################################*/
@@ -153,6 +153,14 @@ abstract class PgStatement<S extends Statement> implements Statement, StmtOption
     @Override
     public final Function<ChunkOption, Subscriber<byte[]>> getExportFunction() {
         return this.exportPublisher;
+    }
+
+    /**
+     * just for {@link PgMultiStatement}
+     */
+    final void resetChunkOptions() {
+        this.importPublisher = null;
+        this.exportPublisher = null;
     }
 
 

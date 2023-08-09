@@ -7,7 +7,7 @@ import io.jdbd.lang.Nullable;
  * This interface is base interface of following :
  *     <ul>
  *         <li>{@link DatabaseSessionFactory}</li>
- *         <li>{@link SessionMetaSpec}</li>
+ *         <li>{@link DatabaseMetaSpec}</li>
  *         <li>{@link io.jdbd.statement.Statement}</li>
  *         <li>{@link io.jdbd.result.ResultStates}</li>
  *         <li>{@link io.jdbd.VersionSpec}</li>

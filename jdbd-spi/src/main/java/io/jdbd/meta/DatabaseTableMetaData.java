@@ -2,31 +2,32 @@ package io.jdbd.meta;
 
 
 import io.jdbd.lang.Nullable;
+import io.jdbd.session.Option;
+import io.jdbd.session.OptionSpec;
 
-public final class DatabaseTableMetaData {
+public interface DatabaseTableMetaData extends OptionSpec {
 
-    private final DatabaseSchemaMetaData schemaMeta;
+    DatabaseSchemaMetaData schemaMeta();
 
-    private final String tableName;
+    String tableName();
 
-    private final String comment;
-
-    public DatabaseTableMetaData(DatabaseSchemaMetaData schemaMeta, String tableName, @Nullable String comment) {
-        this.schemaMeta = schemaMeta;
-        this.tableName = tableName;
-        this.comment = comment;
-    }
-
-    public DatabaseSchemaMetaData getSchemaMeta() {
-        return this.schemaMeta;
-    }
-
-    public String getTableName() {
-        return this.tableName;
-    }
-
+    /**
+     * @return the comment of table
+     */
     @Nullable
-    public String getComment() {
-        return this.comment;
-    }
+    String comment();
+
+
+    /**
+     * <p>
+     * This implementation of this method must support following :
+     *     <ul>
+     *         <li>{@link DatabaseMetaData#TABLE_TYPE}</li>
+     *     </ul>
+     * </p>
+     */
+    @Override
+    <T> T valueOf(Option<T> option);
+
+
 }

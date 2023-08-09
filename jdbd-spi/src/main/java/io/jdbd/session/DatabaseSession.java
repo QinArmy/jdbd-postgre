@@ -34,7 +34,7 @@ import java.util.Map;
  *
  * @since 1.0
  */
-public interface DatabaseSession extends StaticStatementSpec, SessionMetaSpec, Closeable {
+public interface DatabaseSession extends StaticStatementSpec, DatabaseMetaSpec, Closeable {
 
     /**
      * @see DatabaseSessionFactory#name()

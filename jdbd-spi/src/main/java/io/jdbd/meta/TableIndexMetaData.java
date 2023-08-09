@@ -1,46 +1,26 @@
 package io.jdbd.meta;
 
-import java.util.Collections;
+import io.jdbd.lang.Nullable;
+import io.jdbd.session.OptionSpec;
+
 import java.util.List;
 
-public final class TableIndexMetaData {
+public interface TableIndexMetaData extends OptionSpec {
 
-    private final DatabaseTableMetaData tableMeta;
+    DatabaseTableMetaData tableMeta();
 
-    private final String indexName;
+    String indexName();
 
-    private final String indexType;
+    String indexType();
 
-    private final boolean unique;
+    KeyMode keyMode();
 
-    private final List<IndexColumnMeta> indexColumnList;
+    BooleanMode visible();
 
-    public TableIndexMetaData(DatabaseTableMetaData tableMeta, String indexName, String indexType
-            , boolean unique, List<IndexColumnMeta> indexColumnList) {
-        this.tableMeta = tableMeta;
-        this.indexName = indexName;
-        this.indexType = indexType;
-        this.unique = unique;
-        this.indexColumnList = Collections.unmodifiableList(indexColumnList);
-    }
+    List<IndexColumnMeta> indexColumnList();
 
-    public DatabaseTableMetaData getTableMeta() {
-        return this.tableMeta;
-    }
+    @Nullable
+    String comment();
 
-    public String getIndexName() {
-        return this.indexName;
-    }
 
-    public String getIndexType() {
-        return this.indexType;
-    }
-
-    public boolean isUnique() {
-        return this.unique;
-    }
-
-    public List<IndexColumnMeta> getIndexColumnList() {
-        return this.indexColumnList;
-    }
 }
