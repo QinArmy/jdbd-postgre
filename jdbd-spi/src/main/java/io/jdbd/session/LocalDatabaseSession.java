@@ -19,8 +19,6 @@ public interface LocalDatabaseSession extends DatabaseSession {
 
     Publisher<LocalDatabaseSession> startTransaction(TransactionOption option, HandleMode mode);
 
-    Publisher<LocalDatabaseSession> startTransaction(TransactionOption option, Map<Option<?>, ?> optionMap, HandleMode mode);
-
     boolean inTransaction() throws JdbdException;
 
 

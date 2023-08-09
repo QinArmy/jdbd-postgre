@@ -161,10 +161,10 @@ public interface DatabaseProtocol extends OptionSpec, Closeable {
     ServerVersion serverVersion();
 
 
- Mono<ResultStates> startTransaction(TransactionOption option, Map<Option<?>, ?> optionMap, HandleMode mode);
+ Mono<ResultStates> startTransaction(TransactionOption option, HandleMode mode);
 
 
- Mono<Void> setTransactionOption(TransactionOption option, Map<Option<?>, ?> optionMap);
+   Mono<Void> setTransactionOption(TransactionOption option);
 
 
     boolean inTransaction();

@@ -10,7 +10,6 @@ import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.result.*;
 import io.jdbd.session.DatabaseSession;
 import io.jdbd.session.SavePoint;
-import io.jdbd.session.TransactionStatus;
 import io.jdbd.statement.BindStatement;
 import io.jdbd.statement.MultiStatement;
 import io.jdbd.statement.PreparedStatement;
@@ -144,11 +143,6 @@ abstract class PgDatabaseSession<S extends DatabaseSession> extends PgDatabaseMe
             return MultiResults.fluxError(PgExceptions.sqlHaveNoText());
         }
         return this.protocol.executeAsFlux(Stmts.multiStmt(multiStmt));
-    }
-
-    @Override
-    public final Publisher<TransactionStatus> transactionStatus() {
-        return this.protocol.transactionStatus();
     }
 
     @Override

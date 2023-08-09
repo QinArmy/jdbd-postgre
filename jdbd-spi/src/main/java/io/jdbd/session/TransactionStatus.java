@@ -7,7 +7,7 @@ public interface TransactionStatus extends TransactionOption {
 
     @NonNull
     @Override
-    Isolation getIsolation();
+    Isolation isolation();
 
     boolean inTransaction();
 

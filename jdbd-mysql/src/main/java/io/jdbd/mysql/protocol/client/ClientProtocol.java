@@ -255,7 +255,7 @@ final class ClientProtocol implements MySQLProtocol {
             return Mono.error(error);
         }
 
-        final Isolation isolation = option.getIsolation();
+        final Isolation isolation = option.isolation();
 
         if (isolation != null) {
             builder.append("SET TRANSACTION ISOLATION LEVEL ");
@@ -293,7 +293,7 @@ final class ClientProtocol implements MySQLProtocol {
             return Mono.error(error);
         }
 
-        final Isolation isolation = option.getIsolation();
+        final Isolation isolation = option.isolation();
 
         if (isolation != null) {
             builder.append("SET TRANSACTION ISOLATION LEVEL ");

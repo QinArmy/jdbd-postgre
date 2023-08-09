@@ -58,7 +58,7 @@ public enum JdbdTransactionStatus implements TransactionStatus {
 
     @NonNull
     @Override
-    public final Isolation getIsolation() {
+    public final Isolation isolation() {
         return this.isolation;
     }
 

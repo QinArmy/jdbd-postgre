@@ -55,6 +55,11 @@ public final class Option<T> {
 
     public static final Option<Boolean> AUTO_COMMIT = Option.from("AUTO COMMIT", Boolean.class);
 
+
+    public static final Option<Xid> XID = Option.from("XID", Xid.class);
+
+    public static final Option<XaStates> XA_STATES = Option.from("XA STATES", XaStates.class);
+
     /**
      * @see io.jdbd.result.ServerException#valueOf(Option)
      */

@@ -75,7 +75,7 @@ final class JdbdTransactionOption implements TransactionStatus {
 
     @NonNull
     @Override
-    public Isolation getIsolation() {
+    public Isolation isolation() {
         return this.isolation;
     }
 
@@ -130,7 +130,7 @@ final class JdbdTransactionOption implements TransactionStatus {
 
 
         @Override
-        public Isolation getIsolation() {
+        public Isolation isolation() {
             // always null
             return null;
         }
@@ -209,7 +209,7 @@ final class JdbdTransactionOption implements TransactionStatus {
 
 
         @Override
-        public Isolation getIsolation() {
+        public Isolation isolation() {
             return (Isolation) this.optionMap.get(Option.ISOLATION);
         }
 

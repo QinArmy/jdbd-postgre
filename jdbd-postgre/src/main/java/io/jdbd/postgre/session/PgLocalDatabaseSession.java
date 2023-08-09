@@ -3,10 +3,7 @@ package io.jdbd.postgre.session;
 import io.jdbd.JdbdException;
 import io.jdbd.pool.PoolLocalDatabaseSession;
 import io.jdbd.postgre.protocol.client.PgProtocol;
-import io.jdbd.session.HandleMode;
-import io.jdbd.session.LocalDatabaseSession;
-import io.jdbd.session.Option;
-import io.jdbd.session.TransactionOption;
+import io.jdbd.session.*;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
 
@@ -39,28 +36,26 @@ class PgLocalDatabaseSession extends PgDatabaseSession<LocalDatabaseSession> imp
 
     @Override
     public final Publisher<LocalDatabaseSession> startTransaction(TransactionOption option) {
-        return this.protocol.startTransaction(option, Collections.emptyMap(), HandleMode.ERROR_IF_EXISTS)
+        return this.protocol.startTransaction(option, HandleMode.ERROR_IF_EXISTS)
                 .thenReturn(this);
     }
 
     @Override
     public final Publisher<LocalDatabaseSession> startTransaction(TransactionOption option, HandleMode mode) {
-        return this.protocol.startTransaction(option, Collections.emptyMap(), mode)
+        return this.protocol.startTransaction(option, mode)
                 .thenReturn(this);
     }
 
-    @Override
-    public final Publisher<LocalDatabaseSession> startTransaction(TransactionOption option,
-                                                                  Map<Option<?>, ?> optionMap, HandleMode mode) {
-        return this.protocol.startTransaction(option, optionMap, mode)
-                .thenReturn(this);
-    }
 
     @Override
     public final boolean inTransaction() throws JdbdException {
         return this.protocol.inTransaction();
     }
 
+    @Override
+    public final Publisher<TransactionStatus> transactionStatus() {
+        return this.protocol.transactionStatus();
+    }
 
     @Override
     public final Publisher<LocalDatabaseSession> commit() {

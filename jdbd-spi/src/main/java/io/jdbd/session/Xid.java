@@ -2,6 +2,9 @@ package io.jdbd.session;
 
 import io.jdbd.lang.Nullable;
 
+/**
+ * @see RmDatabaseSession
+ */
 public interface Xid extends OptionSpec {
 
     /**
@@ -17,5 +20,14 @@ public interface Xid extends OptionSpec {
     String getBqual();
 
     int getFormatId();
+
+    @Override
+    int hashCode();
+
+    @Override
+    boolean equals(Object obj);
+
+    @Override
+    String toString();
 
 }

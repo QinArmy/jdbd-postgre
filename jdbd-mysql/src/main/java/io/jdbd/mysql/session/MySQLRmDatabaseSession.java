@@ -63,13 +63,13 @@ class MySQLRmDatabaseSession extends MySQLDatabaseSession<RmDatabaseSession> imp
         try {
             appendXid(builder, xid);
             switch (flags) {
-                case TMJOIN:
+                case TM_JOIN:
                     builder.append(" JOIN");
                     break;
-                case TMRESUME:
+                case TM_RESUME:
                     builder.append(" RESUME");
                     break;
-                case TMNOFLAGS:
+                case TM_NO_FLAGS:
                     // no-op
                     break;
                 default:
@@ -91,11 +91,11 @@ class MySQLRmDatabaseSession extends MySQLDatabaseSession<RmDatabaseSession> imp
         try {
             appendXid(builder, xid);
             switch (flags) {
-                case TMSUCCESS:
-                case TMFAIL:
+                case TM_SUCCESS:
+                case TM_FAIL:
                     //no-op
                     break;
-                case TMSUSPEND:
+                case TM_SUSPEND:
                     builder.append(" SUSPEND");
                     break;
                 default:
@@ -163,9 +163,9 @@ class MySQLRmDatabaseSession extends MySQLDatabaseSession<RmDatabaseSession> imp
     @Override
     public final Flux<Xid> recover(final int flags) {
         final Flux<Xid> flux;
-        if (flags != TMNOFLAGS && ((flags & TMSTARTRSCAN) | (flags & TMENDRSCAN)) == 0) {
+        if (flags != TM_NO_FLAGS && ((flags & TM_START_RSCAN) | (flags & TM_END_RSCAN)) == 0) {
             flux = Flux.error(MySQLExceptions.xaInvalidFlagForRecover(flags));
-        } else if ((flags & TMSTARTRSCAN) == 0) {
+        } else if ((flags & TM_START_RSCAN) == 0) {
             flux = Flux.empty();
         } else {
             flux = this.protocol.query(Stmts.stmt("XA RECOVER"), CurrentRow::asResultRow)

@@ -5,9 +5,18 @@ import io.jdbd.lang.Nullable;
 public interface TransactionOption extends OptionSpec {
 
     @Nullable
-    Isolation getIsolation();
+    Isolation isolation();
 
     boolean isReadOnly();
+
+    @Override
+    int hashCode();
+
+    @Override
+    boolean equals(Object obj);
+
+    @Override
+    String toString();
 
 
     static TransactionOption option(@Nullable Isolation isolation, boolean readOnly) {
