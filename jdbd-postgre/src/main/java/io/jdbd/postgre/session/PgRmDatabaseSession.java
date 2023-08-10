@@ -200,15 +200,30 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
         } else {
             triple = this.preparedXaMp.get(xid);
         }
+
         final Mono<RmDatabaseSession> mono;
-        if (onePhase) {
-            mono = doCommit(triple, false, xid, true, optionMap);
-        } else if (triple == null) {
-            // here ,possibly session reconnect/reset
-            mono = validaXidFromDatabase(xid)
-                    .then(Mono.defer(() -> doCommit(new XaStatesTriple(xid, XaStates.PREPARED, 0), true, xid, false, optionMap)));
+        if (triple == null) {
+            mono = Mono.error(PgExceptions.xaUnknownTransaction(xid));
+        } else if (!Objects.equals(xid, triple.xid)) {
+            mono = Mono.error(PgExceptions.xaNonCurrentTransaction(xid));
+        } else if ((triple.flags & TM_FAIL) != 0) {
+            mono = Mono.error(PgExceptions.xaTransactionRollbackOnly(triple.xid));
+        } else if (onePhase) {
+            if (triple.xaStates == XaStates.IDLE) {
+                mono = this.protocol.commit(optionMap)
+                        .flatMap(states -> handleOnePhaseCommitResult(states, triple));
+            } else {
+                mono = Mono.error(PgExceptions.xaStatesDontSupportCommitCommand(triple.xid, triple.xaStates));
+            }
+        } else if (triple.xaStates == XaStates.PREPARED) {
+            final StringBuilder builder = new StringBuilder(64);
+            builder.append("COMMIT PREPARED ");
+            xidToString(builder, triple.xid); // must use triple.xid
+
+            mono = this.protocol.update(Stmts.stmt(builder.toString()))
+                    .flatMap(states -> handleCommitOrRollbackResult(triple));
         } else {
-            mono = doCommit(triple, false, xid, false, optionMap);
+            mono = Mono.error(PgExceptions.xaStatesDontSupportCommitCommand(triple.xid, triple.xaStates));
         }
         return mono;
     }
@@ -230,11 +245,15 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
         if (xid == null) {
             mono = Mono.error(PgExceptions.xidIsNull());
         } else if ((triple = this.preparedXaMp.get(xid)) == null) {
-            // here ,possibly session reconnect/reset
-            mono = validaXidFromDatabase(xid)
-                    .then(Mono.defer(() -> doRollback(new XaStatesTriple(xid, XaStates.PREPARED, 0), true, xid, optionMap)));
+            String m = String.format("xa %s isn't prepared transaction.", xid);
+            mono = Mono.error(new XaException(m, XaException.XAER_PROTO));
         } else {
-            mono = doRollback(triple, false, xid, optionMap);
+            final StringBuilder builder = new StringBuilder(80);
+            builder.append("ROLLBACK PREPARED ");
+            xidToString(builder, triple.xid); // must use triple.xid
+
+            mono = this.protocol.update(Stmts.stmt(builder.toString()))
+                    .flatMap(states -> handleCommitOrRollbackResult(triple));
         }
         return mono;
     }
@@ -273,75 +292,12 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
 
 
     /**
-     * @param possiblyReset true : session is reset/reconnect.
      * @see #commit(Xid, boolean, Map)
-     * @see <a href="https://www.postgresql.org/docs/current/sql-rollback-prepared.html">ROLLBACK PREPARED</a>
-     */
-    private Mono<RmDatabaseSession> doCommit(final @Nullable XaStatesTriple triple, final boolean possiblyReset,
-                                             final Xid xid, final boolean onePhase, final Map<Option<?>, ?> optionMap) {
-        final Mono<RmDatabaseSession> mono;
-        if (triple == null) {
-            mono = Mono.error(PgExceptions.xaUnknownTransaction(xid));
-        } else if (!Objects.equals(xid, triple.xid)) {
-            mono = Mono.error(PgExceptions.xaNonCurrentTransaction(xid));
-        } else if ((triple.flags & TM_FAIL) != 0) {
-            mono = Mono.error(PgExceptions.xaTransactionRollbackOnly(triple.xid));
-        } else if (onePhase) {
-            if (triple.xaStates == XaStates.IDLE) {
-                mono = this.protocol.commit(optionMap)
-                        .flatMap(states -> handleOnePhaseCommitResult(states, triple));
-            } else {
-                mono = Mono.error(PgExceptions.xaStatesDontSupportCommitCommand(triple.xid, triple.xaStates));
-            }
-        } else if (triple.xaStates == XaStates.PREPARED) {
-            final StringBuilder builder = new StringBuilder(64);
-            builder.append("COMMIT PREPARED ");
-            xidToString(builder, triple.xid); // must use triple.xid
-
-            mono = this.protocol.update(Stmts.stmt(builder.toString()))
-                    .flatMap(states -> handleCommitOrRollbackResult(possiblyReset, triple));
-        } else {
-            mono = Mono.error(PgExceptions.xaStatesDontSupportCommitCommand(triple.xid, triple.xaStates));
-        }
-        return mono;
-    }
-
-    /**
-     * @param possiblyReset true : session is reset/reconnect.
      * @see #rollback(Xid, Map)
-     * @see <a href="https://www.postgresql.org/docs/current/sql-rollback-prepared.html">ROLLBACK PREPARED</a>
      */
-    private Mono<RmDatabaseSession> doRollback(final XaStatesTriple triple, final boolean possiblyReset,
-                                               final Xid xid, Map<Option<?>, ?> optionMap) {
+    private Mono<RmDatabaseSession> handleCommitOrRollbackResult(final XaStatesTriple old) {
         final Mono<RmDatabaseSession> mono;
-        if (!Objects.equals(xid, triple.xid)) {
-            String m = String.format("xa %s isn't prepared transaction.", xid);
-            mono = Mono.error(new XaException(m, XaException.XAER_PROTO));
-        } else if (triple.xaStates != XaStates.PREPARED) {
-            mono = Mono.error(PgExceptions.xaStatusDontSupportRollbackCommand(triple.xid, triple.xaStates));
-        } else {
-            final StringBuilder builder = new StringBuilder(80);
-            builder.append("ROLLBACK PREPARED ");
-            xidToString(builder, triple.xid); // must use triple.xid
-
-            mono = this.protocol.update(Stmts.stmt(builder.toString()))
-                    .flatMap(states -> handleCommitOrRollbackResult(possiblyReset, triple));
-        }
-        return mono;
-    }
-
-    /**
-     * @param possiblyReset true : session is reset/reconnect.
-     * @see #doCommit(XaStatesTriple, boolean, Xid, boolean, Map)
-     * @see #doRollback(XaStatesTriple, boolean, Xid, Map)
-     */
-    private Mono<RmDatabaseSession> handleCommitOrRollbackResult(final boolean possiblyReset,
-                                                                 final XaStatesTriple old) {
-        final Mono<RmDatabaseSession> mono;
-        if (possiblyReset) {
-            this.preparedXaMp.remove(old.xid);
-            mono = Mono.just(this);
-        } else if (this.preparedXaMp.remove(old.xid, old)) {
+        if (this.preparedXaMp.remove(old.xid, old)) {
             mono = Mono.just(this);
         } else {
             mono = Mono.error(sessionBusyWithThread(old.xid));
