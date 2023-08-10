@@ -4,21 +4,25 @@ import io.jdbd.lang.NonNull;
 import io.jdbd.lang.Nullable;
 import io.jdbd.pool.PoolRmDatabaseSession;
 import io.jdbd.postgre.protocol.client.PgProtocol;
-import io.jdbd.postgre.util.PgExceptions;
-import io.jdbd.postgre.util.PgStrings;
+import io.jdbd.postgre.util.*;
 import io.jdbd.result.CurrentRow;
 import io.jdbd.result.ResultStates;
+import io.jdbd.result.Warning;
 import io.jdbd.session.*;
 import io.jdbd.vendor.stmt.Stmts;
+import io.jdbd.vendor.util.JdbdBuffers;
 import io.jdbd.vendor.util.JdbdExceptions;
+import io.jdbd.vendor.util.XaUtils;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 /**
@@ -39,12 +43,12 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
         return new PgPoolRmDatabaseSession(factory, protocol);
     }
 
-    private static final AtomicReferenceFieldUpdater<PgRmDatabaseSession, XaStatesTriple> XA_TRIPLE = AtomicReferenceFieldUpdater
-            .newUpdater(PgRmDatabaseSession.class, XaStatesTriple.class, "xaTriple");
+    private static final AtomicReferenceFieldUpdater<PgRmDatabaseSession, XaStatesTriple> CURRENT_TRIPLE = AtomicReferenceFieldUpdater
+            .newUpdater(PgRmDatabaseSession.class, XaStatesTriple.class, "currentTriple");
 
+    private final ConcurrentMap<Xid, XaStatesTriple> preparedXaMp = PgCollections.concurrentHashMap();
 
-    private static final XaStatesTriple DEFAULT_XA_TRIPLE = new XaStatesTriple(null, XaStates.NONE, 0);
-    private volatile XaStatesTriple xaTriple = DEFAULT_XA_TRIPLE;
+    private volatile XaStatesTriple currentTriple = null;
 
 
     private PgRmDatabaseSession(PgDatabaseSessionFactory factory, PgProtocol protocol) {
@@ -54,9 +58,9 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
 
     @Override
     public final Publisher<TransactionStatus> transactionStatus() {
-        final XaStatesTriple currentXaPair = this.xaTriple;
+        final XaStatesTriple currentXaPair = this.currentTriple;
         return this.protocol.transactionStatus()
-                .map(status -> this.mapTransactionStatus(status, currentXaPair));
+                .map(status -> mapTransactionStatus(status, currentXaPair));
     }
 
     @Override
@@ -86,32 +90,28 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
     }
 
     @Override
-    public final Publisher<RmDatabaseSession> start(final @Nullable Xid xid, final int flags,
+    public final Publisher<RmDatabaseSession> start(final Xid xid, final int flags,
                                                     final TransactionOption option) {
-        final XaStatesTriple triple = this.xaTriple;
+        final XaStatesTriple triple = this.currentTriple;
 
         final XaException error;
-        if (triple != DEFAULT_XA_TRIPLE || this.protocol.inTransaction()) {
-            error = new XaException("session is busy with another transaction", XaException.XAER_PROTO);
-        } else if (xid == null) {
-            error = PgExceptions.xidIsNull();
+        final Mono<RmDatabaseSession> mono;
+        if (triple != null || this.protocol.inTransaction()) {
+            mono = Mono.error(new XaException("session is busy with another transaction", XaException.XAER_PROTO));
+        } else if ((error = XaUtils.checkXid(xid)) != null) {
+            mono = Mono.error(error);
         } else if ((flags & TM_RESUME) != 0) {
-            error = JdbdExceptions.xaDontSupportSuspendResume();
+            mono = Mono.error(JdbdExceptions.xaDontSupportSuspendResume());
         } else if ((flags & TM_JOIN) != 0) {
-            error = new XaException("join not implemented", XaException.XAER_RMERR);
+            mono = Mono.error(new XaException("join not implemented", XaException.XAER_RMERR));
         } else if (flags != TM_NO_FLAGS) {
-            error = PgExceptions.xaInvalidFlagForStart(flags);
-        } else if (XA_TRIPLE.compareAndSet(this, DEFAULT_XA_TRIPLE, new XaStatesTriple(xid, XaStates.STARTED, TM_NO_FLAGS))) {
-            error = null;
+            mono = Mono.error(PgExceptions.xaInvalidFlagForStart(flags));
         } else {
-            error = new XaException("session is busy with another transaction", XaException.XAER_PROTO);
+            mono = this.protocol.startTransaction(option, HandleMode.ERROR_IF_EXISTS)
+                    .onErrorMap(this::handleStartError)
+                    .flatMap(states -> handleStartResult(states, xid));
         }
-        if (error != null) {
-            return Mono.error(error);
-        }
-        return this.protocol.startTransaction(option, HandleMode.ERROR_IF_EXISTS)
-                .onErrorMap(this::onStartLocalTransactionError)
-                .thenReturn(this);
+        return mono;
     }
 
 
@@ -122,26 +122,25 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
 
     @Override
     public final Publisher<RmDatabaseSession> end(final Xid xid, final int flags, final Map<Option<?>, ?> optionMap) {
-        final XaStatesTriple triple = this.xaTriple;
+        final XaStatesTriple triple = this.currentTriple;
 
-        final XaException error;
-        if (triple == DEFAULT_XA_TRIPLE || !Objects.equals(xid, triple.xid)) {
-            error = PgExceptions.xaTransactionNotStart(triple.xid);
-        } else if (triple.xaStates != XaStates.STARTED) {
-            error = PgExceptions.xaTransactionDontSupportEndCommand(triple.xid, triple.xaStates);
+        final Mono<RmDatabaseSession> mono;
+        if (triple == null || !Objects.equals(xid, triple.xid)) {
+            mono = Mono.error(PgExceptions.xaNonCurrentTransaction(xid)); // here use xid
+        } else if (triple.xaStates != XaStates.ACTIVE) {
+            mono = Mono.error(PgExceptions.xaTransactionDontSupportEndCommand(triple.xid, triple.xaStates));
         } else if ((flags & TM_RESUME) != 0) {
-            error = JdbdExceptions.xaDontSupportSuspendResume();
+            mono = Mono.error(PgExceptions.xaDontSupportSuspendResume());
         } else if (((~(TM_SUCCESS | TM_FAIL)) & flags) != 0) {
-            error = PgExceptions.xaInvalidFlagForEnd(flags);
-        } else if (XA_TRIPLE.compareAndSet(this, triple, new XaStatesTriple(triple.xid, XaStates.ENDED, flags))) {
-            error = null;
+            mono = Mono.error(PgExceptions.xaInvalidFlagForEnd(flags));
+        } else if (!PgCollections.isEmpty(optionMap)) {
+            mono = Mono.error(PgExceptions.xaDontSupportOptionMap("end", optionMap));
+        } else if (CURRENT_TRIPLE.compareAndSet(this, triple, new XaStatesTriple(triple.xid, XaStates.IDLE, flags))) {
+            mono = Mono.just(this);
         } else {
-            error = sessionBusyWithThread(triple.xid);
+            mono = Mono.error(sessionBusyWithThread(triple.xid));
         }
-        if (error != null) {
-            return Mono.error(error);
-        }
-        return Mono.just(this);
+        return mono;
     }
 
 
@@ -150,27 +149,30 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
         return this.prepare(xid, Collections.emptyMap());
     }
 
+    /**
+     * @see <a href="https://www.postgresql.org/docs/current/sql-prepare-transaction.html">PREPARE TRANSACTION</a>
+     */
     @Override
     public final Publisher<Integer> prepare(final Xid xid, final Map<Option<?>, ?> optionMap) {
-        final XaStatesTriple triple = this.xaTriple;
+        final XaStatesTriple triple = this.currentTriple;
 
-        final XaException error;
-        if (triple == DEFAULT_XA_TRIPLE || !Objects.equals(xid, triple.xid)) {
-            error = PgExceptions.xaTransactionNotStart(triple.xid);
-        } else if (triple.xaStates != XaStates.ENDED) {
-            error = PgExceptions.xaTransactionDontSupportPrepareCommand(triple.xid, triple.xaStates);
+        final Mono<Integer> mono;
+        if (triple == null || !Objects.equals(xid, triple.xid)) {
+            mono = Mono.error(PgExceptions.xaNonCurrentTransaction(xid)); // here use xid
+        } else if (triple.xaStates != XaStates.IDLE) {
+            mono = Mono.error(PgExceptions.xaStatesDontSupportPrepareCommand(triple.xid, triple.xaStates));
+        } else if (!PgCollections.isEmpty(optionMap)) {
+            mono = Mono.error(PgExceptions.xaDontSupportOptionMap("prepare", optionMap));
         } else {
-            error = null;
-        }
-        if (error != null) {
-            return Mono.error(error);
-        }
-        final StringBuilder builder = new StringBuilder();
+            final StringBuilder builder = new StringBuilder(60);
+            builder.append("PREPARE TRANSACTION  ");
+            xidToString(builder, triple.xid); // must use triple.xid
 
-        builder.append("PREPARE TRANSACTION ");
-        this.protocol.bindIdentifier(builder, xidToString(triple.xid));// must use triple.xid
-        return this.protocol.update(Stmts.stmt(builder.toString()))
-                .then(Mono.defer(() -> handlePrepareSuccess(triple)));
+            mono = this.protocol.update(Stmts.stmt(builder.toString()))
+                    .onErrorMap(error -> handlePrepareError(triple, error))
+                    .flatMap(states -> handlePrepareResult(states, triple));
+        }
+        return mono;
     }
 
 
@@ -179,62 +181,79 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
         return this.commit(xid, onePhase, Collections.emptyMap());
     }
 
+    /**
+     * @see <a href="https://www.postgresql.org/docs/current/sql-commit-prepared.html">COMMIT PREPARED</a>
+     */
     @Override
-    public final Publisher<RmDatabaseSession> commit(final Xid xid, final boolean onePhase, Map<Option<?>, ?> optionMap) {
-        final XaStatesTriple triple = this.xaTriple;
-
-        final XaException error;
-        if (triple == DEFAULT_XA_TRIPLE || !Objects.equals(xid, triple.xid)) {
-            error = PgExceptions.xaTransactionNotStart(triple.xid);
-        } else if ((triple.flags & TM_FAIL) != 0) {
-            error = PgExceptions.xaTransactionRollbackOnly(triple.xid);
-        } else if (triple.xaStates != XaStates.PREPARED) {
-            error = PgExceptions.xaTransactionDontSupportCommitCommand(triple.xid, triple.xaStates);
-        } else {
-            error = null;
+    public final Publisher<RmDatabaseSession> commit(final @Nullable Xid xid, final boolean onePhase,
+                                                     final Map<Option<?>, ?> optionMap) {
+        if (xid == null) {
+            return Mono.error(PgExceptions.xidIsNull());
         }
-
-        if (error != null) {
-            return Mono.error(error);
-        }
-
-        final Mono<ResultStates> mono;
+        final XaStatesTriple triple;
         if (onePhase) {
-            mono = this.protocol.commit(optionMap);
+            triple = this.currentTriple;
         } else {
-            final StringBuilder builder = new StringBuilder(80);
-            builder.append("COMMIT PREPARED ");
-            this.protocol.bindIdentifier(builder, xidToString(triple.xid)); // must use triple.xid
-            mono = this.protocol.update(Stmts.stmt(builder.toString()));
+            triple = this.preparedXaMp.get(xid);
         }
-        return mono.then(Mono.defer(() -> handleCommitOrRollbackSuccess(triple)));
+
+        final Mono<RmDatabaseSession> mono;
+        if (triple == null) {
+            mono = Mono.error(PgExceptions.xaUnknownTransaction(xid));
+        } else if (!Objects.equals(xid, triple.xid)) {
+            mono = Mono.error(PgExceptions.xaNonCurrentTransaction(xid));
+        } else if ((triple.flags & TM_FAIL) != 0) {
+            mono = Mono.error(PgExceptions.xaTransactionRollbackOnly(triple.xid));
+        } else if (onePhase) {
+            if (triple.xaStates == XaStates.IDLE) {
+                mono = this.protocol.commit(optionMap)
+                        .flatMap(states -> handleOnePhaseCommitResult(states, triple));
+            } else {
+                mono = Mono.error(PgExceptions.xaStatesDontSupportCommitCommand(triple.xid, triple.xaStates));
+            }
+        } else if (triple.xaStates == XaStates.PREPARED) {
+            final StringBuilder builder = new StringBuilder(64);
+            builder.append("COMMIT PREPARED ");
+            xidToString(builder, triple.xid); // must use triple.xid
+
+            mono = this.protocol.update(Stmts.stmt(builder.toString()))
+                    .flatMap(states -> handleCommitOrRollbackResult(triple));
+        } else {
+            mono = Mono.error(PgExceptions.xaStatesDontSupportCommitCommand(triple.xid, triple.xaStates));
+
+        }
+        return mono;
     }
+
 
     @Override
     public final Publisher<RmDatabaseSession> rollback(Xid xid) {
         return this.rollback(xid, Collections.emptyMap());
     }
 
+    /**
+     * @see <a href="https://www.postgresql.org/docs/current/sql-rollback-prepared.html">ROLLBACK PREPARED</a>
+     */
     @Override
     public final Publisher<RmDatabaseSession> rollback(final Xid xid, Map<Option<?>, ?> optionMap) {
-        final XaStatesTriple triple = this.xaTriple;
+        final XaStatesTriple triple;
+        triple = this.preparedXaMp.get(xid);
 
-        final XaException error;
-        if (triple == DEFAULT_XA_TRIPLE || !Objects.equals(xid, triple.xid)) {
-            error = PgExceptions.xaTransactionNotStart(triple.xid);
+        final Mono<RmDatabaseSession> mono;
+        if (triple == null || !Objects.equals(xid, triple.xid)) {
+            String m = String.format("xa %s isn't prepared transaction.", xid);
+            mono = Mono.error(new XaException(m, XaException.XAER_PROTO));
         } else if (triple.xaStates != XaStates.PREPARED) {
-            error = PgExceptions.xaTransactionDontSupportRollbackCommand(triple.xid, triple.xaStates);
+            mono = Mono.error(PgExceptions.xaStatusDontSupportRollbackCommand(triple.xid, triple.xaStates));
         } else {
-            error = null;
+            final StringBuilder builder = new StringBuilder(80);
+            builder.append("ROLLBACK PREPARED ");
+            xidToString(builder, triple.xid); // must use triple.xid
+
+            mono = this.protocol.update(Stmts.stmt(builder.toString()))
+                    .flatMap(states -> handleCommitOrRollbackResult(triple));
         }
-        if (error != null) {
-            return Mono.error(error);
-        }
-        final StringBuilder builder = new StringBuilder(80);
-        builder.append("ROLLBACK PREPARED ");
-        this.protocol.bindIdentifier(builder, xidToString(triple.xid));// must use triple.xid
-        return this.protocol.update(Stmts.stmt(builder.toString()))
-                .then(Mono.defer(() -> handleCommitOrRollbackSuccess(triple)));
+        return mono;
     }
 
     @Override
@@ -270,21 +289,75 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
 
 
     /**
+     * @see #start(Xid, int, TransactionOption)
+     */
+    private Mono<RmDatabaseSession> handleStartResult(final ResultStates states, final Xid xid) {
+        final Warning warning;
+        warning = states.warning();
+
+        final Mono<RmDatabaseSession> mono;
+        if (warning != null && PgSQLStates.ACTIVE_SQL_TRANSACTION.equals(warning.valueOf(Option.SQL_STATE))) {
+            final XaException error;
+            error = new XaException(warning.message(), PgSQLStates.ACTIVE_SQL_TRANSACTION, 0, XaException.XAER_PROTO);
+            mono = Mono.error(error);
+        } else if (CURRENT_TRIPLE.compareAndSet(this, null, new XaStatesTriple(xid, XaStates.ACTIVE, TM_NO_FLAGS))) {
+            mono = Mono.just(this);
+        } else {
+            mono = Mono.error(sessionBusyWithThread(xid));
+        }
+        return mono;
+    }
+
+
+    /**
      * @see #prepare(Xid, Map)
      */
-    private Mono<Integer> handlePrepareSuccess(final XaStatesTriple old) {
+    private Mono<Integer> handlePrepareResult(final ResultStates states, final XaStatesTriple old) {
+        final Warning warning;
+        warning = states.warning();
+
         final Mono<Integer> mono;
-        if (XA_TRIPLE.compareAndSet(this, old, new XaStatesTriple(old.xid, XaStates.PREPARED, old.flags))) {
+        if (warning != null && PgSQLStates.PG_NO_ACTIVE_SQL_TRANSACTION.equals(warning.valueOf(Option.SQL_STATE))) {
+            final XaException e;
+            e = new XaException(warning.message(), PgSQLStates.PG_NO_ACTIVE_SQL_TRANSACTION, 0, XaException.XAER_PROTO);
+            mono = Mono.error(e);
+        } else if (!CURRENT_TRIPLE.compareAndSet(this, old, null)
+                || this.preparedXaMp.putIfAbsent(old.xid, new XaStatesTriple(old.xid, XaStates.PREPARED, old.flags)) != null) {
+            mono = Mono.error(sessionBusyWithThread(old.xid));
+        } else {
             mono = Mono.just(XA_OK);
+        }
+        return mono;
+    }
+
+    /**
+     * @see #commit(Xid, boolean, Map)
+     */
+    private Mono<RmDatabaseSession> handleOnePhaseCommitResult(final ResultStates states, final XaStatesTriple old) {
+        final Warning warning;
+        warning = states.warning();
+
+        final Mono<RmDatabaseSession> mono;
+        if (warning != null && PgSQLStates.PG_NO_ACTIVE_SQL_TRANSACTION.equals(warning.valueOf(Option.SQL_STATE))) {
+            // here , application use sql command commit/rollback transaction
+            final XaException e;
+            e = new XaException(warning.message(), PgSQLStates.PG_NO_ACTIVE_SQL_TRANSACTION, 0, XaException.XAER_RMERR);
+            mono = Mono.error(e);
+        } else if (CURRENT_TRIPLE.compareAndSet(this, old, null)) {
+            mono = Mono.just(this);
         } else {
             mono = Mono.error(sessionBusyWithThread(old.xid));
         }
         return mono;
     }
 
-    private Mono<RmDatabaseSession> handleCommitOrRollbackSuccess(final XaStatesTriple old) {
+    /**
+     * @see #commit(Xid, boolean, Map)
+     * @see #rollback(Xid, Map)
+     */
+    private Mono<RmDatabaseSession> handleCommitOrRollbackResult(final XaStatesTriple old) {
         final Mono<RmDatabaseSession> mono;
-        if (XA_TRIPLE.compareAndSet(this, old, DEFAULT_XA_TRIPLE)) {
+        if (this.preparedXaMp.remove(old.xid, old)) {
             mono = Mono.just(this);
         } else {
             mono = Mono.error(sessionBusyWithThread(old.xid));
@@ -295,26 +368,89 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
     /**
      * @see #transactionStatus()
      */
-    private TransactionStatus mapTransactionStatus(TransactionStatus status, XaStatesTriple currentXaPair) {
-        final TransactionStatus transactionStatus;
-        if (currentXaPair == DEFAULT_XA_TRIPLE) {
-            transactionStatus = status;
+    private TransactionStatus mapTransactionStatus(final TransactionStatus status,
+                                                   final @Nullable XaStatesTriple currentTriple) {
+        final TransactionStatus finalStatus;
+        if (currentTriple == null) {
+            finalStatus = status;
         } else {
-            transactionStatus = new PgXaTransactionStatus(currentXaPair, status);
+            finalStatus = new PgXaTransactionStatus(currentTriple, status);
         }
-        return transactionStatus;
+        return finalStatus;
     }
 
     /**
      * @see #recover(int, Map)
+     * @see #xidToString(StringBuilder, Xid)
      */
     private Optional<Xid> mapXid(final CurrentRow row) {
-        return Optional.empty();
+        final String string, gtridHex, bqualHex;
+        string = row.getNonNull(0, String.class);
+
+        final int hyphenIndex, poundIndex;
+        hyphenIndex = string.indexOf('-');
+        poundIndex = string.lastIndexOf('#');
+
+        final int length;
+        length = string.length();
+        if (hyphenIndex == 0 || poundIndex < 0 || poundIndex + 1 == length) {
+            // isn't this driver create xid
+            return Optional.empty();
+        }
+
+        if (hyphenIndex < 0) {
+            gtridHex = string.substring(0, poundIndex);
+            bqualHex = null;
+        } else {
+            gtridHex = string.substring(0, hyphenIndex);
+            bqualHex = string.substring(hyphenIndex + 1, poundIndex);
+        }
+
+        Optional<Xid> optional;
+        try {
+            final int formatId;
+            formatId = Integer.parseInt(string.substring(poundIndex + 1));
+
+            final String gtrid, bqual;
+
+            byte[] bytes;
+            bytes = gtridHex.getBytes(StandardCharsets.UTF_8);
+            gtrid = new String(PgBuffers.decodeHex(bytes, bytes.length), StandardCharsets.UTF_8);
+
+            if (bqualHex == null) {
+                bqual = null;
+            } else {
+                bytes = bqualHex.getBytes(StandardCharsets.UTF_8);
+                bqual = new String(PgBuffers.decodeHex(bytes, bytes.length), StandardCharsets.UTF_8);
+            }
+            optional = Optional.of(Xid.from(gtrid, bqual, formatId));
+        } catch (Throwable e) {
+            // isn't this driver create xid
+            optional = Optional.empty();
+        }
+        return optional;
     }
 
 
-    private XaException onStartLocalTransactionError(Throwable cause) {
+    /**
+     * @see #start(Xid, int, TransactionOption)
+     */
+    private XaException handleStartError(Throwable cause) {
+        if (cause instanceof XaException) {
+            return (XaException) cause;
+        }
         return new XaException("start xa transaction occur error.", cause, XaException.XAER_RMERR);
+    }
+
+    /**
+     * @see #prepare(Xid, Map)
+     */
+    private XaException handlePrepareError(XaStatesTriple triple, Throwable cause) {
+        if (cause instanceof XaException) {
+            return (XaException) cause;
+        }
+        String m = String.format("prepare xa transaction %s occur error.", triple);
+        return new XaException(m, cause, XaException.XAER_RMERR);
     }
 
     /**
@@ -325,20 +461,27 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
         return new XaException(m, XaException.XAER_PROTO);
     }
 
-    private static String xidToString(final Xid xid) {
+    /**
+     * @see #prepare(Xid, Map)
+     * @see #mapXid(CurrentRow)
+     */
+    private static String xidToString(final StringBuilder builder, final Xid xid) {
+        byte[] bytes;
+        bytes = xid.getGtrid().getBytes(StandardCharsets.UTF_8);
 
-        final StringBuilder builder = new StringBuilder(64);
-        builder.append(xid.getFormatId())
-                .append('_')
-                .append(xid.getGtrid());
+        builder.append(new String(JdbdBuffers.hexEscapes(true, bytes, bytes.length), StandardCharsets.UTF_8));
 
         final String bqual;
         bqual = xid.getBqual();
         if (bqual != null) {
-            builder.append('_')
-                    .append(xid.getBqual());
+            bytes = bqual.getBytes(StandardCharsets.UTF_8);
+            builder.append('-') // avoid to same with jdbc-postgre
+                    .append(new String(JdbdBuffers.hexEscapes(true, bytes, bytes.length), StandardCharsets.UTF_8));
         }
-        return builder.toString();
+
+        return builder.append('#') // avoid to same with jdbc-postgre
+                .append(xid.getFormatId())
+                .toString();
     }
 
 
@@ -378,7 +521,7 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
 
         private final int flags;
 
-        private XaStatesTriple(@Nullable Xid xid, XaStates xaStates, int flags) {
+        private XaStatesTriple(Xid xid, XaStates xaStates, int flags) {
             this.xid = xid;
             this.xaStates = xaStates;
             this.flags = flags;
@@ -406,6 +549,20 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
             return match;
         }
 
+        @Override
+        public String toString() {
+            return PgStrings.builder()
+                    .append(getClass().getName())
+                    .append(" [ xid : ")
+                    .append(this.xid)
+                    .append(" , xa states : ")
+                    .append(this.xaStates.name())
+                    .append(" , flags : ")
+                    .append(Integer.toBinaryString(this.flags))
+                    .append(" ]")
+                    .toString();
+        }
+
 
     }// XaStatesPair
 
@@ -424,12 +581,12 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
         @SuppressWarnings("unchecked")
         @Override
         public <T> T valueOf(final Option<T> option) {
-            final XaStatesTriple pair = this.triple;
+            final XaStatesTriple triple = this.triple;
             final T value;
             if (option == Option.XA_STATES) {
-                value = (T) pair.xaStates;
+                value = (T) triple.xaStates;
             } else if (option == Option.XID) {
-                value = (T) pair.xid;
+                value = (T) triple.xid;
             } else {
                 value = this.status.valueOf(option);
             }
@@ -449,7 +606,6 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
 
         @Override
         public boolean inTransaction() {
-            //TODO how ?  after prepare
             return this.status.inTransaction();
         }
 

@@ -60,11 +60,14 @@ public abstract class PgSQLStates extends SQLStates {
     public static final String CHECK_VIOLATION = "23514";
     public static final String EXCLUSION_VIOLATION = "23P01";
 
+    /**
+     * different from {@link SQLStates#NO_ACTIVE_SQL_TRANSACTION}
+     */
+    public static final String PG_NO_ACTIVE_SQL_TRANSACTION = "25P01";
+
     public static final String INVALID_CURSOR_STATE = "24000";
 
     public static final String TRANSACTION_STATE_INVALID = "25000";
-    public static final String ACTIVE_SQL_TRANSACTION = "25001";
-    public static final String NO_ACTIVE_SQL_TRANSACTION = "25P01";
     public static final String IN_FAILED_SQL_TRANSACTION = "25P02";
 
     public static final String INVALID_SQL_STATEMENT_NAME = "26000";

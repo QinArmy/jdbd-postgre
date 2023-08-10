@@ -17,7 +17,7 @@ import java.util.Optional;
  * here ,you can download the pdf about The XA Specification.
  * </p>
  *
- * @see <a href="http://www.opengroup.org/public/pubs/catalog/c193.htm">The XA Specification</a>
+ * @see <a href="http://www.opengroup.org/public/pubs/catalog/c193.html">The XA Specification</a>
  */
 public interface RmDatabaseSession extends DatabaseSession {
 
@@ -64,10 +64,10 @@ public interface RmDatabaseSession extends DatabaseSession {
      */
     int TM_FAIL = 1 << 29;
 
-    /**
-     * Caller is using one-phase optimization.
-     */
-    int TM_ONE_PHASE = 1 << 30;
+//    /**
+//     * Caller is using one-phase optimization.
+//     */
+//    int TM_ONE_PHASE = 1 << 30;
 
     /**
      * The transaction branch has been read-only and has been committed.

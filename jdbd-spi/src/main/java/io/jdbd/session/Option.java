@@ -56,8 +56,22 @@ public final class Option<T> {
     public static final Option<Boolean> AUTO_COMMIT = Option.from("AUTO COMMIT", Boolean.class);
 
 
+    /**
+     * <p>
+     * representing the XID option of {@link TransactionStatus#valueOf(Option)} from {@link RmDatabaseSession}.
+     * </p>
+     *
+     * @see Xid
+     */
     public static final Option<Xid> XID = Option.from("XID", Xid.class);
 
+    /**
+     * <p>
+     * representing the XA_STATES option of {@link TransactionStatus#valueOf(Option)} from {@link RmDatabaseSession}.
+     * </p>
+     *
+     * @see XaStates
+     */
     public static final Option<XaStates> XA_STATES = Option.from("XA STATES", XaStates.class);
 
     /**

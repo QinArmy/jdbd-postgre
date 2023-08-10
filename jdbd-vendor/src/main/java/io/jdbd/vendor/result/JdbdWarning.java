@@ -27,7 +27,7 @@ public final class JdbdWarning implements Warning {
 
 
     @Override
-    public String warningMessage() {
+    public String message() {
         return this.message;
     }
 

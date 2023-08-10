@@ -649,8 +649,13 @@ public abstract class JdbdExceptions {
         return new XaException("xid must not be null", SQLStates.ER_XAER_INVAL, 0, XaException.XAER_INVAL);
     }
 
-    public static XaException xaTransactionNotStart(@Nullable Xid xid) {
-        String m = String.format("xid[%s] not start", xid);
+    public static XaException xaNonCurrentTransaction(@Nullable Xid xid) {
+        String m = String.format("xid[%s] not current transaction.", xid);
+        return new XaException(m, XaException.XAER_PROTO);
+    }
+
+    public static XaException xaUnknownTransaction(Xid xid) {
+        String m = String.format("xid[%s] is unknown.", xid);
         return new XaException(m, XaException.XAER_PROTO);
     }
 
@@ -664,17 +669,17 @@ public abstract class JdbdExceptions {
         return new XaException(m, XaException.XAER_PROTO);
     }
 
-    public static XaException xaTransactionDontSupportPrepareCommand(@Nullable Xid xid, XaStates states) {
+    public static XaException xaStatesDontSupportPrepareCommand(@Nullable Xid xid, XaStates states) {
         String m = String.format("xid[%s] %s don't support prepare command", xid, states);
         return new XaException(m, XaException.XAER_PROTO);
     }
 
-    public static XaException xaTransactionDontSupportRollbackCommand(@Nullable Xid xid, XaStates states) {
+    public static XaException xaStatusDontSupportRollbackCommand(@Nullable Xid xid, XaStates states) {
         String m = String.format("xid[%s] %s don't support rollback command", xid, states);
         return new XaException(m, XaException.XAER_PROTO);
     }
 
-    public static XaException xaTransactionDontSupportCommitCommand(@Nullable Xid xid, XaStates states) {
+    public static XaException xaStatesDontSupportCommitCommand(@Nullable Xid xid, XaStates states) {
         String m = String.format("xid[%s] %s don't support commit command", xid, states);
         return new XaException(m, XaException.XAER_PROTO);
     }

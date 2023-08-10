@@ -9,12 +9,8 @@ final class JdbdXid implements Xid {
     static JdbdXid from(final String gtrid, final @Nullable String bqual, final int formatId) {
         if (Isolation.hasNoText(gtrid)) {
             throw new IllegalArgumentException("gtrid must have text");
-        } else if (gtrid.indexOf(',') > -1) {
-            throw new IllegalArgumentException("gtrid couldn't contain comma.");
         } else if (bqual != null && Isolation.hasNoText(gtrid)) {
             throw new IllegalArgumentException("bqual must be null or  have text");
-        } else if (bqual != null && bqual.indexOf(',') > -1) {
-            throw new IllegalArgumentException("bqual couldn't contain comma.");
         }
         return new JdbdXid(gtrid, bqual, formatId);
     }

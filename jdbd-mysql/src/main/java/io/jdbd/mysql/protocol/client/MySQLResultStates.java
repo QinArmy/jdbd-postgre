@@ -250,7 +250,7 @@ abstract class MySQLResultStates implements ResultStates {
         }
 
         @Override
-        public String warningMessage() {
+        public String message() {
             return this.msg;
         }
 
