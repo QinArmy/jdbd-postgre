@@ -3,6 +3,7 @@ package io.jdbd.session;
 import org.reactivestreams.Publisher;
 
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * <p>
@@ -85,6 +86,26 @@ public interface RmDatabaseSession extends DatabaseSession {
     @Override
     Publisher<RmDatabaseSession> rollbackToSavePoint(SavePoint savepoint);
 
+    /**
+     * @return true : support {@link #forget(Xid, Map)} method
+     */
+    boolean isSupportForget();
+
+    /**
+     * @return the sub set of {@link #start(Xid, int, TransactionOption)} support flags(bit set).
+     */
+    int startSupportFlags();
+
+    /**
+     * @return the sub set of {@link #end(Xid, int, Map)} support flags(bit set).
+     */
+    int endSupportFlags();
+
+    /**
+     * @return the sub set of {@link #recover(int, Map)} support flags(bit set).
+     */
+    int recoverSupportFlags();
+
 
     Publisher<RmDatabaseSession> start(Xid xid, int flags);
 
@@ -101,6 +122,13 @@ public interface RmDatabaseSession extends DatabaseSession {
      * manager, the resource manager throws the XAException exception with
      * {@link XaException#XAER_DUPID} error code.
      * </p>
+     * <p>
+     * To be safe,{@link RmDatabaseSession} write gtrid and bqual as hex strings. steps :
+     * <ul>
+     *     <li>Get byte[] with {@link java.nio.charset.StandardCharsets#UTF_8}</li>
+     *     <li>write gtrid or bqual as hex strings</li>
+     * </ul>
+     * </p>
      *
      * @param flags bit set, support below flags:
      *              <ul>
@@ -110,6 +138,14 @@ public interface RmDatabaseSession extends DatabaseSession {
      *              </ul>
      * @return a Publisher that only emitting an element or error.The element is this instance.
      * @throws io.jdbd.JdbdException emit(not throw),when
+     *                               <ul>
+     *                                  <li>xid is null</li>
+     *                                  <li>{@link Xid#getGtrid()} have no text</li>
+     *                                  <li>{@link Xid#getBqual()} non-null and have no text</li>
+     *                                  <li>database don't support appropriate flag</li>
+     *                                  <li>transaction states error,see {@link XaStates}</li>
+     *                                  <li>database server response error message , see {@link io.jdbd.result.ServerException}</li>
+     *                               </ul>
      */
     Publisher<RmDatabaseSession> start(Xid xid, int flags, TransactionOption option);
 
@@ -123,6 +159,13 @@ public interface RmDatabaseSession extends DatabaseSession {
      * transaction branch specified and lets the transaction
      * complete.
      * </p>
+     * <p>
+     * To be safe,{@link RmDatabaseSession} write gtrid and bqual as hex strings. steps :
+     * <ul>
+     *     <li>Get byte[] with {@link java.nio.charset.StandardCharsets#UTF_8}</li>
+     *     <li>write gtrid or bqual as hex strings</li>
+     * </ul>
+     * </p>
      *
      * @param flags     bit set, support one of following :
      *                  <ul>
@@ -135,12 +178,15 @@ public interface RmDatabaseSession extends DatabaseSession {
      *                      method with {@link #TM_RESUME} specified.<br/>
      *                      </li>
      *                  </ul>
-     * @param optionMap dialect option
+     * @param optionMap dialect option ,empty or option map.
      * @throws XaException emit(not throw) when
      *                     <ul>
+     *                          <li>xid is null</li>
+     *                          <li>{@link Xid#getGtrid()} have no text</li>
+     *                          <li>{@link Xid#getBqual()} non-null and have no text</li>
      *                          <li>driver don't support appropriate flags</li>
      *                          <li>driver don't support optionMap</li>
-     *                          <li>transaction status error</li>
+     *                          <li>transaction states error,see {@link XaStates}</li>
      *                          <li>server response error message,see {@link io.jdbd.result.ServerException}</li>
      *                     </ul>
      */
@@ -148,24 +194,134 @@ public interface RmDatabaseSession extends DatabaseSession {
 
     Publisher<Integer> prepare(Xid xid);
 
+    /**
+     * <p>
+     * To be safe,{@link RmDatabaseSession} write gtrid and bqual as hex strings. steps :
+     * <ul>
+     *     <li>Get byte[] with {@link java.nio.charset.StandardCharsets#UTF_8}</li>
+     *     <li>write gtrid or bqual as hex strings</li>
+     * </ul>
+     * </p>
+     *
+     * @param xid       non-null
+     * @param optionMap optionMap dialect option ,empty or option map.
+     * @throws XaException emit(not throw) when
+     *                     <ul>
+     *                          <li>xid is null</li>
+     *                          <li>{@link Xid#getGtrid()} have no text</li>
+     *                          <li>{@link Xid#getBqual()} non-null and have no text</li>
+     *                          <li>driver don't support optionMap</li>
+     *                          <li>transaction states error,see {@link XaStates}</li>
+     *                          <li>server response error message,see {@link io.jdbd.result.ServerException}</li>
+     *                     </ul>
+     */
     Publisher<Integer> prepare(Xid xid, Map<Option<?>, ?> optionMap);
+
 
     Publisher<RmDatabaseSession> commit(Xid xid, boolean onePhase);
 
+    /**
+     * <p>
+     * To be safe,{@link RmDatabaseSession} write gtrid and bqual as hex strings. steps :
+     * <ul>
+     *     <li>Get byte[] with {@link java.nio.charset.StandardCharsets#UTF_8}</li>
+     *     <li>write gtrid or bqual as hex strings</li>
+     * </ul>
+     * </p>
+     *
+     * @param xid       non-null
+     * @param optionMap optionMap dialect option ,empty or option map.
+     * @throws XaException emit(not throw) when
+     *                     <ul>
+     *                          <li>xid is null</li>
+     *                          <li>{@link Xid#getGtrid()} have no text</li>
+     *                          <li>{@link Xid#getBqual()} non-null and have no text</li>
+     *                          <li>driver don't support optionMap</li>
+     *                          <li>transaction states error,see {@link XaStates}</li>
+     *                          <li>server response error message,see {@link io.jdbd.result.ServerException}</li>
+     *                     </ul>
+     */
     Publisher<RmDatabaseSession> commit(Xid xid, boolean onePhase, Map<Option<?>, ?> optionMap);
 
     Publisher<RmDatabaseSession> rollback(Xid xid);
 
+    /**
+     * <p>
+     * To be safe,{@link RmDatabaseSession} write gtrid and bqual as hex strings. steps :
+     * <ul>
+     *     <li>Get byte[] with {@link java.nio.charset.StandardCharsets#UTF_8}</li>
+     *     <li>write gtrid or bqual as hex strings</li>
+     * </ul>
+     * </p>
+     *
+     * @param xid       non-null
+     * @param optionMap optionMap dialect option ,empty or option map.
+     * @throws XaException emit(not throw) when
+     *                     <ul>
+     *                          <li>xid is null</li>
+     *                          <li>{@link Xid#getGtrid()} have no text</li>
+     *                          <li>{@link Xid#getBqual()} non-null and have no text</li>
+     *                          <li>driver don't support optionMap</li>
+     *                          <li>transaction states error,see {@link XaStates}</li>
+     *                          <li>server response error message,see {@link io.jdbd.result.ServerException}</li>
+     *                     </ul>
+     */
     Publisher<RmDatabaseSession> rollback(Xid xid, Map<Option<?>, ?> optionMap);
 
     Publisher<RmDatabaseSession> forget(Xid xid);
 
+    /**
+     * <p>
+     * To be safe,{@link RmDatabaseSession} write gtrid and bqual as hex strings. steps :
+     * <ul>
+     *     <li>Get byte[] with {@link java.nio.charset.StandardCharsets#UTF_8}</li>
+     *     <li>write gtrid or bqual as hex strings</li>
+     * </ul>
+     * </p>
+     *
+     * @param xid       non-null
+     * @param optionMap optionMap dialect option ,empty or option map.
+     * @throws XaException emit(not throw) when
+     *                     <ul>
+     *                          <li>driver don't support this method, see {@link #isSupportForget()}</li>
+     *                          <li>xid is null</li>
+     *                          <li>{@link Xid#getGtrid()} have no text</li>
+     *                          <li>{@link Xid#getBqual()} non-null and have no text</li>
+     *                          <li>driver don't support optionMap</li>
+     *                          <li>transaction states error,see {@link XaStates}</li>
+     *                          <li>server response error message,see {@link io.jdbd.result.ServerException}</li>
+     *                     </ul>
+     */
     Publisher<RmDatabaseSession> forget(Xid xid, Map<Option<?>, ?> optionMap);
 
-    Publisher<Xid> recover(int flags);
+    Publisher<Optional<Xid>> recover(int flags);
 
-    Publisher<Xid> recover(int flags, Map<Option<?>, ?> optionMap);
+    /**
+     * <p>
+     * To be safe,{@link RmDatabaseSession} write gtrid and bqual as hex strings. steps :
+     * <ul>
+     *     <li>Get byte[] of trid ( or bqual) with {@link java.nio.charset.StandardCharsets#UTF_8}</li>
+     *     <li>write gtrid ( or bqual) as hex strings</li>
+     * </ul>
+     * so the conversion process of this method is the reverse of above.
+     * </p>
+     *
+     * @param flags     bit sets
+     * @param optionMap optionMap dialect option ,empty or option map.
+     * @return return the xids whose xid format follow this driver, If xid format don't follow this driver, then it is represented by {@link Optional#empty()}.
+     * @throws XaException emit(not throw) when
+     *                     <ul>
+     *                          <li>driver don't support appropriate flags</li>
+     *                          <li>driver don't support optionMap</li>
+     *                          <li>server response unknown xid format</li>
+     *                          <li>server response error message,see {@link io.jdbd.result.ServerException}</li>
+     *                     </ul>
+     */
+    Publisher<Optional<Xid>> recover(int flags, Map<Option<?>, ?> optionMap);
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     RmDatabaseSession bindIdentifier(StringBuilder builder, String identifier);
 

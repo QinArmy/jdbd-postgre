@@ -6,16 +6,19 @@ import io.jdbd.pool.PoolRmDatabaseSession;
 import io.jdbd.postgre.protocol.client.PgProtocol;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PgStrings;
+import io.jdbd.result.CurrentRow;
 import io.jdbd.result.ResultStates;
 import io.jdbd.session.*;
 import io.jdbd.vendor.stmt.Stmts;
 import io.jdbd.vendor.util.JdbdExceptions;
 import org.reactivestreams.Publisher;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 /**
@@ -56,6 +59,26 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
                 .map(status -> this.mapTransactionStatus(status, currentXaPair));
     }
 
+    @Override
+    public final boolean isSupportForget() {
+        //always false, postgre don't support
+        return false;
+    }
+
+    @Override
+    public final int startSupportFlags() {
+        return TM_NO_FLAGS;
+    }
+
+    @Override
+    public final int endSupportFlags() {
+        return (TM_SUCCESS | TM_FAIL);
+    }
+
+    @Override
+    public final int recoverSupportFlags() {
+        return (TM_START_RSCAN | TM_END_RSCAN | TM_NO_FLAGS);
+    }
 
     @Override
     public final Publisher<RmDatabaseSession> start(Xid xid, int flags) {
@@ -225,13 +248,24 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
     }
 
     @Override
-    public final Publisher<Xid> recover(int flags) {
+    public final Publisher<Optional<Xid>> recover(int flags) {
         return this.recover(flags, Collections.emptyMap());
     }
 
     @Override
-    public final Publisher<Xid> recover(int flags, Map<Option<?>, ?> optionMap) {
-        return null;
+    public final Publisher<Optional<Xid>> recover(final int flags, Map<Option<?>, ?> optionMap) {
+        final int supportBitSet = recoverSupportFlags();
+
+        final Flux<Optional<Xid>> mono;
+        if (((~supportBitSet) & flags) != 0) {
+            mono = Flux.error(PgExceptions.xaInvalidFlagForRecover(flags));
+        } else if ((flags & TM_START_RSCAN) == 0) {
+            mono = Flux.empty();
+        } else {
+            final String sql = "SELECT gid FROM pg_prepared_xacts WHERE database = current_database()";
+            mono = this.protocol.query(Stmts.stmt(sql), this::mapXid);
+        }
+        return mono;
     }
 
 
@@ -270,6 +304,14 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
         }
         return transactionStatus;
     }
+
+    /**
+     * @see #recover(int, Map)
+     */
+    private Optional<Xid> mapXid(final CurrentRow row) {
+        return Optional.empty();
+    }
+
 
     private XaException onStartLocalTransactionError(Throwable cause) {
         return new XaException("start xa transaction occur error.", cause, XaException.XAER_RMERR);

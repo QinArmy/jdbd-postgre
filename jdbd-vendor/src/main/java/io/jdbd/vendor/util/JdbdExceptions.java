@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 
 public abstract class JdbdExceptions {
@@ -621,9 +622,18 @@ public abstract class JdbdExceptions {
         return xaInvalidFlag(flags, "recover");
     }
 
+    public static XaException xaDontSupportOptionMap(String command, @Nullable Map<Option<?>, ?> optionMap) {
+        String m = String.format("%s command don't support option map %s", command, optionMap);
+        return new XaException(m, SQLStates.ER_XAER_INVAL, 0, XaException.XAER_INVAL);
+    }
 
-    public static JdbdException xaGtridNoText() {
-        return new JdbdException("gtrid of xid must have text.", SQLStates.ER_XAER_NOTA, XAER_NOTA);
+
+    public static XaException xaGtridNoText() {
+        return new XaException("gtrid of xid must have text.", SQLStates.ER_XAER_NOTA, 0, XaException.XAER_NOTA);
+    }
+
+    public static XaException xaBqualNonNullAndNoText() {
+        return new XaException("bqual of xid must be null or  have text.", SQLStates.ER_XAER_NOTA, 0, XaException.XAER_NOTA);
     }
 
     public static JdbdException xaGtridBeyond64Bytes() {
@@ -636,7 +646,7 @@ public abstract class JdbdExceptions {
 
 
     public static XaException xidIsNull() {
-        return new XaException("xid must not be null", XaException.XAER_INVAL);
+        return new XaException("xid must not be null", SQLStates.ER_XAER_INVAL, 0, XaException.XAER_INVAL);
     }
 
     public static XaException xaTransactionNotStart(@Nullable Xid xid) {
