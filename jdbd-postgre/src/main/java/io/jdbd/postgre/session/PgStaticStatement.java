@@ -54,16 +54,16 @@ final class PgStaticStatement extends PgStatement<StaticStatement> implements St
 
     @Override
     public <R> Publisher<R> executeQuery(String sql, @Nullable Function<CurrentRow, R> function,
-                                         @Nullable Consumer<ResultStates> statesConsumer) {
+                                         @Nullable Consumer<ResultStates> consumer) {
         final Flux<R> flux;
         if (!PgStrings.hasText(sql)) {
             flux = Flux.error(PgExceptions.sqlHaveNoText());
         } else if (function == null) {
             flux = Flux.error(PgExceptions.queryMapFuncIsNull());
-        } else if (statesConsumer == null) {
+        } else if (consumer == null) {
             flux = Flux.error(PgExceptions.statesConsumerIsNull());
         } else {
-            flux = this.session.protocol.query(Stmts.stmt(sql, statesConsumer, this), function);
+            flux = this.session.protocol.query(Stmts.stmt(sql, consumer, this), function);
         }
         return flux;
     }

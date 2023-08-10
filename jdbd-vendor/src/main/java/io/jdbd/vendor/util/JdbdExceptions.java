@@ -88,14 +88,23 @@ public abstract class JdbdExceptions {
         return new JdbdException(m);
     }
 
+    /**
+     * @return {@link NullPointerException} not {@link JdbdException}
+     */
     public static NullPointerException queryMapFuncIsNull() {
         return new NullPointerException("query map function must non-null");
     }
 
+    /**
+     * @return {@link NullPointerException} not {@link JdbdException}
+     */
     public static NullPointerException statesConsumerIsNull() {
         return new NullPointerException(String.format("%s consumer must non-null", ResultStates.class.getName()));
     }
 
+    /**
+     * @return {@link NullPointerException} not {@link JdbdException}
+     */
     public static NullPointerException dataTypeIsNull() {
         return new NullPointerException("dataType must non-null");
     }

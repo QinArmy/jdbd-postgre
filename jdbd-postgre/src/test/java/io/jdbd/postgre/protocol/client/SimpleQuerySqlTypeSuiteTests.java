@@ -390,7 +390,7 @@ public class SimpleQuerySqlTypeSuiteTests extends AbstractStmtTaskTests {
     }
 
     /**
-     * @see PgType#DOUBLE_ARRAY
+     * @see PgType#FLOAT8_ARRAY
      */
     @Test
     public void doubleArrayBindAndExtract() {

@@ -172,7 +172,7 @@ final class PgColumnMeta implements ColumnMeta {
             case BIGINT:
             case BIGINT_ARRAY:
             case FLOAT8:
-            case DOUBLE_ARRAY:
+            case FLOAT8_ARRAY:
             case TIME:
             case TIME_ARRAY:
             case TIMESTAMP:

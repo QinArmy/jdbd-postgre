@@ -111,7 +111,7 @@ abstract class CommandWriter {
                 consumer = this::writeFloatElement;
             }
             break;
-            case DOUBLE_ARRAY: {
+            case FLOAT8_ARRAY: {
                 if (componentType != Double.class && componentType != double.class) {
                     throw PgExceptions.nonSupportBindSqlTypeError(batchIndex, paramValue);
                 }

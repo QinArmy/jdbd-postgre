@@ -11,6 +11,7 @@ import io.jdbd.session.DatabaseSession;
 import io.jdbd.session.Option;
 import io.jdbd.statement.Statement;
 import io.jdbd.vendor.stmt.NamedValue;
+import io.jdbd.vendor.stmt.ParamValue;
 import io.jdbd.vendor.stmt.StmtOption;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
@@ -34,6 +35,8 @@ import java.util.function.Function;
  * @since 1.0
  */
 abstract class PgStatement<S extends Statement> implements Statement, StmtOption {
+
+    static final List<ParamValue> EMPTY_PARAM_GROUP = Collections.emptyList();
 
     final PgDatabaseSession<?> session;
 

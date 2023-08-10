@@ -124,7 +124,7 @@ abstract class ColumnArrays {
                 function = (text, offset, end) -> Float.parseFloat(text.substring(offset, end));
             }
             break;
-            case DOUBLE_ARRAY: {
+            case FLOAT8_ARRAY: {
                 if (componentType != double.class && componentType != Double.class) {
                     throw PgExceptions.cannotConvertColumnValue(meta, source, arrayClass, null);
                 }

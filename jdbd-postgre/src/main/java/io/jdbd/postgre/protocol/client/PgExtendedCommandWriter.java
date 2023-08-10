@@ -587,7 +587,7 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
             case BIGINT_ARRAY:
             case DECIMAL_ARRAY:
             case REAL_ARRAY:
-            case DOUBLE_ARRAY:
+            case FLOAT8_ARRAY:
             case BIT_ARRAY:
             case VARBIT_ARRAY:
             case TIME_ARRAY:
@@ -687,7 +687,7 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
                 v = PgBinds.bindNonNullFloatArray(batchIndex, pgType, paramValue);
             }
             break;
-            case DOUBLE_ARRAY: {
+            case FLOAT8_ARRAY: {
                 v = PgBinds.bindNonNullDoubleArray(batchIndex, pgType, paramValue);
             }
             break;

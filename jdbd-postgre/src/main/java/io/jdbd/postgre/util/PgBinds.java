@@ -27,11 +27,124 @@ import java.sql.SQLException;
 import java.time.*;
 import java.time.temporal.Temporal;
 import java.util.BitSet;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Function;
 
 public abstract class PgBinds extends JdbdBinds {
+
+
+    private static Map<String, PgType> createPgTypeMap() {
+        final PgType[] pgTypeArray = PgType.values();
+        final Map<String, PgType> map = PgCollections.hashMap((int) ((pgTypeArray.length + 10) / 0.75f));
+
+        String typeName;
+        PgType elementType;
+        for (final PgType type : pgTypeArray) {
+            switch (type) {
+                case REF_CURSOR:
+                case REF_CURSOR_ARRAY:
+                case OID:
+                case OID_ARRAY:
+                case UNSPECIFIED:
+                    continue;
+                default:
+                    //no-op
+            }
+
+            if (type.isArray()) {
+                elementType = type.elementType();
+                assert elementType != null;
+                typeName = elementType.typeName() + "[]";
+            } else {
+                typeName = type.typeName();
+            }
+
+            if (map.putIfAbsent(typeName, type) != null) {
+                // no bug,never here
+                String m = String.format("type[%s] error", type.name());
+                throw new IllegalStateException(m);
+            }
+
+        }
+
+        //add alias pairs
+
+        map.putIfAbsent("bool", PgType.BOOLEAN);
+        map.putIfAbsent("int2", PgType.SMALLINT);
+        map.putIfAbsent("smallserial", PgType.SMALLINT);
+        map.putIfAbsent("int", PgType.INTEGER);
+
+        map.putIfAbsent("int4", PgType.INTEGER);
+        map.putIfAbsent("serial", PgType.INTEGER);
+        map.putIfAbsent("xid", PgType.INTEGER);  // https://www.postgresql.org/docs/current/datatype-oid.html
+        map.putIfAbsent("cid", PgType.INTEGER);  // https://www.postgresql.org/docs/current/datatype-oid.html
+
+        map.putIfAbsent("int8", PgType.BIGINT);
+        map.putIfAbsent("bigint", PgType.BIGINT);
+        map.putIfAbsent("bigserial", PgType.BIGINT);
+        map.putIfAbsent("serial8", PgType.BIGINT);
+
+        map.putIfAbsent("xid8", PgType.BIGINT); // https://www.postgresql.org/docs/current/datatype-oid.html  TODO what's tid ?
+        map.putIfAbsent("numeric", PgType.DECIMAL);
+        map.putIfAbsent("decimal", PgType.DECIMAL);
+        map.putIfAbsent("float8", PgType.FLOAT8);
+
+        map.putIfAbsent("double precision", PgType.FLOAT8);
+        map.putIfAbsent("float", PgType.FLOAT8);
+        map.putIfAbsent("float4", PgType.REAL);
+        map.putIfAbsent("real", PgType.REAL);
+
+        map.putIfAbsent("char", PgType.CHAR);
+        map.putIfAbsent("character", PgType.CHAR);
+        map.putIfAbsent("varchar", PgType.VARCHAR);
+        map.putIfAbsent("character varying", PgType.VARCHAR);
+
+        map.putIfAbsent("txid_snapshot", PgType.TEXT);
+        map.putIfAbsent("time without time zone", PgType.TIME);  // TODO txid_snapshot is text?
+        map.putIfAbsent("time with time zone", PgType.TIMETZ);
+        map.putIfAbsent("timestamp without time zone", PgType.TIMESTAMP);
+
+        map.putIfAbsent("timestamp with time zone", PgType.TIMESTAMPTZ);
+        map.putIfAbsent("bit varying", PgType.VARBIT);
+        map.putIfAbsent("bool[]", PgType.BOOLEAN_ARRAY);
+        map.putIfAbsent("int2[]", PgType.SMALLINT_ARRAY);
+
+        map.putIfAbsent("smallserial[]", PgType.SMALLINT_ARRAY);
+        map.putIfAbsent("int[]", PgType.INTEGER_ARRAY);
+        map.putIfAbsent("int4[]", PgType.INTEGER_ARRAY);
+        map.putIfAbsent("serial[]", PgType.INTEGER_ARRAY);
+
+        map.putIfAbsent("xid[]", PgType.INTEGER);  // https://www.postgresql.org/docs/current/datatype-oid.html
+        map.putIfAbsent("cid[]", PgType.INTEGER);  // https://www.postgresql.org/docs/current/datatype-oid.html
+
+        map.putIfAbsent("int8[]", PgType.BIGINT_ARRAY);
+        map.putIfAbsent("serial8[]", PgType.BIGINT_ARRAY);
+        map.putIfAbsent("bigserial[]", PgType.BIGINT_ARRAY);
+        map.putIfAbsent("numeric[]", PgType.DECIMAL_ARRAY);
+
+        map.putIfAbsent("float[]", PgType.FLOAT8_ARRAY);
+        map.putIfAbsent("double precision[]", PgType.FLOAT8_ARRAY);
+        map.putIfAbsent("float4[]", PgType.REAL_ARRAY);
+        map.putIfAbsent("character[]", PgType.CHAR_ARRAY);
+
+        map.putIfAbsent("character varying[]", PgType.VARCHAR_ARRAY);
+        map.putIfAbsent("txid_snapshot[]", PgType.TEXT_ARRAY);
+        map.putIfAbsent("time without time zone[]", PgType.TIME_ARRAY);
+        map.putIfAbsent("time with time zone[]", PgType.TIMETZ_ARRAY);
+
+        map.putIfAbsent("timestamp without time zone[]", PgType.TIMESTAMP_ARRAY);
+        map.putIfAbsent("timestamp with time zone[]", PgType.TIMESTAMPTZ_ARRAY);
+        map.putIfAbsent("bit varying[]", PgType.VARBIT_ARRAY);
+
+
+//        map.putIfAbsent("pg_lsn[]",PgType.BOOLEAN);
+//        map.putIfAbsent("pg_snapshot[]",PgType.BOOLEAN); // TODO add ?
+//        map.putIfAbsent("aclitem[]",PgType.BOOLEAN);
+
+        return PgCollections.unmodifiableMap(map);
+    }
 
 
     public static PgType mapJdbcTypeToPgType(final JDBCType jdbcType, @Nullable Object nullable) {
@@ -215,7 +328,7 @@ public abstract class PgBinds extends JdbdBinds {
         } else if ((componentClass == Publisher.class)) {
             pgType = PgType.BYTEA_ARRAY;
         } else if (componentClass == Double.class) {
-            pgType = PgType.DOUBLE_ARRAY;
+            pgType = PgType.FLOAT8_ARRAY;
         } else if (componentClass == Float.class) {
             pgType = PgType.REAL_ARRAY;
         } else if (componentClass == Character.class
@@ -427,7 +540,7 @@ public abstract class PgBinds extends JdbdBinds {
 
     public static String bindNonNullDoubleArray(final int batchIndex, PgType pgType, ParamValue paramValue)
             throws SQLException {
-        if (pgType != PgType.DOUBLE_ARRAY) {
+        if (pgType != PgType.FLOAT8_ARRAY) {
             throw new IllegalArgumentException("pgType error");
         }
         final Class<?> arrayType = obtainArrayType(batchIndex, pgType, paramValue);

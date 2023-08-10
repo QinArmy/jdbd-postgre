@@ -16,6 +16,9 @@ import java.util.Map;
  * This class is a implementation of {@link LocalDatabaseSession} with postgre client protocol.
  * </p>
  *
+ * @see <a href="https://www.postgresql.org/docs/current/sql-start-transaction.html">START TRANSACTION</a>
+ * @see <a href="https://www.postgresql.org/docs/current/sql-commit.html">COMMIT</a>
+ * @see <a href="https://www.postgresql.org/docs/current/sql-rollback.html">ROLLBACK</a>
  * @since 1.0
  */
 class PgLocalDatabaseSession extends PgDatabaseSession<LocalDatabaseSession> implements LocalDatabaseSession {
@@ -34,12 +37,18 @@ class PgLocalDatabaseSession extends PgDatabaseSession<LocalDatabaseSession> imp
         super(factory, protocol);
     }
 
+    /**
+     * @see <a href="https://www.postgresql.org/docs/current/sql-start-transaction.html">START TRANSACTION</a>
+     */
     @Override
     public final Publisher<LocalDatabaseSession> startTransaction(TransactionOption option) {
         return this.protocol.startTransaction(option, HandleMode.ERROR_IF_EXISTS)
                 .thenReturn(this);
     }
 
+    /**
+     * @see <a href="https://www.postgresql.org/docs/current/sql-start-transaction.html">START TRANSACTION</a>
+     */
     @Override
     public final Publisher<LocalDatabaseSession> startTransaction(TransactionOption option, HandleMode mode) {
         return this.protocol.startTransaction(option, mode)

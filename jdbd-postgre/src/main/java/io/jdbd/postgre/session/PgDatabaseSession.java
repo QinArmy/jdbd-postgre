@@ -83,16 +83,16 @@ abstract class PgDatabaseSession<S extends DatabaseSession> extends PgDatabaseMe
 
     @Override
     public final <R> Publisher<R> executeQuery(String sql, @Nullable Function<CurrentRow, R> function,
-                                               @Nullable Consumer<ResultStates> statesConsumer) {
+                                               @Nullable Consumer<ResultStates> consumer) {
         final Flux<R> flux;
         if (!PgStrings.hasText(sql)) {
             flux = Flux.error(PgExceptions.sqlHaveNoText());
         } else if (function == null) {
             flux = Flux.error(PgExceptions.queryMapFuncIsNull());
-        } else if (statesConsumer == null) {
+        } else if (consumer == null) {
             flux = Flux.error(PgExceptions.statesConsumerIsNull());
         } else {
-            flux = this.protocol.query(Stmts.stmt(sql, statesConsumer), function);
+            flux = this.protocol.query(Stmts.stmt(sql, consumer), function);
         }
         return flux;
     }
@@ -187,9 +187,9 @@ abstract class PgDatabaseSession<S extends DatabaseSession> extends PgDatabaseMe
     public final Publisher<SavePoint> setSavePoint() {
         final StringBuilder builder;
         builder = PgStrings.builder()
-                .append("$jdbd-")
+                .append("jdbd_")
                 .append(this.savePointIndex.getAndIncrement())
-                .append('-')
+                .append('_')
                 .append(ThreadLocalRandom.current().nextInt(Integer.MAX_VALUE));
         return this.setSavePoint(builder.toString());
     }
@@ -200,7 +200,7 @@ abstract class PgDatabaseSession<S extends DatabaseSession> extends PgDatabaseMe
             return Mono.error(PgExceptions.savePointNameIsEmpty());
         }
         final StringBuilder builder = new StringBuilder(25);
-        builder.append("SAVEPOINT");
+        builder.append("SAVEPOINT ");
         this.protocol.bindIdentifier(builder, name);
         return this.protocol.update(Stmts.stmt(builder.toString()))
                 .thenReturn(NamedSavePoint.fromName(name));
@@ -214,7 +214,7 @@ abstract class PgDatabaseSession<S extends DatabaseSession> extends PgDatabaseMe
         }
 
         final StringBuilder builder = new StringBuilder(30);
-        builder.append("RELEASE SAVEPOINT");
+        builder.append("RELEASE SAVEPOINT ");
         this.protocol.bindIdentifier(builder, savepoint.name());
         return this.protocol.update(Stmts.stmt(builder.toString()))
                 .thenReturn((S) this);
@@ -227,7 +227,7 @@ abstract class PgDatabaseSession<S extends DatabaseSession> extends PgDatabaseMe
             return Mono.error(PgExceptions.unknownSavePoint(savepoint));
         }
         final StringBuilder builder = new StringBuilder(30);
-        builder.append("ROLLBACK TO SAVEPOINT");
+        builder.append("ROLLBACK TO SAVEPOINT ");
         this.protocol.bindIdentifier(builder, savepoint.name());
         return this.protocol.update(Stmts.stmt(builder.toString()))
                 .thenReturn((S) this);

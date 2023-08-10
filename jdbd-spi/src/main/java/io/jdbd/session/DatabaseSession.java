@@ -188,9 +188,24 @@ public interface DatabaseSession extends StaticStatementSpec, DatabaseMetaSpec, 
     DatabaseSession bindIdentifier(StringBuilder builder, String identifier);
 
 
+    /**
+     * @return true : session have closed.
+     */
     boolean isClosed();
 
-
+    /**
+     * <p>
+     * If return true , then the pool vendor developer must guarantee session and <strong>this</strong> both are created <br/>
+     * by same pool {@link DatabaseSessionFactory} instance,and both underlying driver session instance are created by <br/>
+     * same driver {@link DatabaseSessionFactory} instance.<br/>
+     * </p>
+     * <p>
+     * This method can be useful , application developer can know session and <strong>this</strong> belong to
+     * same resource manager in XA transaction.
+     * </p>
+     *
+     * @return true : session and this both are created by same {@link DatabaseSessionFactory} instance.
+     */
     boolean isSameFactory(DatabaseSession session);
 
 

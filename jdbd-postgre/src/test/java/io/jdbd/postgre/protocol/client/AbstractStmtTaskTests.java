@@ -1508,12 +1508,12 @@ abstract class AbstractStmtTaskTests extends AbstractTaskTests {
     }
 
     /**
-     * @see PgType#DOUBLE_ARRAY
+     * @see PgType#FLOAT8_ARRAY
      */
     final void doDoubleArrayBindAndExtract() {
         String columnName;
         final long id = startId + 45;
-        final PgType pgType = PgType.DOUBLE_ARRAY;
+        final PgType pgType = PgType.FLOAT8_ARRAY;
         Object array;
         ResultRow row;
 

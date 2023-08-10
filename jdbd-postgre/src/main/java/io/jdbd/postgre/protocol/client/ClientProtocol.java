@@ -185,13 +185,11 @@ final class ClientProtocol implements PgProtocol {
         return null;
     }
 
+    /**
+     * @see <a href="https://www.postgresql.org/docs/current/sql-start-transaction.html">START TRANSACTION</a>
+     */
     @Override
     public Mono<ResultStates> startTransaction(TransactionOption option, HandleMode mode) {
-        return null;
-    }
-
-    @Override
-    public Mono<Void> setTransactionOption(TransactionOption option, HandleMode mode) {
         return null;
     }
 

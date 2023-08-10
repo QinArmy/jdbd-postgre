@@ -8,6 +8,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectStreamException;
 import java.nio.charset.Charset;
 import java.time.ZoneOffset;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentMap;
 
@@ -54,6 +55,50 @@ public final class Option<T> {
     public static final Option<Boolean> IN_TRANSACTION = Option.from("IN TRANSACTION", Boolean.class);
 
     public static final Option<Boolean> AUTO_COMMIT = Option.from("AUTO COMMIT", Boolean.class);
+
+    /**
+     * <p>
+     * [NO] CHAIN option of COMMIT command.
+     * </p>
+     *
+     * @see LocalDatabaseSession#commit(Map)
+     * @see LocalDatabaseSession#rollback(Map)
+     * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/commit.html">MySQL : COMMIT [WORK] [AND [NO] CHAIN]</a>
+     * @see <a href="https://www.postgresql.org/docs/current/sql-commit.html">postgre : COMMIT [ WORK | TRANSACTION ] [ AND [ NO ] CHAIN ]</a>
+     */
+    public static final Option<Boolean> CHAIN = Option.from("CHAIN", Boolean.class);
+
+
+    /**
+     * <p>
+     * [NO] RELEASE option of COMMIT/ROLLBACK command.
+     * </p>
+     *
+     * @see LocalDatabaseSession#commit(Map)
+     * @see LocalDatabaseSession#rollback(Map)
+     * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/commit.html">MySQL : ROLLBACK [WORK] [[NO] RELEASE]</a>
+     */
+    public static final Option<Boolean> RELEASE = Option.from("RELEASE", Boolean.class);
+
+    /**
+     * <p>
+     * Transaction option of some database(eg: MySQL)
+     * </p>
+     *
+     * @see LocalDatabaseSession#startTransaction(TransactionOption, HandleMode)
+     * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/commit.html">MySQL : WITH CONSISTENT SNAPSHOT</a>
+     */
+    public static final Option<Boolean> WITH_CONSISTENT_SNAPSHOT = Option.from("WITH CONSISTENT SNAPSHOT", Boolean.class);
+
+    /**
+     * <p>
+     * Transaction option of some database(eg: PostgreSQL)
+     * </p>
+     *
+     * @see LocalDatabaseSession#startTransaction(TransactionOption, HandleMode)
+     * @see <a href="https://www.postgresql.org/docs/current/sql-start-transaction.html">postgre : DEFERRABLE</a>
+     */
+    public static final Option<Boolean> DEFERRABLE = Option.from("DEFERRABLE", Boolean.class);
 
 
     /**
