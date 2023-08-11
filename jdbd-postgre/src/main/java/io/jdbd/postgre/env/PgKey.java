@@ -53,137 +53,80 @@ public final class PgKey<T> extends Key<T> {
 
     public static final PgKey<Boolean> BINARY_TRANSFER = new PgKey<>("binaryTransfer", Boolean.class, Boolean.TRUE);
 
+    public static final PgKey<String> BINARY_TRANSFER_ENABLE = new PgKey<>("binaryTransferEnable", String.class, null);
 
-    binaryTransferEnable(String .class),
+    public static final PgKey<String> BINARY_TRANSFER_DISABLE = new PgKey<>("binaryTransferDisable", String.class, null);
 
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
+    public static final PgKey<Integer> DATABASE_METADATA_CACHE_FIELDS = new PgKey<>("databaseMetadataCacheFields", Integer.class, 65536);
 
-    binaryTransferDisable(String .class),
+    public static final PgKey<Integer> DATABASE_METADATA_CACHE_FIELDS_MIB = new PgKey<>("databaseMetadataCacheFieldsMiB", Integer.class, 5);
 
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
+    public static final PgKey<Integer> PREPARE_THRESHOLD = new PgKey<>("prepareThreshold", Integer.class, null);
 
-    databaseMetadataCacheFields(Integer .class, "65536"),
+    public static final PgKey<Integer> PREPARED_STATEMENT_CACHE_QUERIES = new PgKey<>("preparedStatementCacheQueries", Integer.class, null);
 
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
+    public static final PgKey<Integer> PREPARED_STATEMENT_CACHE_SIZE_MIB = new PgKey<>("preparedStatementCacheSizeMiB", Integer.class, null);
 
-    databaseMetadataCacheFieldsMiB(Integer .class, "5"),
+    public static final PgKey<String> PREFER_QUERY_MODE = new PgKey<>("preferQueryMode", String.class, null);
 
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
+    public static final PgKey<Integer> DEFAULT_ROW_FETCH_SIZE = new PgKey<>("defaultRowFetchSize", Integer.class, 0);
 
-    prepareThreshold(Integer .class),
+    public static final PgKey<Integer> LOGIN_TIMEOUT = new PgKey<>("loginTimeout", Integer.class, 0);
 
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
+    public static final PgKey<Integer> CONNECT_TIMEOUT = new PgKey<>("connectTimeout", Integer.class, 0);
 
-    preparedStatementCacheQueries(Integer .class),
+    public static final PgKey<Integer> SOCKET_TIMEOUT = new PgKey<>("socketTimeout", Integer.class, null);
 
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
+    public static final PgKey<Integer> CANCEL_SIGNAL_TIMEOUT = new PgKey<>("cancelSignalTimeout", Integer.class, 10);
 
-    preparedStatementCacheSizeMiB(Integer .class),
 
+    public static final PgKey<Boolean> TCP_KEEP_ALIVE = new PgKey<>("tcpKeepAlive", Boolean.class, Boolean.FALSE);
 
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
 
-    preferQueryMode(String .class),
+    public static final PgKey<Integer> unknownLength = new PgKey<>("unknownLength", Integer.class, Integer.MAX_VALUE);
 
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
 
-    defaultRowFetchSize(Integer .class),
+    public static final PgKey<String> STRING_TYPE = new PgKey<>("stringType", String.class, null);
 
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
 
-    loginTimeout(Integer .class),
+    public static final PgKey<String> APPLICATION_NAME = new PgKey<>("applicationName", String.class, null);
 
 
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
+    public static final PgKey<String> KERBEROS_SERVER_NAME = new PgKey<>("kerberosServerName", String.class, null);
 
-    connectTimeout(Integer .class),
+    public static final PgKey<String> JAAS_APPLICATION_NAME = new PgKey<>("jaasApplicationName", String.class, null);
 
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
 
-    socketTimeout(Integer .class),
+    public static final PgKey<Boolean> JAAS_LOGIN = new PgKey<>("jaasLogin", Boolean.class, Boolean.TRUE);
 
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
 
-    cancelSignalTimeout(Integer .class),
+    public static final PgKey<Enums.GSSEncMode> GSS_ENC_MODE = new PgKey<>("gssEncMode", Enums.GSSEncMode.class, Enums.GSSEncMode.DISABLE);
 
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
 
-    tcpKeepAlive(Integer .class),
+    public static final PgKey<String> GSS_LIB = new PgKey<>("gssLib", String.class, "auto");
 
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
 
-    unknownLength(Integer .class),
+    public static final PgKey<String> SSPI_SERVICE_CLASS = new PgKey<>("sspiServiceClass", String.class, "POSTGRES");
 
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
 
-    stringtype(Integer .class),
+    public static final PgKey<Boolean> USE_SPNEGO = new PgKey<>("useSpnego", Boolean.class, Boolean.FALSE);
 
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
 
-    ApplicationName(String .class),
+    public static final PgKey<Boolean> READ_ONLY = new PgKey<>("readOnly", Boolean.class, Boolean.FALSE);
 
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
 
-    kerberosServerName(Integer .class),
+    public static final PgKey<String> READ_ONLY_MODE = new PgKey<>("readOnlyMode", String.class, null);
 
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
 
-    jaasApplicationName(Integer .class),
+    public static final PgKey<Boolean> DISABLE_COLUMN_SANITISER = new PgKey<>("disableColumnSanitiser", Boolean.class, Boolean.FALSE);
 
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
+    public static final PgKey<String> ASSUME_MIN_SERVER_VERSION = new PgKey<>("assumeMinServerVersion", String.class, null);
 
-    jaasLogin(Integer .class, "true"),
 
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
+    public static final PgKey<String> CURRENT_SCHEMA = new PgKey<>("currentSchema", String.class, null);
 
-    gssEncMode(Enums.GSSEncMode .class, "DISABLE"),
 
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
-
-    gsslib(Integer .class),
-
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
-
-    // Since: 9.4
-    sspiServiceClass(Integer .class),
-
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
-
-    useSpnego(Boolean .class, "false"),
-
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
-
-    sendBufferSize(Integer .class),
-
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
-
-    receiveBufferSize(Integer .class),
-
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
-
-    readOnly(Integer .class),
-
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
-
-    readOnlyMode(Integer .class),
-
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
-
-    disableColumnSanitiser(Integer .class),
-
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
-
-    assumeMinServerVersion(String .class),
-
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
-
-    currentSchema(Integer .class),
-
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
-
-    targetServerType(Integer .class),
-
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
+    public static final PgKey<String> TARGET_SERVER_TYPE = new PgKey<>("targetServerType", String.class, null);
 
     hostRecheckSeconds(Integer .class),
 
