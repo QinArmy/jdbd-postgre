@@ -1,59 +1,115 @@
 package io.jdbd.postgre.env;
 
-import io.jdbd.vendor.env.PropertyKey;
+import io.jdbd.lang.Nullable;
+import io.jdbd.postgre.util.PgCollections;
+import io.jdbd.vendor.env.Key;
 import io.jdbd.vendor.env.Redefine;
 import io.jdbd.vendor.task.SslMode;
-import reactor.util.annotation.Nullable;
 
 import java.nio.file.Path;
+import java.util.List;
+
 
 /**
  * @see <a href="https://jdbc.postgresql.org/documentation/head/connect.html">properties</a>
  */
-public enum PgKey implements PropertyKey {
+public final class PgKey<T> extends Key<T> {
 
-    user(String.class),
-    password(String.class),
-    options(String.class),
+    public static final PgKey<String> k = new PgKey<>("", String.class, null);
+
+
+    public static final PgKey<String> OPTIONS = new PgKey<>("options", String.class, null);
 
     // ssl group
-    ssl(Boolean.class),
-    sslfactory(Class.class),
+
+    public static final PgKey<String> k = new PgKey<>("", String.class, null);
+
+    sslfactory(Class .class),
+
+    public static final PgKey<String> k = new PgKey<>("", String.class, null);
+
     @Deprecated
-    sslfactoryarg(String.class),
+    sslfactoryarg(String .class),
+
+    public static final PgKey<String> k = new PgKey<>("", String.class, null);
+
     @Redefine
-    sslmode(SslMode.class, "DISABLED"),
+    sslmode(SslMode .class, "DISABLED"),
 
-    sslcert(Path.class),
-    sslkey(Path.class),
-    sslrootcert(String.class),
-    sslhostnameverifier(Class.class),
+    public static final PgKey<String> k = new PgKey<>("", String.class, null);
 
-    sslpasswordcallback(Class.class),
-    sslpassword(String.class),
+    sslcert(Path .class),
+
+    public static final PgKey<String> k = new PgKey<>("", String.class, null);
+
+    sslkey(Path .class),
+
+    public static final PgKey<String> k = new PgKey<>("", String.class, null);
+
+    sslrootcert(String .class),
+
+    public static final PgKey<String> k = new PgKey<>("", String.class, null);
+
+    sslhostnameverifier(Class .class),
+
+    public static final PgKey<String> k = new PgKey<>("", String.class, null);
+
+    sslpasswordcallback(Class .class),
+
+    public static final PgKey<String> k = new PgKey<>("", String.class, null);
+
+    sslpassword(String .class),
+
+    public static final PgKey<String> k = new PgKey<>("", String.class, null);
 
     //
-    protocolVersion(Integer.class),
+    protocolVersion(Integer .class),
+
+    public static final PgKey<String> k = new PgKey<>("", String.class, null);
+
     @Deprecated
-    loggerLevel(String.class),
+    loggerLevel(String .class),
+
+    public static final PgKey<String> k = new PgKey<>("", String.class, null);
+
     @Deprecated
-    loggerFile(String.class),
-    allowEncodingChanges(Boolean.class),
+    loggerFile(String .class),
 
-    logUnclosedConnections(Boolean.class),
-    autosave(Enums.AutoSave.class, "never"),
-    cleanupSavepoints(Boolean.class, "false"),
-    binaryTransfer(Boolean.class, "true"),
+    public static final PgKey<String> k = new PgKey<>("", String.class, null);
 
-    binaryTransferEnable(String.class),
-    binaryTransferDisable(String.class),
-    databaseMetadataCacheFields(Integer.class, "65536"),
-    databaseMetadataCacheFieldsMiB(Integer.class, "5"),
+    allowEncodingChanges(Boolean .class),
 
-    prepareThreshold(Integer.class),
+    public static final PgKey<String> k = new PgKey<>("", String.class, null);
 
-    preparedStatementCacheQueries(Integer.class),
-    preparedStatementCacheSizeMiB(Integer.class),
+    logUnclosedConnections(Boolean .class),
+
+    public static final PgKey<String> k = new PgKey<>("", String.class, null);
+
+    autosave(Enums.AutoSave .class, "never"),
+
+    public static final PgKey<String> k = new PgKey<>("", String.class, null);
+
+    cleanupSavepoints(Boolean .class, "false"),
+
+    public static final PgKey<String> k = new PgKey<>("", String.class, null);
+
+    binaryTransfer(Boolean .class, "true"),
+
+    public static final PgKey<String> k = new PgKey<>("", String.class, null);
+
+    binaryTransferEnable(String .class),
+
+    binaryTransferDisable(String .class),
+
+    databaseMetadataCacheFields(Integer .class, "65536"),
+
+    databaseMetadataCacheFieldsMiB(Integer .class, "5"),
+
+    prepareThreshold(Integer .class),
+
+    preparedStatementCacheQueries(Integer .class),
+
+    preparedStatementCacheSizeMiB(Integer .class),
     preferQueryMode(String.class),
 
     defaultRowFetchSize(Integer.class),
@@ -110,61 +166,47 @@ public enum PgKey implements PropertyKey {
 
     trustStoreType(String.class),
     trustStoreUrl(String.class),
-    trustStorePassword(String.class),
 
-    fallbackToSystemKeyStore(Boolean.class, "false"),
-    factoryWorkerCount(Integer.class, "100"),
-    hexEscapes(Boolean.class, "false"),
-    lc_monetary(String.class);
+    trustStorePassword(String .class),
 
-    private final String key;
+    fallbackToSystemKeyStore(Boolean .class, "false"),
 
-    private final String defaultValue;
+    factoryWorkerCount(Integer .class, "100"),
 
-    private final Class<?> javaType;
+    hexEscapes(Boolean .class, "false"),
+
+    lc_monetary(String .class);
 
 
-    PgKey(Class<?> javaType) {
-        this(null, javaType, null);
+    private static final List<PgKey<?>> KEY_LIST = createKeyList();
+
+    /**
+     * <p>
+     * private constructor.
+     * </p>
+     */
+    private PgKey(String name, Class<T> valueClass, @Nullable T defaultValue) {
+        super(name, valueClass, defaultValue);
     }
 
 
-    PgKey(Class<?> javaType, @Nullable String defaultValue) {
-        this(null, javaType, defaultValue);
-    }
-
-    PgKey(@Nullable String key, Class<?> javaType, @Nullable String defaultValue) {
-        this.key = key == null ? this.name() : key;
-        this.javaType = javaType;
-        this.defaultValue = defaultValue;
+    public static List<PgKey<?>> keyList() {
+        return KEY_LIST;
     }
 
 
-    @Override
-    public final String getKey() {
-        return this.key;
+    @SuppressWarnings("unchecked")
+    private static List<PgKey<?>> createKeyList() {
+        final List<PgKey<?>> keyList = PgCollections.arrayList();
+        try {
+            addAllKey(PgKey.class, keyList::add);
+
+            return PgCollections.asUnmodifiableList(keyList);
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
+
     }
 
-    @Nullable
-    @Override
-    public final String getAlias() {
-        return null;
-    }
-
-    @Nullable
-    @Override
-    public final String getDefault() {
-        return this.defaultValue;
-    }
-
-    @Override
-    public final Class<?> getJavaType() {
-        return this.javaType;
-    }
-
-    @Override
-    public final boolean isCaseSensitive() {
-        return true;
-    }
 
 }

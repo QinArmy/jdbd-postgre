@@ -1,65 +1,78 @@
 package io.jdbd.postgre.session;
 
-import io.jdbd.postgre.env.PgKey;
-import io.jdbd.postgre.env.PgUrl;
+import io.jdbd.DriverVersion;
+import io.jdbd.JdbdException;
+import io.jdbd.postgre.PgDriver;
+import io.jdbd.postgre.env.PgHost;
+import io.jdbd.postgre.env.PgUrlParser;
+import io.jdbd.postgre.protocol.PgProtocolFactory;
 import io.jdbd.postgre.protocol.client.ClientProtocolFactory;
 import io.jdbd.postgre.protocol.client.PgProtocol;
 import io.jdbd.postgre.util.PgExceptions;
+import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.session.DatabaseSessionFactory;
 import io.jdbd.session.LocalDatabaseSession;
+import io.jdbd.session.Option;
 import io.jdbd.session.RmDatabaseSession;
-import io.netty.channel.EventLoopGroup;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
-import reactor.netty.resources.LoopResources;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class PgDatabaseSessionFactory implements DatabaseSessionFactory {
+/**
+ * <p>
+ * This class is a implementation of {@link DatabaseSessionFactory} with postgre client protocol.
+ * </p>
+ *
+ * @since 1.0
+ */
+public final class PgDatabaseSessionFactory implements DatabaseSessionFactory {
 
-    /**
-     * @throws UrlException      when url error.
-     * @throws PropertyException when properties error.
-     */
-    public static PgDatabaseSessionFactory create(final String url, final Map<String, String> properties,
-                                                  final boolean pool) {
-        final PgUrl pgUrl;
-        pgUrl = PgUrl.create(url, properties);
-        return new PgDatabaseSessionFactory(pgUrl, false);
+
+    public static PgDatabaseSessionFactory create(final String url, final Map<String, Object> properties,
+                                                  final boolean forPoolVendor) throws JdbdException {
+        final List<PgHost> hostList;
+        hostList = PgUrlParser.parse(url, properties);
+        final PgProtocolFactory protocolFactory;
+        protocolFactory = ClientProtocolFactory.create(hostList.get(0));
+        return new PgDatabaseSessionFactory(protocolFactory, forPoolVendor);
     }
 
 
-    public static boolean acceptsUrl(String url) {
-        return PgUrl.acceptsUrl(url);
-    }
+    private final PgProtocolFactory protocolFactory;
 
-    private final PgUrl pgUrl;
-
-    private String name;
+    private final String name;
 
     private final boolean forPoolVendor;
-
-    private final PgSessionAdjutant sessionAdjutant;
 
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
 
-    private PgDatabaseSessionFactory(PgUrl pgUrl, boolean forPoolVendor) {
-        this.pgUrl = pgUrl;
+    /**
+     * <p>
+     * private constructor.
+     * </p>
+     */
+    private PgDatabaseSessionFactory(PgProtocolFactory protocolFactory, boolean forPoolVendor) {
+        this.protocolFactory = protocolFactory;
+        this.name = protocolFactory.factoryName();
         this.forPoolVendor = forPoolVendor;
-        this.sessionAdjutant = new PgSessionAdjutant(this);
     }
 
+    @Override
+    public String name() {
+        return this.name;
+    }
 
     @Override
     public Publisher<LocalDatabaseSession> localSession() {
         if (this.closed.get()) {
             return Mono.error(PgExceptions.factoryClosed(this.name));
         }
-        // TODO complete me
-        return ClientProtocolFactory.single(this.sessionAdjutant, 0)
-                .map(this::createTxSession);
+        return this.protocolFactory.createProtocol()
+                .map(this::createLocalSession);
     }
 
     @Override
@@ -67,9 +80,8 @@ public class PgDatabaseSessionFactory implements DatabaseSessionFactory {
         if (this.closed.get()) {
             return Mono.error(PgExceptions.factoryClosed(this.name));
         }
-        // TODO complete me
-        return ClientProtocolFactory.single(this.sessionAdjutant, 0)
-                .map(this::createXaSession);
+        return this.protocolFactory.createProtocol()
+                .map(this::createRmSession);
     }
 
     @Override
@@ -78,17 +90,64 @@ public class PgDatabaseSessionFactory implements DatabaseSessionFactory {
         return Mono.empty();
     }
 
+    @Override
+    public String productName() {
+        return PgDriver.POSTGRE_SQL;
+    }
+
+    @Override
+    public String factoryVendor() {
+        return PgDriver.PG_DRIVER_VENDOR;
+    }
+
+    @Override
+    public String driverVendor() {
+        return PgDriver.PG_DRIVER_VENDOR;
+    }
+
+    @Override
+    public DriverVersion driverVersion() {
+        return PgDriver.getInstance().version();
+    }
+
+    @Override
+    public <T> T valueOf(Option<T> option) {
+        // currently , return null
+        return null;
+    }
+
+
+    @Override
+    public String toString() {
+        return PgStrings.builder(50)
+                .append(getClass().getName())
+                .append("[ name : ")
+                .append(name())
+                .append(" , factoryVendor : ")
+                .append(factoryVendor())
+                .append(" , driverVendor : ")
+                .append(driverVendor())
+                .append(" , productName : ")
+                .append(productName())
+                .append(" , driverVersion : ")
+                .append(driverVersion())
+                .append(" , hash : ")
+                .append(System.identityHashCode(this))
+                .append(" ]")
+                .toString();
+    }
+
     /*################################## blow private method ##################################*/
 
     /**
      * @see #localSession()
      */
-    private LocalDatabaseSession createTxSession(final PgProtocol protocol) {
+    private LocalDatabaseSession createLocalSession(final PgProtocol protocol) {
         final LocalDatabaseSession session;
         if (this.forPoolVendor) {
-            session = PgLocalDatabaseSession.forPoolVendor(this.sessionAdjutant, protocol);
+            session = PgLocalDatabaseSession.forPoolVendor(this, protocol);
         } else {
-            session = PgLocalDatabaseSession.create(this.sessionAdjutant, protocol);
+            session = PgLocalDatabaseSession.create(this, protocol);
         }
         return session;
     }
@@ -96,44 +155,14 @@ public class PgDatabaseSessionFactory implements DatabaseSessionFactory {
     /**
      * @see #rmSession()
      */
-    private RmDatabaseSession createXaSession(PgProtocol protocol) {
+    private RmDatabaseSession createRmSession(final PgProtocol protocol) {
         final RmDatabaseSession session;
         if (this.forPoolVendor) {
-            session = PgRmDatabaseSession.forPoolVendor(this.sessionAdjutant, protocol);
+            session = PgRmDatabaseSession.forPoolVendor(this, protocol);
         } else {
-            session = PgRmDatabaseSession.create(this.sessionAdjutant, protocol);
+            session = PgRmDatabaseSession.create(this, protocol);
         }
         return session;
-    }
-
-
-    private static final class PgSessionAdjutant implements SessionAdjutant {
-
-        private final PgDatabaseSessionFactory factory;
-
-        private final EventLoopGroup eventLoopGroup;
-
-        private PgSessionAdjutant(PgDatabaseSessionFactory factory) {
-            this.factory = factory;
-            final int workerCount = factory.pgUrl.getOrDefault(PgKey.factoryWorkerCount, Integer.class);
-            this.eventLoopGroup = LoopResources.create("jdbd-postgre", workerCount, true)
-                    .onClient(true);
-        }
-
-        @Override
-        public PgUrl jdbcUrl() {
-            return this.factory.pgUrl;
-        }
-
-        @Override
-        public EventLoopGroup eventLoopGroup() {
-            return this.eventLoopGroup;
-        }
-
-        @Override
-        public boolean isSameFactory(DatabaseSessionFactory factory) {
-            return factory == this.factory;
-        }
     }
 
 

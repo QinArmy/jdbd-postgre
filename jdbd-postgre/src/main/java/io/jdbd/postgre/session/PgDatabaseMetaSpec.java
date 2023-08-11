@@ -1,6 +1,7 @@
 package io.jdbd.postgre.session;
 
 import io.jdbd.JdbdException;
+import io.jdbd.postgre.PgDriver;
 import io.jdbd.postgre.protocol.client.PgProtocol;
 import io.jdbd.session.DatabaseMetaSpec;
 import io.jdbd.session.Option;
@@ -30,6 +31,16 @@ abstract class PgDatabaseMetaSpec implements DatabaseMetaSpec {
     @Override
     public final ServerVersion serverVersion() throws JdbdException {
         return this.protocol.serverVersion();
+    }
+
+    @Override
+    public final String factoryVendor() {
+        return PgDriver.PG_DRIVER_VENDOR;
+    }
+
+    @Override
+    public final String driverVendor() {
+        return PgDriver.PG_DRIVER_VENDOR;
     }
 
     @Override

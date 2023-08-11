@@ -54,6 +54,15 @@ public abstract class JdbdStrings /*extends StringUtils*/ {
         return match;
     }
 
+    public static int parsePort(final String url, final String port) {
+        try {
+            return Integer.parseInt(port);
+        } catch (NumberFormatException e) {
+            String m = String.format("port[%s] error in url %s", port, url);
+            throw new JdbdException(m, e);
+        }
+    }
+
     public static boolean isEmpty(@io.qinarmy.lang.Nullable Object str) {
         return str == null || str.equals("");
     }
@@ -244,13 +253,13 @@ public abstract class JdbdStrings /*extends StringUtils*/ {
     }
 
 
-    public static void parseQueryPair(final String originalUrl, String[] pairArray, Map<String, String> map) {
+    public static void parseQueryPair(final String originalUrl, String[] pairArray, Map<String, Object> map) {
         String[] keyValue;
         String key, value;
         for (String pair : pairArray) {
             keyValue = pair.split("=");
             if (keyValue.length > 2) {
-                String message = String.format("Postgre url query pair[%s] error. ", pair);
+                String message = String.format("query pair[%s] error in  url %s", pair, originalUrl);
                 throw new JdbdException(message);
             }
             key = decodeUrlPart(keyValue[0].trim());

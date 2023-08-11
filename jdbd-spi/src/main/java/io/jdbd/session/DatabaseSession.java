@@ -50,6 +50,7 @@ public interface DatabaseSession extends StaticStatementSpec, DatabaseMetaSpec, 
      */
     String factoryName();
 
+
     /**
      * <p>
      * Session identifier,probably is following :

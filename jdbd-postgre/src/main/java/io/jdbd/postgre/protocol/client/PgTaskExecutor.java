@@ -3,7 +3,6 @@ package io.jdbd.postgre.protocol.client;
 import io.jdbd.postgre.Encoding;
 import io.jdbd.postgre.PgServerVersion;
 import io.jdbd.postgre.ServerParameter;
-import io.jdbd.postgre.env.PgHost;
 import io.jdbd.postgre.session.SessionAdjutant;
 import io.jdbd.postgre.syntax.PgParser;
 import io.jdbd.postgre.util.PgExceptions;
@@ -31,11 +30,11 @@ import java.util.*;
 final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
 
     static Mono<PgTaskExecutor> create(final SessionAdjutant sessionAdjutant, final int hostIndex) {
-        final List<PgHost> hostList = sessionAdjutant.jdbcUrl().getHostList();
+        final List<PgHost0> hostList = sessionAdjutant.jdbcUrl().getHostList();
 
         final Mono<PgTaskExecutor> mono;
         if (hostIndex > -1 && hostIndex < hostList.size()) {
-            final PgHost host = hostList.get(hostIndex);
+            final PgHost0 host = hostList.get(hostIndex);
             mono = TcpClient.create()
                     .runOn(sessionAdjutant.eventLoopGroup())
                     .host(host.getHost())
@@ -54,11 +53,11 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
     private static final Logger LOG = LoggerFactory.getLogger(PgTaskExecutor.class);
 
 
-    private final PgHost host;
+    private final PgHost0 host;
 
     private final SessionAdjutant sessionAdjutant;
 
-    private PgTaskExecutor(Connection connection, PgHost host, SessionAdjutant sessionAdjutant) {
+    private PgTaskExecutor(Connection connection, PgHost0 host, SessionAdjutant sessionAdjutant) {
         super(connection);
         this.host = host;
         this.sessionAdjutant = sessionAdjutant;
@@ -164,7 +163,7 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
         }
 
         @Override
-        public final PgHost obtainHost() {
+        public final PgHost0 obtainHost() {
             return this.taskExecutor.host;
         }
 

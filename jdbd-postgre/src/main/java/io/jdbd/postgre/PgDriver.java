@@ -3,7 +3,10 @@ package io.jdbd.postgre;
 import io.jdbd.Driver;
 import io.jdbd.DriverVersion;
 import io.jdbd.JdbdException;
+import io.jdbd.lang.Nullable;
+import io.jdbd.postgre.env.PgUrlParser;
 import io.jdbd.postgre.session.PgDatabaseSessionFactory;
+import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.session.DatabaseSessionFactory;
 import io.jdbd.vendor.util.DefaultDriverVersion;
 
@@ -19,56 +22,60 @@ public final class PgDriver implements Driver {
 
     public static final String POSTGRE_SQL = "PostgreSQL";
 
-    public static final String DRIVER_VENDOR = "io.jdbd.postgre";
+    public static final String PG_DRIVER_VENDOR = "io.jdbd.postgre";
 
+    private final DriverVersion version;
 
     private PgDriver() {
+        version = DefaultDriverVersion.from(PgDriver.class.getName(), PgDriver.class);
     }
 
 
     @Override
-    public boolean acceptsUrl(String url) {
-        return PgDatabaseSessionFactory.acceptsUrl(url);
+    public boolean acceptsUrl(final @Nullable String url) {
+        return url != null && url.startsWith(PgUrlParser.PROTOCOL);
     }
 
     @Override
     public DatabaseSessionFactory createSessionFactory(String url, Map<String, Object> properties) throws JdbdException {
-        return null;
+        return PgDatabaseSessionFactory.create(url, properties, false);
     }
 
     @Override
     public DatabaseSessionFactory forPoolVendor(String url, Map<String, Object> properties) throws JdbdException {
-        return null;
+        return PgDatabaseSessionFactory.create(url, properties, true);
     }
 
     @Override
     public String productName() {
-        return null;
+        return POSTGRE_SQL;
     }
 
     @Override
     public DriverVersion version() {
-        return null;
+        return this.version;
     }
 
     @Override
     public String vendor() {
-        return null;
+        return PG_DRIVER_VENDOR;
     }
 
-    public static DriverVersion getVersion() {
-        return VersionHolder.VERSION;
+    @Override
+    public String toString() {
+        return PgStrings.builder()
+                .append(getClass().getName())
+                .append("[ vendor : ")
+                .append(vendor())
+                .append(" , productName : ")
+                .append(productName())
+                .append(" , version : ")
+                .append(version())
+                .append(" , hash : ")
+                .append(System.identityHashCode(this))
+                .append(" ]")
+                .toString();
     }
 
-
-    private static final class VersionHolder {
-
-        private static final DriverVersion VERSION;
-
-        static {
-            VERSION = DefaultDriverVersion.from(PgDriver.class.getName(), PgDriver.class);
-        }
-
-    }
 
 }

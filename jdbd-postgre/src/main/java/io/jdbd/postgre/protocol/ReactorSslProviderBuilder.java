@@ -1,6 +1,5 @@
 package io.jdbd.postgre.protocol;
 
-import io.jdbd.postgre.env.PgKey;
 import io.jdbd.vendor.env.HostInfo;
 import io.jdbd.vendor.task.AbstractSslProviderBuilder;
 import io.jdbd.vendor.task.SslMode;
@@ -23,13 +22,13 @@ public final class ReactorSslProviderBuilder extends AbstractSslProviderBuilder 
     @Nullable
     @Override
     protected final StoreProps getStorePropsForKey() {
-        String url = this.properties.get(PgKey.keyStoreType);
+        String url = this.properties.get(PgKey0.keyStoreType);
         StoreProps props;
         if (url == null) {
             props = null;
         } else {
-            props = new StoreProps(this.properties.get(PgKey.keyStoreUrl)
-                    , url, this.properties.get(PgKey.keyStorePassword));
+            props = new StoreProps(this.properties.get(PgKey0.keyStoreUrl)
+                    , url, this.properties.get(PgKey0.keyStorePassword));
         }
         return props;
     }
@@ -37,25 +36,25 @@ public final class ReactorSslProviderBuilder extends AbstractSslProviderBuilder 
     @Nullable
     @Override
     protected final StoreProps getStorePropsForTrust() {
-        String url = this.properties.get(PgKey.trustStoreUrl);
+        String url = this.properties.get(PgKey0.trustStoreUrl);
         StoreProps props;
         if (url == null) {
             props = null;
         } else {
-            props = new StoreProps(this.properties.get(PgKey.trustStoreType)
-                    , url, this.properties.get(PgKey.trustStorePassword));
+            props = new StoreProps(this.properties.get(PgKey0.trustStoreType)
+                    , url, this.properties.get(PgKey0.trustStorePassword));
         }
         return props;
     }
 
     @Override
     protected final boolean isFallbackToSystemKeyStore() {
-        return this.properties.getOrDefault(PgKey.fallbackToSystemKeyStore, Boolean.class);
+        return this.properties.getOrDefault(PgKey0.fallbackToSystemKeyStore, Boolean.class);
     }
 
     @Override
     protected final SslMode getSslMode() {
-        return this.properties.getOrDefault(PgKey.sslmode, SslMode.class);
+        return this.properties.getOrDefault(PgKey0.sslmode, SslMode.class);
     }
 
     @Override

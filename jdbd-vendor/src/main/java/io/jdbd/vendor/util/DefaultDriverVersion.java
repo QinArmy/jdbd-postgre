@@ -2,6 +2,7 @@ package io.jdbd.vendor.util;
 
 import io.jdbd.Driver;
 import io.jdbd.DriverVersion;
+import io.jdbd.session.Option;
 import reactor.util.annotation.Nullable;
 
 import java.util.Objects;
@@ -69,6 +70,12 @@ public final class DefaultDriverVersion implements DriverVersion {
     public boolean meetsMinimum(int major, int minor, int subMinor) {
         //TODO
         throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public <T> T valueOf(Option<T> option) {
+        // always null
+        return null;
     }
 
     @Override

@@ -2,7 +2,8 @@ package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.PgServerVersion;
 import io.jdbd.postgre.ServerParameter;
-import io.jdbd.postgre.env.PgKey;
+import io.jdbd.postgre.env.PgHost;
+import io.jdbd.postgre.protocol.PgProtocolFactory;
 import io.jdbd.postgre.session.SessionAdjutant;
 import io.jdbd.postgre.syntax.PgStatement;
 import io.jdbd.postgre.util.PgCollections;
@@ -20,7 +21,12 @@ import reactor.core.publisher.Mono;
 import java.util.*;
 import java.util.concurrent.ConcurrentMap;
 
-public final class ClientProtocolFactory extends FixedEnv {
+public final class ClientProtocolFactory extends FixedEnv implements PgProtocolFactory {
+
+
+    public static ClientProtocolFactory create(PgHost host) {
+        throw new UnsupportedOperationException();
+    }
 
 
     final ConcurrentMap<String, PgStatement> stmtMap = PgCollections.concurrentHashMap();
@@ -123,13 +129,13 @@ public final class ClientProtocolFactory extends FixedEnv {
             if (serverVersion.compareTo(PgServerVersion.V9_0) >= 0) {
                 sqlGroup.add("SET extra_float_digits = 3");
 
-                final String applicationName = properties.get(PgKey.ApplicationName);
+                final String applicationName = properties.get(PgKey0.ApplicationName);
                 if (PgStrings.hasText(applicationName)) {
                     sqlGroup.add(String.format("SET application_name = '%s'", applicationName));
                 }
             }
 
-            final String lcMonetary = properties.get(PgKey.lc_monetary);
+            final String lcMonetary = properties.get(PgKey0.lc_monetary);
             if (PgStrings.hasText(lcMonetary)) {
                 if (!PgStrings.isSafeParameterValue(lcMonetary)) {
                     return Mono.error(new JdbdException(String.format("lc_monetary[%s] error.", lcMonetary)));

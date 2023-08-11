@@ -40,11 +40,11 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implements RmDatabaseSession {
 
 
-    static PgRmDatabaseSession create(PgDatabaseSessionFactory factory, PgProtocol protocol) {
+    static RmDatabaseSession create(PgDatabaseSessionFactory factory, PgProtocol protocol) {
         return new PgRmDatabaseSession(factory, protocol);
     }
 
-    static PgPoolRmDatabaseSession forPoolVendor(PgDatabaseSessionFactory factory, PgProtocol protocol) {
+    static PoolRmDatabaseSession forPoolVendor(PgDatabaseSessionFactory factory, PgProtocol protocol) {
         return new PgPoolRmDatabaseSession(factory, protocol);
     }
 
@@ -57,7 +57,11 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
 
     private volatile XaStatesTriple currentTriple = null;
 
-
+    /**
+     * <p>
+     * private constructor.
+     * </p>
+     */
     private PgRmDatabaseSession(PgDatabaseSessionFactory factory, PgProtocol protocol) {
         super(factory, protocol);
     }

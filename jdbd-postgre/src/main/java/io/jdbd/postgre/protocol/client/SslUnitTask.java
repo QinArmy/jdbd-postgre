@@ -2,7 +2,6 @@ package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.PgReConnectableException;
 import io.jdbd.postgre.env.Enums;
-import io.jdbd.postgre.env.PgKey;
 import io.jdbd.vendor.task.SslWrapper;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
@@ -53,7 +52,7 @@ final class SslUnitTask extends PostgreUnitTask {
     @Override
     public final boolean decode(ByteBuf cumulateBuffer, Consumer<Object> serverStatusConsumer) {
         final int singleByte = cumulateBuffer.readChar();
-        final boolean reConnect = !this.properties.getOrDefault(PgKey.sslmode, Enums.SslMode.class).needSslEnc();
+        final boolean reConnect = !this.properties.getOrDefault(PgKey0.sslmode, Enums.SslMode.class).needSslEnc();
         switch (singleByte) {
             case Messages.E: {
                 String message = "Postgre server response error,not support SSL encryption.";

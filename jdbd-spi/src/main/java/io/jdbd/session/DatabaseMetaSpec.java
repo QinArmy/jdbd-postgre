@@ -1,5 +1,6 @@
 package io.jdbd.session;
 
+import io.jdbd.Driver;
 import io.jdbd.JdbdException;
 import io.jdbd.meta.DatabaseMetaData;
 
@@ -20,6 +21,18 @@ public interface DatabaseMetaSpec extends OptionSpec {
      * @throws JdbdException throw when session have closed.
      */
     ServerVersion serverVersion() throws JdbdException;
+
+    /**
+     * @return session factory vendor,The value returned typically is the package name for this vendor.
+     * The session factory vendor possibly is pool vendor.
+     */
+    String factoryVendor();
+
+    /**
+     * @return driver vendor,The value returned typically is the package name for this vendor.
+     * @see Driver#vendor()
+     */
+    String driverVendor();
 
 
     /**

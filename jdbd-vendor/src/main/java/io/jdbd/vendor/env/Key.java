@@ -3,6 +3,10 @@ package io.jdbd.vendor.env;
 import io.jdbd.lang.Nullable;
 import io.jdbd.vendor.util.JdbdStrings;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.util.function.Consumer;
+
 /**
  * @see Environment
  */
@@ -34,6 +38,24 @@ public abstract class Key<T> {
                 .append(this.defaultValue)
                 .append(" ]")
                 .toString();
+    }
+
+
+    @SuppressWarnings("unchecked")
+    protected static <T, K extends Key<T>> void addAllKey(final Class<K> keyClass, final Consumer<K> consumer)
+            throws IllegalAccessException {
+        int modifier;
+        for (Field field : keyClass.getDeclaredFields()) {
+            modifier = field.getModifiers();
+            if (keyClass.isAssignableFrom(field.getType())
+                    && Modifier.isPublic(modifier)
+                    && Modifier.isStatic(modifier)
+                    && Modifier.isFinal(modifier)) {
+                consumer.accept((K) field.get(null));
+            }
+
+        }
+
     }
 
 }

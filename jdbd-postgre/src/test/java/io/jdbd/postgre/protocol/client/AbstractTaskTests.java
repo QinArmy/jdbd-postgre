@@ -1,8 +1,6 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.ClientTestUtils;
-import io.jdbd.postgre.env.PgKey;
-import io.jdbd.postgre.env.PgUrl;
 import io.jdbd.postgre.session.SessionAdjutant;
 import io.jdbd.result.ResultStates;
 import io.jdbd.session.DatabaseSessionFactory;
@@ -81,7 +79,7 @@ abstract class AbstractTaskTests {
 
     static SessionAdjutant createDefaultSessionAdjutant() {
         Map<String, String> propMap = new HashMap<>();
-        propMap.put(PgKey.lc_monetary.getKey(), getDefaultLcMonetary() + ".UTF-8");
+        propMap.put(PgKey0.lc_monetary.getKey(), getDefaultLcMonetary() + ".UTF-8");
         return new SessionAdjutantImpl(ClientTestUtils.createUrl(propMap));
     }
 

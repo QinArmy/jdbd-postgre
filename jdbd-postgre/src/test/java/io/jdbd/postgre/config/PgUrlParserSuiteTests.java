@@ -2,8 +2,7 @@ package io.jdbd.postgre.config;
 
 
 import io.jdbd.postgre.Group;
-import io.jdbd.postgre.env.PgKey;
-import io.jdbd.postgre.env.PgUrl;
+import io.jdbd.postgre.env.PgUrlParser;
 import io.jdbd.postgre.env.PostgreUrlParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,7 +32,7 @@ public class PgUrlParserSuiteTests {
         parser = PostgreUrlParser.create(postgreUrl, Collections.emptyMap());
 
         assertEquals(parser.getOriginalUrl(), postgreUrl, postgreUrl);
-        assertEquals(parser.getProtocol(), PgUrl.PROTOCOL, postgreUrl);
+        assertEquals(parser.getProtocol(), PgUrlParser.PROTOCOL, postgreUrl);
         assertNull(parser.getSubProtocol(), postgreUrl);
         assertEquals(parser.getDbName(), "army_test", postgreUrl);
 
@@ -65,7 +64,7 @@ public class PgUrlParserSuiteTests {
         parser = PostgreUrlParser.create(url, Collections.emptyMap());
 
         assertEquals(parser.getOriginalUrl(), url, url);
-        assertEquals(parser.getProtocol(), PgUrl.PROTOCOL, url);
+        assertEquals(parser.getProtocol(), PgUrlParser.PROTOCOL, url);
         assertNull(parser.getSubProtocol(), url);
         assertEquals(parser.getDbName(), database, url);
 
@@ -82,8 +81,8 @@ public class PgUrlParserSuiteTests {
 
         final Map<String, String> host = hostList.get(0);
 
-        assertEquals(host.get(PgKey.PGHOST.getKey()), "2001:DB8:0:23:8:800:200C:417A", "host");
-        assertEquals(host.get(PgKey.PGPORT.getKey()), "5432", "port");
+        assertEquals(host.get(PgKey0.PGHOST.getKey()), "2001:DB8:0:23:8:800:200C:417A", "host");
+        assertEquals(host.get(PgKey0.PGPORT.getKey()), "5432", "port");
 
         LOG.info("{} group  urlParserIpv6 test success", Group.URL);
     }
@@ -96,7 +95,7 @@ public class PgUrlParserSuiteTests {
         parser = PostgreUrlParser.create(postgreUrl, Collections.emptyMap());
 
         assertEquals(parser.getOriginalUrl(), postgreUrl, postgreUrl);
-        assertEquals(parser.getProtocol(), PgUrl.PROTOCOL, postgreUrl);
+        assertEquals(parser.getProtocol(), PgUrlParser.PROTOCOL, postgreUrl);
         assertNull(parser.getSubProtocol(), postgreUrl);
         assertEquals(parser.getDbName(), "army_test", postgreUrl);
 
@@ -112,8 +111,8 @@ public class PgUrlParserSuiteTests {
 
         final Map<String, String> host = hostList.get(0);
 
-        assertEquals(host.get(PgKey.PGHOST.getKey()), "192.168.0.102", "host");
-        assertEquals(host.get(PgKey.PGPORT.getKey()), "5432", "port");
+        assertEquals(host.get(PgKey0.PGHOST.getKey()), "192.168.0.102", "host");
+        assertEquals(host.get(PgKey0.PGPORT.getKey()), "5432", "port");
 
 
         LOG.info("{} group  urlParserIpv4 test success", Group.URL);
@@ -127,7 +126,7 @@ public class PgUrlParserSuiteTests {
         parser = PostgreUrlParser.create(postgreUrl, Collections.emptyMap());
 
         assertEquals(parser.getOriginalUrl(), postgreUrl, postgreUrl);
-        assertEquals(parser.getProtocol(), PgUrl.PROTOCOL, postgreUrl);
+        assertEquals(parser.getProtocol(), PgUrlParser.PROTOCOL, postgreUrl);
         assertNull(parser.getSubProtocol(), postgreUrl);
         assertEquals(parser.getDbName(), "army_test", postgreUrl);
 
@@ -144,8 +143,8 @@ public class PgUrlParserSuiteTests {
 
         final Map<String, String> host = hostList.get(0);
 
-        assertEquals(host.get(PgKey.PGHOST.getKey()), "192.168.0.102", "host");
-        assertNull(host.get(PgKey.PGPORT.getKey()), "port");
+        assertEquals(host.get(PgKey0.PGHOST.getKey()), "192.168.0.102", "host");
+        assertNull(host.get(PgKey0.PGPORT.getKey()), "port");
 
         LOG.info("{} group  urlParserDefaultPort test success", Group.URL);
     }
@@ -158,7 +157,7 @@ public class PgUrlParserSuiteTests {
         parser = PostgreUrlParser.create(postgreUrl, Collections.emptyMap());
 
         assertEquals(parser.getOriginalUrl(), postgreUrl, postgreUrl);
-        assertEquals(parser.getProtocol(), PgUrl.PROTOCOL, postgreUrl);
+        assertEquals(parser.getProtocol(), PgUrlParser.PROTOCOL, postgreUrl);
         assertNull(parser.getSubProtocol(), postgreUrl);
         assertNull(parser.getDbName(), postgreUrl);
 
@@ -175,8 +174,8 @@ public class PgUrlParserSuiteTests {
 
         final Map<String, String> host = hostList.get(0);
 
-        assertEquals(host.get(PgKey.PGHOST.getKey()), "192.168.0.102", "host");
-        assertNull(host.get(PgKey.PGPORT.getKey()), "port");
+        assertEquals(host.get(PgKey0.PGHOST.getKey()), "192.168.0.102", "host");
+        assertNull(host.get(PgKey0.PGPORT.getKey()), "port");
 
         LOG.info("{} group  urlParserPortNoDatabase test success", Group.URL);
     }
@@ -189,7 +188,7 @@ public class PgUrlParserSuiteTests {
         parser = PostgreUrlParser.create(url, Collections.emptyMap());
 
         assertEquals(parser.getOriginalUrl(), url, url);
-        assertEquals(parser.getProtocol(), PgUrl.PROTOCOL, url);
+        assertEquals(parser.getProtocol(), PgUrlParser.PROTOCOL, url);
         assertNull(parser.getSubProtocol(), url);
         assertNull(parser.getDbName(), url);
 
@@ -205,8 +204,8 @@ public class PgUrlParserSuiteTests {
 
         final Map<String, String> host = hostList.get(0);
 
-        assertNull(host.get(PgKey.PGHOST.getKey()), "host");
-        assertNull(host.get(PgKey.PGPORT.getKey()), "port");
+        assertNull(host.get(PgKey0.PGHOST.getKey()), "host");
+        assertNull(host.get(PgKey0.PGPORT.getKey()), "port");
 
         LOG.info("{} group  urlParser5 test success", Group.URL);
     }
@@ -220,7 +219,7 @@ public class PgUrlParserSuiteTests {
         parser = PostgreUrlParser.create(url, Collections.emptyMap());
 
         assertEquals(parser.getOriginalUrl(), url, url);
-        assertEquals(parser.getProtocol(), PgUrl.PROTOCOL, url);
+        assertEquals(parser.getProtocol(), PgUrlParser.PROTOCOL, url);
         assertNull(parser.getSubProtocol(), url);
         assertEquals(parser.getDbName(), "army_test", url);
 
@@ -236,23 +235,23 @@ public class PgUrlParserSuiteTests {
 
         final Map<String, String> host1 = hostList.get(0);
 
-        assertEquals(host1.get(PgKey.PGHOST.getKey()), "192.168.0.102", "host1");
-        assertNull(host1.get(PgKey.PGPORT.getKey()), "port1");
+        assertEquals(host1.get(PgKey0.PGHOST.getKey()), "192.168.0.102", "host1");
+        assertNull(host1.get(PgKey0.PGPORT.getKey()), "port1");
 
         final Map<String, String> host2 = hostList.get(1);
 
-        assertEquals(host2.get(PgKey.PGHOST.getKey()), "2001:DB8:0:23:8:800:200C:417A", "host2");
-        assertNull(host2.get(PgKey.PGPORT.getKey()), "port2");
+        assertEquals(host2.get(PgKey0.PGHOST.getKey()), "2001:DB8:0:23:8:800:200C:417A", "host2");
+        assertNull(host2.get(PgKey0.PGPORT.getKey()), "port2");
 
         final Map<String, String> host3 = hostList.get(2);
 
-        assertEquals(host3.get(PgKey.PGHOST.getKey()), "localhost", "host3");
-        assertEquals(host3.get(PgKey.PGPORT.getKey()), "7878", "port3");
+        assertEquals(host3.get(PgKey0.PGHOST.getKey()), "localhost", "host3");
+        assertEquals(host3.get(PgKey0.PGPORT.getKey()), "7878", "port3");
 
         final Map<String, String> host4 = hostList.get(3);
 
-        assertEquals(host4.get(PgKey.PGHOST.getKey()), "2002:DB8:0:23:8:233:200C:417A", "host4");
-        assertEquals(host4.get(PgKey.PGPORT.getKey()), "5656", "port4");
+        assertEquals(host4.get(PgKey0.PGHOST.getKey()), "2002:DB8:0:23:8:233:200C:417A", "host4");
+        assertEquals(host4.get(PgKey0.PGPORT.getKey()), "5656", "port4");
 
         LOG.info("{} group  failOverHostList test success", Group.URL);
     }

@@ -5,6 +5,11 @@ import io.jdbd.lang.Nullable;
 public interface JdbdHost {
 
     String DEFAULT_HOST = "localhost";
+    String HOST = "host";
+
+    String PORT = "port";
+
+    String DB_NAME = "dbname";
 
     String host();
 
@@ -19,6 +24,11 @@ public interface JdbdHost {
 
         @Nullable
         String dbName();
+
+
+        Environment properties();
+
+
     }
 
 

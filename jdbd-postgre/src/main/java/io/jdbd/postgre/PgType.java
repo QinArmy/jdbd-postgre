@@ -255,7 +255,7 @@ public enum PgType implements SQLType {
 
     @Override
     public final String vendor() {
-        return PgDriver.DRIVER_VENDOR;
+        return PgDriver.PG_DRIVER_VENDOR;
     }
 
 

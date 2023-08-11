@@ -2,8 +2,6 @@ package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.PgJdbdException;
 import io.jdbd.postgre.env.Enums;
-import io.jdbd.postgre.env.PgHost;
-import io.jdbd.postgre.env.PgKey;
 import io.jdbd.postgre.util.PgFunctions;
 import io.jdbd.vendor.task.GssWrapper;
 import io.netty.buffer.ByteBuf;
@@ -181,7 +179,7 @@ final class GssUnitTask extends PostgreUnitTask {
     private boolean startupGssContext() throws Throwable {
         //1. below obtain authenticated Subject
         Subject subject = tryGetAuthenticatedSubject();
-        if (subject == null && this.properties.getOrDefault(PgKey.jaasLogin, Boolean.class)) {
+        if (subject == null && this.properties.getOrDefault(PgKey0.jaasLogin, Boolean.class)) {
             subject = jaasLogin();
         }
 
@@ -287,7 +285,7 @@ final class GssUnitTask extends PostgreUnitTask {
 
 
     private boolean notRequiredGss() {
-        return !this.properties.getOrDefault(PgKey.gssEncMode, Enums.GSSEncMode.class).requireEncryption();
+        return !this.properties.getOrDefault(PgKey0.gssEncMode, Enums.GSSEncMode.class).requireEncryption();
     }
 
     /**
@@ -295,10 +293,10 @@ final class GssUnitTask extends PostgreUnitTask {
      */
     private GSSContext createGssContext() throws GSSException {
         GSSManager manager = GSSManager.getInstance();
-        PgHost hostInfo = this.adjutant.obtainHost();
+        PgHost0 hostInfo = this.adjutant.obtainHost();
 
         final Oid desiredMech;
-        if (this.properties.getOrDefault(PgKey.useSpnego, Boolean.class)
+        if (this.properties.getOrDefault(PgKey0.useSpnego, Boolean.class)
                 && ConnectionTaskUtils.supportSpnego(manager)) {
             desiredMech = ConnectionTaskUtils.SPNEGO_MECHANISM;
         } else {
@@ -343,7 +341,7 @@ final class GssUnitTask extends PostgreUnitTask {
      * @see #startupGssContext()
      */
     private Subject jaasLogin() throws PgJdbdException {
-        final String entryName = this.properties.get(PgKey.jaasApplicationName, "pgjdbc");
+        final String entryName = this.properties.get(PgKey0.jaasApplicationName, "pgjdbc");
         try {
             LoginContext lc = new LoginContext(entryName, this::jaasCallbackHandler);
             lc.login();
@@ -367,7 +365,7 @@ final class GssUnitTask extends PostgreUnitTask {
      * @return database server kerberos principal name,that bases hose.
      */
     private String getServerPrincipalName() {
-        return this.properties.get(PgKey.kerberosServerName, "postgres") + "@"
+        return this.properties.get(PgKey0.kerberosServerName, "postgres") + "@"
                 + this.adjutant.obtainHost().getHost();
     }
 

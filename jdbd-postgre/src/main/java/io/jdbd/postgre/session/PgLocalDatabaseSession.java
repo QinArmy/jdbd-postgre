@@ -23,15 +23,19 @@ import java.util.Map;
 class PgLocalDatabaseSession extends PgDatabaseSession<LocalDatabaseSession> implements LocalDatabaseSession {
 
 
-    static PgLocalDatabaseSession create(PgDatabaseSessionFactory factory, PgProtocol protocol) {
+    static LocalDatabaseSession create(PgDatabaseSessionFactory factory, PgProtocol protocol) {
         return new PgLocalDatabaseSession(factory, protocol);
     }
 
-    static PgLocalDatabaseSession forPoolVendor(PgDatabaseSessionFactory factory, PgProtocol protocol) {
+    static PoolLocalDatabaseSession forPoolVendor(PgDatabaseSessionFactory factory, PgProtocol protocol) {
         return new PgPoolLocalDatabaseSession(factory, protocol);
     }
 
-
+    /**
+     * <p>
+     * private constructor.
+     * </p>
+     */
     private PgLocalDatabaseSession(PgDatabaseSessionFactory factory, PgProtocol protocol) {
         super(factory, protocol);
     }

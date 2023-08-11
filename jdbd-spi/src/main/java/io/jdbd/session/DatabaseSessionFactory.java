@@ -54,6 +54,7 @@ public interface DatabaseSessionFactory extends OptionSpec, Closeable {
      * </ul>
      * @throws io.jdbd.JdbdException emit(not throw) when
      *                               <ul>
+     *                                   <li>this {@link DatabaseSessionFactory} have closed.</li>
      *                                   <li>network error</li>
      *                                   <li>server response error message,see {@link io.jdbd.result.ServerException}</li>
      *                               </ul>
@@ -83,6 +84,7 @@ public interface DatabaseSessionFactory extends OptionSpec, Closeable {
      * @throws io.jdbd.JdbdException emit(not throw) when
      *                               <ul>
      *                                   <li>driver don't support this method</li>
+     *                                   <li>this {@link DatabaseSessionFactory} have closed.</li>
      *                                   <li>network error</li>
      *                                   <li>server response error message,see {@link io.jdbd.result.ServerException}</li>
      *                               </ul>

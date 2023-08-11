@@ -1,9 +1,7 @@
 package io.jdbd.postgre.config;
 
 import io.jdbd.postgre.Group;
-import io.jdbd.postgre.env.PgHost;
-import io.jdbd.postgre.env.PgKey;
-import io.jdbd.postgre.env.PgUrl;
+import io.jdbd.postgre.env.PgUrlParser;
 import io.jdbd.vendor.env.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,17 +30,17 @@ public class PgUrlSuiteTests {
         final PgUrl pgUrl = PgUrl.create(url, Collections.singletonMap("password", "qinarmy123"));
 
         assertNotNull(pgUrl, "postgreUrl");
-        assertEquals(pgUrl.getProtocol(), PgUrl.PROTOCOL, "protocol");
+        assertEquals(pgUrl.getProtocol(), PgUrlParser.PROTOCOL, "protocol");
         assertNull(pgUrl.getSubProtocol(), "sub protocol");
         assertEquals(pgUrl.getDbName(), "army_test", "database");
 
-        final List<PgHost> hostList = pgUrl.getHostList();
+        final List<PgHost0> hostList = pgUrl.getHostList();
         assertNotNull(hostList, "hostList");
         assertEquals(hostList.size(), 1, "hostList size");
 
-        final PgHost host = hostList.get(0);
-        assertEquals(host.getHost(), PgHost.DEFAULT_HOST, "host");
-        assertEquals(host.getPort(), PgHost.DEFAULT_PORT, "port");
+        final PgHost0 host = hostList.get(0);
+        assertEquals(host.getHost(), PgHost0.DEFAULT_HOST, "host");
+        assertEquals(host.getPort(), PgHost0.DEFAULT_PORT, "port");
         assertEquals(host.getDbName(), "army_test");
         assertEquals(host.getUser(), "army", "user");
 
@@ -53,10 +51,10 @@ public class PgUrlSuiteTests {
         final Properties properties = host.getProperties();
         assertNotNull(properties, "properties");
 
-        assertNull(properties.get(PgKey.user), "user");
-        assertNull(properties.get(PgKey.password), "password");
-        assertNull(properties.get(PgKey.PGDBNAME), "dbName");
-        assertEquals(properties.getOrDefault(PgKey.ssl, Boolean.class), Boolean.TRUE, "ssl");
+        assertNull(properties.get(PgKey0.user), "user");
+        assertNull(properties.get(PgKey0.password), "password");
+        assertNull(properties.get(PgKey0.PGDBNAME), "dbName");
+        assertEquals(properties.getOrDefault(PgKey0.ssl, Boolean.class), Boolean.TRUE, "ssl");
 
         LOG.info("{} group  urlParserDefaultHostAndPort test success", Group.URL);
     }
@@ -71,15 +69,15 @@ public class PgUrlSuiteTests {
         final PgUrl pgUrl = PgUrl.create(url, Collections.singletonMap("password", "qinarmy123"));
 
         assertNotNull(pgUrl, "postgreUrl");
-        assertEquals(pgUrl.getProtocol(), PgUrl.PROTOCOL, "protocol");
+        assertEquals(pgUrl.getProtocol(), PgUrlParser.PROTOCOL, "protocol");
         assertNull(pgUrl.getSubProtocol(), "sub protocol");
         assertEquals(pgUrl.getDbName(), database, "database");
 
-        final List<PgHost> hostList = pgUrl.getHostList();
+        final List<PgHost0> hostList = pgUrl.getHostList();
         assertNotNull(hostList, "hostList");
         assertEquals(hostList.size(), 1, "hostList size");
 
-        final PgHost host = hostList.get(0);
+        final PgHost0 host = hostList.get(0);
         assertEquals(host.getHost(), "2001:DB8:0:23:8:800:200C:417A", "host");
         assertEquals(host.getPort(), 5432, "port");
         assertEquals(host.getDbName(), database);
@@ -91,10 +89,10 @@ public class PgUrlSuiteTests {
         final Properties properties = host.getProperties();
         assertNotNull(properties, "properties");
 
-        assertNull(properties.get(PgKey.user), "user");
-        assertNull(properties.get(PgKey.password), "password");
-        assertNull(properties.get(PgKey.PGDBNAME), "dbName");
-        assertEquals(properties.getOrDefault(PgKey.ssl, Boolean.class), Boolean.TRUE, "ssl");
+        assertNull(properties.get(PgKey0.user), "user");
+        assertNull(properties.get(PgKey0.password), "password");
+        assertNull(properties.get(PgKey0.PGDBNAME), "dbName");
+        assertEquals(properties.getOrDefault(PgKey0.ssl, Boolean.class), Boolean.TRUE, "ssl");
 
         LOG.info("{} group  urlParserIpv6 test success", Group.URL);
     }
@@ -108,15 +106,15 @@ public class PgUrlSuiteTests {
         final PgUrl pgUrl = PgUrl.create(url, Collections.singletonMap("password", "qinarmy123"));
 
         assertNotNull(pgUrl, "postgreUrl");
-        assertEquals(pgUrl.getProtocol(), PgUrl.PROTOCOL, "protocol");
+        assertEquals(pgUrl.getProtocol(), PgUrlParser.PROTOCOL, "protocol");
         assertNull(pgUrl.getSubProtocol(), "sub protocol");
         assertEquals(pgUrl.getDbName(), "army_test", "database");
 
-        final List<PgHost> hostList = pgUrl.getHostList();
+        final List<PgHost0> hostList = pgUrl.getHostList();
         assertNotNull(hostList, "hostList");
         assertEquals(hostList.size(), 1, "hostList size");
 
-        final PgHost host = hostList.get(0);
+        final PgHost0 host = hostList.get(0);
         assertEquals(host.getHost(), "192.168.0.102", "host");
         assertEquals(host.getPort(), 5432, "port");
         assertEquals(host.getDbName(), "army_test");
@@ -128,10 +126,10 @@ public class PgUrlSuiteTests {
         final Properties properties = host.getProperties();
         assertNotNull(properties, "properties");
 
-        assertNull(properties.get(PgKey.user), "user");
-        assertNull(properties.get(PgKey.password), "password");
-        assertNull(properties.get(PgKey.PGDBNAME), "dbName");
-        assertEquals(properties.getOrDefault(PgKey.ssl, Boolean.class), Boolean.TRUE, "ssl");
+        assertNull(properties.get(PgKey0.user), "user");
+        assertNull(properties.get(PgKey0.password), "password");
+        assertNull(properties.get(PgKey0.PGDBNAME), "dbName");
+        assertEquals(properties.getOrDefault(PgKey0.ssl, Boolean.class), Boolean.TRUE, "ssl");
 
         LOG.info("{} group  urlParserIpv4 test success", Group.URL);
     }
@@ -144,18 +142,18 @@ public class PgUrlSuiteTests {
         final PgUrl pgUrl = PgUrl.create(url, Collections.singletonMap("password", "qinarmy123"));
 
         assertNotNull(pgUrl, "postgreUrl");
-        assertEquals(pgUrl.getProtocol(), PgUrl.PROTOCOL, "protocol");
+        assertEquals(pgUrl.getProtocol(), PgUrlParser.PROTOCOL, "protocol");
         assertNull(pgUrl.getSubProtocol(), "sub protocol");
         assertEquals(pgUrl.getDbName(), "army_test", "database");
 
-        final List<PgHost> hostList = pgUrl.getHostList();
+        final List<PgHost0> hostList = pgUrl.getHostList();
         assertNotNull(hostList, "hostList");
         assertEquals(hostList.size(), 4, "hostList size");
 
         // host 0
-        final PgHost host0 = hostList.get(0);
+        final PgHost0 host0 = hostList.get(0);
         assertEquals(host0.getHost(), "192.168.0.102", "host");
-        assertEquals(host0.getPort(), PgHost.DEFAULT_PORT, "port");
+        assertEquals(host0.getPort(), PgHost0.DEFAULT_PORT, "port");
         assertEquals(host0.getDbName(), "army_test");
         assertEquals(host0.getUser(), "army", "user");
 
@@ -165,15 +163,15 @@ public class PgUrlSuiteTests {
         final Properties properties0 = host0.getProperties();
         assertNotNull(properties0, "properties");
 
-        assertNull(properties0.get(PgKey.user), "user");
-        assertNull(properties0.get(PgKey.password), "password");
-        assertNull(properties0.get(PgKey.PGDBNAME), "dbName");
-        assertEquals(properties0.getOrDefault(PgKey.ssl, Boolean.class), Boolean.TRUE, "ssl");
+        assertNull(properties0.get(PgKey0.user), "user");
+        assertNull(properties0.get(PgKey0.password), "password");
+        assertNull(properties0.get(PgKey0.PGDBNAME), "dbName");
+        assertEquals(properties0.getOrDefault(PgKey0.ssl, Boolean.class), Boolean.TRUE, "ssl");
 
         // host 1
-        final PgHost host1 = hostList.get(1);
+        final PgHost0 host1 = hostList.get(1);
         assertEquals(host1.getHost(), "2001:DB8:0:23:8:800:200C:417A", "host");
-        assertEquals(host1.getPort(), PgHost.DEFAULT_PORT, "port");
+        assertEquals(host1.getPort(), PgHost0.DEFAULT_PORT, "port");
         assertEquals(host1.getDbName(), "army_test");
         assertEquals(host1.getUser(), "army", "user");
 
@@ -183,13 +181,13 @@ public class PgUrlSuiteTests {
         final Properties properties1 = host1.getProperties();
         assertNotNull(properties1, "properties");
 
-        assertNull(properties1.get(PgKey.user), "user");
-        assertNull(properties1.get(PgKey.password), "password");
-        assertNull(properties1.get(PgKey.PGDBNAME), "dbName");
-        assertEquals(properties1.getOrDefault(PgKey.ssl, Boolean.class), Boolean.TRUE, "ssl");
+        assertNull(properties1.get(PgKey0.user), "user");
+        assertNull(properties1.get(PgKey0.password), "password");
+        assertNull(properties1.get(PgKey0.PGDBNAME), "dbName");
+        assertEquals(properties1.getOrDefault(PgKey0.ssl, Boolean.class), Boolean.TRUE, "ssl");
 
         // host 2
-        final PgHost host2 = hostList.get(2);
+        final PgHost0 host2 = hostList.get(2);
         assertEquals(host2.getHost(), "localhost", "host");
         assertEquals(host2.getPort(), 7878, "port");
         assertEquals(host2.getDbName(), "army_test");
@@ -201,13 +199,13 @@ public class PgUrlSuiteTests {
         final Properties properties2 = host2.getProperties();
         assertNotNull(properties2, "properties");
 
-        assertNull(properties2.get(PgKey.user), "user");
-        assertNull(properties2.get(PgKey.password), "password");
-        assertNull(properties2.get(PgKey.PGDBNAME), "dbName");
-        assertEquals(properties2.getOrDefault(PgKey.ssl, Boolean.class), Boolean.TRUE, "ssl");
+        assertNull(properties2.get(PgKey0.user), "user");
+        assertNull(properties2.get(PgKey0.password), "password");
+        assertNull(properties2.get(PgKey0.PGDBNAME), "dbName");
+        assertEquals(properties2.getOrDefault(PgKey0.ssl, Boolean.class), Boolean.TRUE, "ssl");
 
         // host 3
-        final PgHost host3 = hostList.get(3);
+        final PgHost0 host3 = hostList.get(3);
         assertEquals(host3.getHost(), "2002:DB8:0:23:8:233:200C:417A", "host");
         assertEquals(host3.getPort(), 5656, "port");
         assertEquals(host3.getDbName(), "army_test");
@@ -219,10 +217,10 @@ public class PgUrlSuiteTests {
         final Properties properties3 = host3.getProperties();
         assertNotNull(properties3, "properties");
 
-        assertNull(properties3.get(PgKey.user), "user");
-        assertNull(properties3.get(PgKey.password), "password");
-        assertNull(properties3.get(PgKey.PGDBNAME), "dbName");
-        assertEquals(properties3.getOrDefault(PgKey.ssl, Boolean.class), Boolean.TRUE, "ssl");
+        assertNull(properties3.get(PgKey0.user), "user");
+        assertNull(properties3.get(PgKey0.password), "password");
+        assertNull(properties3.get(PgKey0.PGDBNAME), "dbName");
+        assertEquals(properties3.getOrDefault(PgKey0.ssl, Boolean.class), Boolean.TRUE, "ssl");
 
         LOG.info("{} group  failOverHostList test success", Group.URL);
     }

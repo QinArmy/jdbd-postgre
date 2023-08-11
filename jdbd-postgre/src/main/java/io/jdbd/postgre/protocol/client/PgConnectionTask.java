@@ -3,8 +3,6 @@ package io.jdbd.postgre.protocol.client;
 import io.jdbd.postgre.PgReConnectableException;
 import io.jdbd.postgre.PgServerVersion;
 import io.jdbd.postgre.env.Enums;
-import io.jdbd.postgre.env.PgHost;
-import io.jdbd.postgre.env.PgKey;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.postgre.util.PgTimes;
@@ -112,13 +110,13 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
     @Override
     protected final Publisher<ByteBuf> start() {
         final Publisher<ByteBuf> publisher;
-        if (this.properties.getOrDefault(PgKey.gssEncMode, Enums.GSSEncMode.class).needGssEnc()) {
+        if (this.properties.getOrDefault(PgKey0.gssEncMode, Enums.GSSEncMode.class).needGssEnc()) {
             PostgreUnitTask unitTask;
             unitTask = GssUnitTask.encryption(this, null);
             this.unitTask = unitTask;
             publisher = unitTask.start();
             this.phase = Phase.GSS_ENCRYPTION_TASK;
-        } else if (this.properties.getOrDefault(PgKey.sslmode, SslMode.class) != SslMode.DISABLED) {
+        } else if (this.properties.getOrDefault(PgKey0.sslmode, SslMode.class) != SslMode.DISABLED) {
             publisher = startSslEncryptionUnitTask();
         } else {
             publisher = startStartupMessage();
@@ -317,7 +315,7 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
             throw new IllegalArgumentException("Non AuthenticationMD5Password message.");
         }
         boolean taskEnd = false;
-        PgHost host = this.adjutant.obtainHost();
+        PgHost0 host = this.adjutant.obtainHost();
         final String password = host.getPassword();
         if (PgStrings.hasText(password)) {
             final byte[] salt = new byte[4];
@@ -425,7 +423,7 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
         if (hasError()) {
             taskEnd = !hasReConnectableError();
         } else if (this.gssWrapper == null
-                && this.properties.getOrDefault(PgKey.sslmode, Enums.SslMode.class).needSslEnc()) {
+                && this.properties.getOrDefault(PgKey0.sslmode, Enums.SslMode.class).needSslEnc()) {
             taskEnd = false;
             this.packetPublisher = startSslEncryptionUnitTask();
         } else {
@@ -536,9 +534,9 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
      * @see #startStartupMessage()
      */
     private List<Pair<String, String>> obtainStartUpParamList() {
-        final PgHost host = this.adjutant.obtainHost();
+        final PgHost0 host = this.adjutant.obtainHost();
         final PgServerVersion minVersion;
-        minVersion = this.properties.get(PgKey.assumeMinServerVersion, PgServerVersion.class
+        minVersion = this.properties.get(PgKey0.assumeMinServerVersion, PgServerVersion.class
                 , PgServerVersion.INVALID);
 
         List<Pair<String, String>> list = new ArrayList<>();
@@ -558,17 +556,17 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
             list.add(new Pair<>("extra_float_digits", "2"));
         }
         if (minVersion.compareTo(PgServerVersion.V9_4) >= 0) {
-            String replication = this.properties.get(PgKey.replication);
+            String replication = this.properties.get(PgKey0.replication);
             if (replication != null) {
                 list.add(new Pair<>("replication", replication));
             }
         }
 
-        final String currentSchema = this.properties.get(PgKey.currentSchema);
+        final String currentSchema = this.properties.get(PgKey0.currentSchema);
         if (currentSchema != null) {
             list.add(new Pair<>("search_path", currentSchema));
         }
-        final String options = this.properties.get(PgKey.options);
+        final String options = this.properties.get(PgKey0.options);
         if (options != null) {
             list.add(new Pair<>("search_path", options));
         }
@@ -598,7 +596,7 @@ final class PgConnectionTask extends PgTask implements ConnectionTask {
      * @see #obtainStartUpParamList()
      */
     private String getApplicationName() {
-        String applicationName = this.properties.get(PgKey.ApplicationName);
+        String applicationName = this.properties.get(PgKey0.ApplicationName);
         if (applicationName == null) {
             applicationName = PgProtocol.class.getPackage().getImplementationVersion();
             if (applicationName == null) {
