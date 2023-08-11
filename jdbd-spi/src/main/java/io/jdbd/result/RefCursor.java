@@ -17,7 +17,7 @@ import java.util.function.Function;
  * This interface is similar to {@code java.sql.ResultSet}, except that this interface is reactive.
  * </p>
  * <p>
- * Application developer can get the instance of this interface by {@link DatabaseSession#refCursor(String)}
+ * Application developer can get the instance of this interface by {@link DatabaseSession#refCursor(String, java.util.Map)}
  * </p>
  * <p>
  * The cursor will be close in following scenarios :
@@ -197,7 +197,6 @@ public interface RefCursor extends OptionSpec, Closeable {
      * @throws IllegalArgumentException emit(not throw) when
      *                                  <ul>
      *                                      <li>direction error</li>
-     *                                      <li>count error</li>
      *                                  </ul>
      * @throws JdbdException            emit(not throw) when
      *                                  <ul>
@@ -227,7 +226,7 @@ public interface RefCursor extends OptionSpec, Closeable {
      *                                   <ul>
      *                                       <li>positive : fetch the count'th row of the query. position after last row if count is out of range</li>
      *                                       <li>negative : fetch the abs(count)'th row from the end. position before first row if count is out of range</li>
-     *                                       <li>0 positions before the first row,is out of range,throw error</li>
+     *                                       <li>0 positions before the first row,is out of range</li>
      *                                   </ul>
      *                               </li>
      *                               <li>
@@ -243,7 +242,7 @@ public interface RefCursor extends OptionSpec, Closeable {
      *                                   <ul>
      *                                      <li>positive : fetch the next count rows.</li>
      *                                      <li>0 : re-fetches the current row</li>
-     *                                      <li>negative : error</li>
+     *                                      <li>negative : is equivalent to {@link CursorDirection#BACKWARD} abs(count)</li>
      *                                   </ul>
      *                               </li>
      *                               <li>
@@ -251,7 +250,7 @@ public interface RefCursor extends OptionSpec, Closeable {
      *                                   <ul>
      *                                      <li>positive : Fetch the prior count rows (scanning backwards).</li>
      *                                      <li>0 : re-fetches the current row</li>
-     *                                      <li>negative : error</li>
+     *                                      <li>negative : is equivalent to {@link CursorDirection#FORWARD} abs(count)</li>
      *                                   </ul>
      *                               </li>
      *                  </ul>
@@ -259,7 +258,6 @@ public interface RefCursor extends OptionSpec, Closeable {
      * @throws IllegalArgumentException emit(not throw) when
      *                                  <ul>
      *                                      <li>direction error</li>
-     *                                      <li>count error</li>
      *                                  </ul>
      * @throws JdbdException            emit(not throw) when
      *                                  <ul>
@@ -388,7 +386,7 @@ public interface RefCursor extends OptionSpec, Closeable {
      *                                   <ul>
      *                                       <li>positive : move to the count'th row. position after last row if count is out of range</li>
      *                                       <li>negative : move to the abs(count)'th row from the end. position before first row if count is out of range</li>
-     *                                       <li>0 positions before the first row,is out of range,throw error</li>
+     *                                       <li>0 positions before the first row,is out of range</li>
      *                                   </ul>
      *                               </li>
      *                               <li>
@@ -404,7 +402,7 @@ public interface RefCursor extends OptionSpec, Closeable {
      *                                   <ul>
      *                                      <li>positive : move to the next count rows.</li>
      *                                      <li>0 : re-position the current row</li>
-     *                                      <li>negative : error</li>
+     *                                      <li>negative :  is equivalent to {@link CursorDirection#BACKWARD} abs(count)</li>
      *                                   </ul>
      *                               </li>
      *                               <li>
@@ -412,7 +410,7 @@ public interface RefCursor extends OptionSpec, Closeable {
      *                                   <ul>
      *                                      <li>positive : move to the prior count rows (scanning backwards).</li>
      *                                      <li>0 : re-position the current row</li>
-     *                                      <li>negative : error</li>
+     *                                      <li>negative :  is equivalent to {@link CursorDirection#FORWARD} abs(count)</li>
      *                                   </ul>
      *                               </li>
      *                  </ul>
@@ -421,7 +419,6 @@ public interface RefCursor extends OptionSpec, Closeable {
      * @throws IllegalArgumentException emit(not throw) when
      *                                  <ul>
      *                                      <li>direction error</li>
-     *                                      <li>count error</li>
      *                                  </ul>
      * @throws JdbdException            emit(not throw) when
      *                                  <ul>

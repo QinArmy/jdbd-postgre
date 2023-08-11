@@ -200,6 +200,10 @@ final class ClientProtocol implements PgProtocol {
         return null;
     }
 
+    @Override
+    public Mono<ResultStates> setTransactionCharacteristics(TransactionOption option) {
+        return null;
+    }
 
     @Override
     public Mono<TransactionStatus> transactionStatus() {

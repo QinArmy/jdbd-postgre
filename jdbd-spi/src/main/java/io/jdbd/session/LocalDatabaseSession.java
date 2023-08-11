@@ -19,10 +19,21 @@ import java.util.Map;
  * The instance of this interface is created by {@link DatabaseSessionFactory#localSession()} method.
  * </p>
  * <p>
+ *     Application developer can create statement by following methods :
+ *     <ul>
+ *         <li>{@link #statement()} ,create static statement.</li>
+ *         <li>{@link #prepareStatement(String)} , create server-prepare statement</li>
+ *         <li>{@link #bindStatement(String)} , create the adaptor of client-prepared statement and server-prepared statement.</li>
+ *         <li>{@link #bindStatement(String, boolean)}, create the adaptor of client-prepared statement and server-prepared statement.</li>
+ *         <li>{@link #multiStatement()}, create multi-statement</li>
+ *     </ul>
+ * </p>
+ * <p>
  * Application developer can control local transaction by following :
  *     <ul>
  *         <li>{@link #startTransaction(TransactionOption)}</li>
  *         <li>{@link #startTransaction(TransactionOption, HandleMode)}</li>
+ *         <li>{@link #setTransactionCharacteristics(TransactionOption)}</li>
  *         <li>{@link #inTransaction()}</li>
  *         <li>{@link #commit()}</li>
  *         <li>{@link #commit(Map)}</li>
@@ -48,7 +59,7 @@ public interface LocalDatabaseSession extends DatabaseSession {
      * This method is equivalent to following :
      * <pre>
      *         <code><br/>
-     *             // session is instance of LocalDatabaseSession
+     *             // session is instance of {@link LocalDatabaseSession}
      *             session.startTransaction(option,HandleMode.ERROR_IF_EXISTS) ;
      *         </code>
      *     </pre>
@@ -63,7 +74,7 @@ public interface LocalDatabaseSession extends DatabaseSession {
      * Start one local transaction with option.
      * </p>
      * <p>
-     * Driver developer should guarantee transaction option (eg: {@link Isolation}) applies only this new transaction.
+     * Driver developer should guarantee that transaction option (eg: {@link Isolation}) applies only this new transaction.
      * </p>
      * <p>
      * The implementation of this method <strong>perhaps</strong> support some of following :
@@ -81,7 +92,7 @@ public interface LocalDatabaseSession extends DatabaseSession {
      *                  <li>{@link HandleMode#COMMIT_IF_EXISTS} : commit existed transaction before new transaction.</li>
      *                  <li>{@link HandleMode#ROLLBACK_IF_EXISTS} : rollback existed transaction before new transaction.</li>
      *               </ul>
-     * @return emit <strong>this</strong> or {@link Throwable}. Like {@code reactor.core.publisher.Mono}.
+     * @return emit <strong>this</strong> or {@link Throwable}. Like {@code reactor.core.publisher.Mono} .
      * @throws JdbdException emit(not throw) when
      *                       <ul>
      *                           li>appropriate {@link Isolation} isn't supported</li>
@@ -100,7 +111,7 @@ public interface LocalDatabaseSession extends DatabaseSession {
      * This method is equivalent to following :
      * <pre>
      *         <code><br/>
-     *             // session is instance of LocalDatabaseSession
+     *             // session is instance of {@link LocalDatabaseSession}
      *             session.commit(Collections.emptyMap()) ;
      *         </code>
      *     </pre>
@@ -139,7 +150,7 @@ public interface LocalDatabaseSession extends DatabaseSession {
      * This method is equivalent to following :
      * <pre>
      *         <code><br/>
-     *             // session is instance of LocalDatabaseSession
+     *             // session is instance of {@link LocalDatabaseSession}
      *             session.rollback(Collections.emptyMap()) ;
      *         </code>
      *     </pre>

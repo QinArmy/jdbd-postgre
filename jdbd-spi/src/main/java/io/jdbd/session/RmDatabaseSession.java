@@ -26,6 +26,16 @@ import java.util.Optional;
  * here ,you can download the pdf about The XA Specification.
  * </p>
  * <p>
+ * Application developer can create statement by following methods :
+ *     <ul>
+ *         <li>{@link #statement()} ,create static statement.</li>
+ *         <li>{@link #prepareStatement(String)} , create server-prepare statement</li>
+ *         <li>{@link #bindStatement(String)} , create the adaptor of client-prepared statement and server-prepared statement.</li>
+ *         <li>{@link #bindStatement(String, boolean)}, create the adaptor of client-prepared statement and server-prepared statement.</li>
+ *         <li>{@link #multiStatement()}, create multi-statement</li>
+ *     </ul>
+ * </p>
+ * <p>
  * Application developer can control XA transaction by following :
  *     <ul>
  *         <li>{@link #start(Xid, int)}</li>
@@ -47,6 +57,7 @@ import java.util.Optional;
  *         <li>{@link #startSupportFlags()}</li>
  *         <li>{@link #endSupportFlags()}</li>
  *         <li>{@link #recoverSupportFlags()}</li>
+ *         <li>{@link #setTransactionCharacteristics(TransactionOption)}</li>
  *         <li>{@link #setSavePoint()}</li>
  *         <li>{@link #setSavePoint(String)}</li>
  *         <li>{@link #setSavePoint(String, Map)}</li>

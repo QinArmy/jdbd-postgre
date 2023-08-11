@@ -160,6 +160,21 @@ public interface DatabaseSession extends StaticStatementSpec, DatabaseMetaSpec, 
 
     /**
      * <p>
+     * This method is equivalent to following :
+     * <pre>
+     *         <code><br/>
+     *             // session is instance of DatabaseSession
+     *             session.refCursor(name,Collections.emptyMap()) ;
+     *         </code>
+     *     </pre>
+     * </p>
+     *
+     * @see #refCursor(String, Map)
+     */
+    RefCursor refCursor(String name);
+
+    /**
+     * <p>
      * Create a instance of {@link RefCursor}. This method don't check session open ,don't check name whether exists or not in database.
      * </p>
      * <p>

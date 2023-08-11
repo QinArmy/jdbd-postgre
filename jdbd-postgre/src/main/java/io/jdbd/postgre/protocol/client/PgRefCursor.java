@@ -311,6 +311,9 @@ final class PgRefCursor extends VendorRefCursor {
         return mono;
     }
 
+    /**
+     * @see <a href="https://www.postgresql.org/docs/current/sql-close.html">CLOSE</a>
+     */
     @Override
     public <T> Publisher<T> close() {
         return this.task.close();

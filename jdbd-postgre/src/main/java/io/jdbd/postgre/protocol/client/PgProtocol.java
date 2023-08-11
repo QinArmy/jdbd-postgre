@@ -7,6 +7,13 @@ import io.jdbd.vendor.protocol.DatabaseProtocol;
 
 import java.util.Map;
 
+/**
+ * <p>
+ * This interface provide the ability that use postgre protocol for postgre {@link DatabaseSession}.
+ * </p>
+ *
+ * @since 1.0
+ */
 public interface PgProtocol extends DatabaseProtocol {
 
 

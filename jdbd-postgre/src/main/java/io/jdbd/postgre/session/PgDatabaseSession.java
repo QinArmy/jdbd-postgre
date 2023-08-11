@@ -187,6 +187,11 @@ abstract class PgDatabaseSession<S extends DatabaseSession> extends PgDatabaseMe
     }
 
     @Override
+    public final RefCursor refCursor(String name) {
+        return this.protocol.refCursor(name, Collections.emptyMap(), this);
+    }
+
+    @Override
     public final RefCursor refCursor(String name, Map<Option<?>, ?> optionMap) {
         return this.protocol.refCursor(name, optionMap, this);
     }
