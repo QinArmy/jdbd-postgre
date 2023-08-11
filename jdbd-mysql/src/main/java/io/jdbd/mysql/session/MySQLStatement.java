@@ -167,6 +167,11 @@ abstract class MySQLStatement<S extends Statement> implements Statement, StmtOpt
         throw MySQLExceptions.dontSupportSetOption(option);
     }
 
+    @Override
+    public final List<Option<?>> supportedOptionList() {
+        return Collections.emptyList();
+    }
+
     /**
      * <p>
      * jdbd-mysql support following :

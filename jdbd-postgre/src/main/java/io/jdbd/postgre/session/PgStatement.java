@@ -55,7 +55,10 @@ abstract class PgStatement<S extends Statement> implements Statement, StmtOption
 
     @Override
     public final S bindStmtVar(String name, DataType dataType, @Nullable Object value) throws JdbdException {
-        throw PgExceptions.dontSupportStmtVar(PgDriver.POSTGRE_SQL);
+        final JdbdException error;
+        error = PgExceptions.dontSupportStmtVar(PgDriver.POSTGRE_SQL);
+        closeOnBindError(error);
+        throw error;
     }
 
 
@@ -67,7 +70,8 @@ abstract class PgStatement<S extends Statement> implements Statement, StmtOption
 
 
     @Override
-    public <T> T valueOf(Option<T> option) {
+    public final <T> T valueOf(Option<T> option) {
+        //TODO
         return null;
     }
 
@@ -118,7 +122,15 @@ abstract class PgStatement<S extends Statement> implements Statement, StmtOption
 
     @Override
     public final <T> S setOption(Option<T> option, @Nullable T value) throws JdbdException {
-        throw PgExceptions.dontSupportSetOption(option);
+        final JdbdException error;
+        error = PgExceptions.dontSupportSetOption(option);
+        closeOnBindError(error);
+        throw error;
+    }
+
+    @Override
+    public final List<Option<?>> supportedOptionList() {
+        return Collections.emptyList();
     }
 
     @Override
@@ -128,7 +140,12 @@ abstract class PgStatement<S extends Statement> implements Statement, StmtOption
 
     @Override
     public final <T extends DatabaseSession> T getSession(Class<T> sessionClass) {
-        return sessionClass.cast(this.session);
+        try {
+            return sessionClass.cast(this.session);
+        } catch (ClassCastException e) {
+            closeOnBindError(e);
+            throw e;
+        }
     }
 
 

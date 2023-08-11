@@ -6,7 +6,12 @@ import java.util.Map;
 
 /**
  * <p>
- * xid output : gtrid [, bqual [, formatID ]]
+ * XID consist of following three :
+ * <ul>
+ *     <li>{@link #getGtrid()}</li>
+ *     <li>{@link #getBqual()}</li>
+ *     <li>{@link #getFormatId()}</li>
+ * </ul>
  * </p>
  * <p>
  * To be safe,{@link RmDatabaseSession} write gtrid and bqual as hex strings. steps :
@@ -20,7 +25,7 @@ import java.util.Map;
  * @see Option#XID
  * @see RmDatabaseSession
  */
-public interface Xid {
+public interface Xid extends OptionSpec {
 
     /**
      * <p>
@@ -58,7 +63,7 @@ public interface Xid {
 
     /**
      * <p>
-     * The implementation of {@link Xid} must correctly override this method with :
+     * The implementation of {@link Xid} must correctly override this method with only following three :
      *     <ul>
      *         <li>{@link #getGtrid()}</li>
      *         <li>{@link #getBqual()}</li>
@@ -82,7 +87,7 @@ public interface Xid {
 
     /**
      * <p>
-     * The implementation of {@link Xid} must correctly override this method with :
+     * The implementation of {@link Xid} must correctly override this method with only following three :
      *     <ul>
      *         <li>{@link #getGtrid()}</li>
      *         <li>{@link #getBqual()}</li>
@@ -99,7 +104,7 @@ public interface Xid {
      *               if (obj == this) {
      *                   match = true;
      *               } else if (obj instanceof JdbdXid) {
-     *                   final JdbdXid o = (JdbdXid) obj;
+     *                   final JdbdXid o = (JdbdXid) obj; // JdbdXid is default implementation.
      *                   match = o.gtrid.equals(this.gtrid)
      *                           &amp;&amp; Objects.equals(o.bqual, this.bqual)
      *                           &amp;&amp; o.formatId == this.formatId;
@@ -123,11 +128,24 @@ public interface Xid {
      * <li>{@link #getGtrid()}</li>
      * <li>{@link #getBqual()}</li>
      * <li>{@link #getFormatId()}</li>
+     * <li>dialect option if exists</li>
      * <li>{@link System#identityHashCode(Object)}</li>
      * </ol>
      */
     @Override
     String toString();
+
+    /**
+     * <p>
+     * {@link RmDatabaseSession#recover(int, Map) } maybe add some dialect value.
+     * </p>
+     *
+     * @return null or dialect option value.
+     * @see RmDatabaseSession#recover(int, Map)
+     */
+    @Nullable
+    @Override
+    <T> T valueOf(Option<T> option);
 
     /**
      * <p>

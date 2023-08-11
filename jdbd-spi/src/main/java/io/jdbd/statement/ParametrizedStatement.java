@@ -96,6 +96,7 @@ public interface ParametrizedStatement extends Statement {
      *                              </li>
      *                              <li>dataType isn't supported by database.</li>
      *                              <li>dataType is {@link io.jdbd.meta.JdbdType#NULL} and value isn't null</li>
+     *                              <li>the java type of value of appropriate dataType isn't supported by the implementation of this method ,for example : {@link LongParameter}</li>
      *                              </ul>
      * @see io.jdbd.meta.JdbdType
      * @see io.jdbd.meta.SQLType

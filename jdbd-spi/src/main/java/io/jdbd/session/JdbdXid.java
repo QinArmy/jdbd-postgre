@@ -43,6 +43,12 @@ final class JdbdXid implements Xid {
     }
 
     @Override
+    public <T> T valueOf(Option<T> option) {
+        // always null
+        return null;
+    }
+
+    @Override
     public int hashCode() {
         return Objects.hash(this.gtrid, this.bqual, this.formatId);
     }
@@ -62,6 +68,7 @@ final class JdbdXid implements Xid {
         }
         return match;
     }
+
 
     @Override
     public String toString() {

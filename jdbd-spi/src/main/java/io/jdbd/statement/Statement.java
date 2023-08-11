@@ -12,6 +12,7 @@ import io.jdbd.type.*;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
+import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -62,7 +63,7 @@ public interface Statement extends OptionSpec {
      *                 </ul>
      * @param value    nullable the parameter value; be following type :
      *                 <ul>
-     *                    <li>generic java type,for example : {@link Boolean} , {@link Integer} , {@link String} , byte[],{@code Integer[]} ,{@link java.time.LocalDateTime} , {@link java.time.Duration} ,{@link java.time.YearMonth} ,{@link java.util.BitSet},{@link java.util.List}</li>
+     *                    <li>generic java type,for example : {@link Boolean} , {@link Integer} , {@link String} , {@code byte[]},{@code Integer[]} ,{@link java.time.LocalDateTime} , {@link java.time.Duration} ,{@link java.time.YearMonth} ,{@link java.util.BitSet},{@link java.util.List}</li>
      *                    <li>{@link Point} spatial point type</li>
      *                    <li>{@link Interval} the composite of {@link java.time.Period} and {@link java.time.Duration}</li>
      *                    <li>{@link Parameter} :
@@ -102,6 +103,7 @@ public interface Statement extends OptionSpec {
      *                              </li>
      *                              <li>dataType isn't supported by database.</li>
      *                              <li>dataType is {@link io.jdbd.meta.JdbdType#NULL} and value isn't null</li>
+     *                              <li>the java type of value of appropriate dataType isn't supported by the implementation of this method ,for example : {@link LongParameter}</li>
      *                              </ul>
      * @see DatabaseSession#isSupportStmtVar()
      * @see #isSupportStmtVar()
@@ -162,10 +164,10 @@ public interface Statement extends OptionSpec {
      * </p>
      *
      * @param fetchSize <ul>
-     *                                   <li>0 : fetch all, this is default value</li>
-     *                                   <li>positive : fetch size</li>
-     *                                   <li>negative : error</li>
-     *                  </ul>
+     *                                                                     <li>0 : fetch all, this is default value</li>
+     *                                                                     <li>positive : fetch size</li>
+     *                                                                     <li>negative : error</li>
+     *                                                    </ul>
      * @throws IllegalArgumentException throw when fetchSize is negative.
      */
     Statement setFetchSize(int fetchSize) throws JdbdException;
@@ -187,9 +189,15 @@ public interface Statement extends OptionSpec {
      * </p>
      *
      * @return <strong>this</strong>
-     * @throws JdbdException throw when statement don't support option.
+     * @throws JdbdException throw when {@link #supportedOptionList()} is empty.
+     * @see #supportedOptionList()
      */
     <T> Statement setOption(Option<T> option, @Nullable T value) throws JdbdException;
+
+    /**
+     * @return empty or the list that {@link #setOption(Option, Object)} support option list.
+     */
+    List<Option<?>> supportedOptionList();
 
     /**
      * <p>
