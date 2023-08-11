@@ -22,7 +22,7 @@ import java.util.function.Function;
  * <p>
  * The cursor will be close in following scenarios :
  *     <ul>
- *         <li>the any method of {@link RefCursor} emit {@link Throwable}</li>
+ *         <li>If {@link io.jdbd.session.Option#AUTO_CLOSE_ON_ERROR} is true and the any method of {@link RefCursor} emit {@link Throwable}</li>
  *         <li>You invoke {@link #forwardAllAndClosed(Function)}</li>
  *         <li>You invoke {@link #forwardAllAndClosed(Function, Consumer)}</li>
  *         <li>You invoke {@link #forwardAllAndClosed()}</li>
@@ -32,7 +32,7 @@ import java.util.function.Function;
  * If you don't close cursor ,the {@link io.jdbd.session.DatabaseSession} that create this {@link RefCursor} can still execute new {@link io.jdbd.statement.Statement},
  * but you shouldn't do this.
  * </p>
- *
+ * @see io.jdbd.session.Option#AUTO_CLOSE_ON_ERROR
  * @see io.jdbd.meta.JdbdType#REF_CURSOR
  * @see CursorDirection
  * @since 1.0
@@ -84,10 +84,11 @@ public interface RefCursor extends OptionSpec, Closeable {
      *                      <li>{@link CursorDirection#FORWARD_ALL}</li>
      *                      <li>{@link CursorDirection#BACKWARD_ALL}</li>
      *                  </ul>
-     * @throws NullPointerException emit(not throw) when function is null or consumer is null.
+     * @throws NullPointerException emit(not throw) when direction is null or function is null or consumer is null.
      * @throws JdbdException        emit(not throw) when
      *                              <ul>
      *                                  <li>driver don't support appropriate direction.</li>
+     *                                  <li>direction error</li>
      *                                  <li>session close</li>
      *                                  <li>cursor have closed</li>
      *                                  <li>server response error,see {@link ServerException}</li>
@@ -159,7 +160,7 @@ public interface RefCursor extends OptionSpec, Closeable {
      *                                   <ul>
      *                                       <li>positive : fetch the count'th row of the query. position after last row if count is out of range</li>
      *                                       <li>negative : fetch the abs(count)'th row from the end. position before first row if count is out of range</li>
-     *                                       <li>0 positions before the first row,is out of range,throw error</li>
+     *                                       <li>0 positions before the first row,is out of range</li>
      *                                   </ul>
      *                               </li>
      *                               <li>
@@ -175,7 +176,7 @@ public interface RefCursor extends OptionSpec, Closeable {
      *                                   <ul>
      *                                      <li>positive : fetch the next count rows.</li>
      *                                      <li>0 : re-fetches the current row</li>
-     *                                      <li>negative : error</li>
+     *                                      <li>negative :  is equivalent to {@link CursorDirection#BACKWARD} abs(count)</li>
      *                                   </ul>
      *                               </li>
      *                               <li>
@@ -183,7 +184,7 @@ public interface RefCursor extends OptionSpec, Closeable {
      *                                   <ul>
      *                                      <li>positive : Fetch the prior count rows (scanning backwards).</li>
      *                                      <li>0 : re-fetches the current row</li>
-     *                                      <li>negative : error</li>
+     *                                      <li>negative : is equivalent to {@link CursorDirection#FORWARD} abs(count)</li>
      *                                   </ul>
      *                               </li>
      *                  </ul>
@@ -431,7 +432,7 @@ public interface RefCursor extends OptionSpec, Closeable {
      *                                      <li>server response error message,see {@link ServerException}</li>
      *                                  </ul>
      */
-    Publisher<ResultStates> move(CursorDirection direction, int count);
+    Publisher<ResultStates> move(CursorDirection direction, long count);
 
 
     /**

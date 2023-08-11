@@ -162,11 +162,18 @@ public interface DatabaseSession extends StaticStatementSpec, DatabaseMetaSpec, 
      * <p>
      * Create a instance of {@link RefCursor}. This method don't check session open ,don't check name whether exists or not in database.
      * </p>
+     * <p>
+     * If {@link #isSupportRefCursor()} return true,then driver must support following :
+     *     <ul>
+     *         <li>{@link Option#AUTO_CLOSE_ON_ERROR}</li>
+     *     </ul>
+     * </p>
      *
+     * @param optionMap non-null map.
      * @throws IllegalArgumentException throw when name have no text.
      * @throws JdbdException            throw when {@link #isSupportRefCursor()} return false.
      */
-    RefCursor refCursor(String name);
+    RefCursor refCursor(String name, Map<Option<?>, ?> optionMap);
 
     /**
      * <p>
@@ -179,7 +186,16 @@ public interface DatabaseSession extends StaticStatementSpec, DatabaseMetaSpec, 
      * </ul>
      * </p>
      *
-     * @return true : this session in transaction block.
+     * @return true : when
+     * <ul>
+     *     <li>{@link LocalDatabaseSession}  in local transaction block.</li>
+     *     <li>{@link RmDatabaseSession}'s {@link XaStates} is one of
+     *          <ul>
+     *              <li>{@link XaStates#ACTIVE}</li>
+     *              <li>{@link XaStates#IDLE}</li>
+     *          </ul>
+     *     </li>
+     * </ul>
      * @throws JdbdException throw when session have closed.
      */
     boolean inTransaction() throws JdbdException;

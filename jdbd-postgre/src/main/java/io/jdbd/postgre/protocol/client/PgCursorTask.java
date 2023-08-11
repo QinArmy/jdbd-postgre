@@ -1,8 +1,8 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.PgType;
-import io.jdbd.result.ResultItem;
-import io.jdbd.result.ResultRowMeta;
+import io.jdbd.result.*;
+import io.jdbd.session.Option;
 import io.jdbd.vendor.stmt.Stmt;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
@@ -10,9 +10,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
-final class PgCursorTask extends PgCommandTask {
+final class PgCursorTask extends PgCommandTask implements CursorTask {
 
 
     /**
@@ -20,7 +22,7 @@ final class PgCursorTask extends PgCommandTask {
      * Just create task,don't submit task.
      * </p>
      */
-    static PgCursorTask create(String cursorName, TaskAdjutant adjutant) {
+    static PgCursorTask create(String cursorName, Map<Option<?>, ?> optionMap, TaskAdjutant adjutant) {
         return new PgCursorTask(cursorName, adjutant);
     }
 
@@ -36,6 +38,26 @@ final class PgCursorTask extends PgCommandTask {
         this.safeCursorName = cursorName;
     }
 
+
+    @Override
+    public <T> Publisher<T> fetch(CursorDirection direction, long count, Function<CurrentRow, T> function, Consumer<ResultStates> consumer) {
+        return null;
+    }
+
+    @Override
+    public OrderedFlux fetch(CursorDirection direction, long count) {
+        return null;
+    }
+
+    @Override
+    public Publisher<ResultStates> move(CursorDirection direction, int count) {
+        return null;
+    }
+
+    @Override
+    public <T> Publisher<T> close() {
+        return null;
+    }
 
     @Override
     public void next(ResultItem result) {

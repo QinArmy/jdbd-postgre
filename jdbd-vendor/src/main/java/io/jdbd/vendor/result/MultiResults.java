@@ -24,6 +24,10 @@ public abstract class MultiResults {
         return new OrderedFluxError(error);
     }
 
+    public static OrderedFlux emptyAndError(Mono<Void> mono, Throwable error) {
+        throw new UnsupportedOperationException();
+    }
+
     public static BatchQuery batchQueryError(Throwable error) {
         throw new UnsupportedOperationException();
     }

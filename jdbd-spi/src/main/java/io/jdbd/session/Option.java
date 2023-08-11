@@ -83,6 +83,15 @@ public final class Option<T> {
 
     /**
      * <p>
+     * This option representing a auto close on error , for example : {@link io.jdbd.result.RefCursor}.
+     * </p>
+     *
+     * @see io.jdbd.result.RefCursor
+     */
+    public static final Option<Boolean> AUTO_CLOSE_ON_ERROR = Option.from("AUTO CLOSE ON ERROR", Boolean.class);
+
+    /**
+     * <p>
      * [NO] CHAIN option of COMMIT command.
      * </p>
      *

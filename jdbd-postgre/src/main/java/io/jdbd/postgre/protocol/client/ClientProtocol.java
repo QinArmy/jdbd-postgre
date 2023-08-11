@@ -1,5 +1,8 @@
 package io.jdbd.postgre.protocol.client;
 
+import io.jdbd.JdbdException;
+import io.jdbd.lang.Nullable;
+import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.result.*;
 import io.jdbd.session.*;
 import io.jdbd.vendor.stmt.*;
@@ -158,22 +161,40 @@ final class ClientProtocol implements PgProtocol {
         return ExtendedQueryTask.prepare(sql, this.adjutant);
     }
 
-    /**
-     * @see <a href="https://www.postgresql.org/docs/current/sql-declare.html">define a cursor</a>
-     */
-    @Override
-    public Mono<RefCursor> declareCursor(final StaticStmt stmt) {
-        return SimpleQueryTask.update(stmt, this.adjutant)
-                .flatMap(states -> createCursor(states, stmt));
-    }
 
     /**
      * @see <a href="https://www.postgresql.org/docs/current/sql-declare.html">define a cursor</a>
      */
+
+
     @Override
-    public Mono<RefCursor> paramDeclareCursor(ParamStmt stmt, boolean useServerPrepare) {
-        return null;
+    public RefCursor refCursor(final String name, final @Nullable Map<Option<?>, ?> optionMap,
+                               final DatabaseSession session) {
+        if (!PgStrings.hasText(name)) {
+            throw new IllegalArgumentException("cursor name must have text.");
+        } else if (optionMap == null) {
+            throw new NullPointerException("optionMap must be non-null");
+        } else if (optionMap.size() > 1 || !optionMap.containsKey(Option.AUTO_CLOSE_ON_ERROR)) {
+            final StringBuilder builder = new StringBuilder();
+            builder.append("%s don't options[");
+            int index = 0;
+            for (Option<?> option : optionMap.keySet()) {
+                if (option == Option.AUTO_CLOSE_ON_ERROR) {
+                    continue;
+                }
+                if (index > 0) {
+                    builder.append(',');
+                }
+                builder.append(option.name());
+                index++;
+            }
+            builder.append(']');
+            throw new JdbdException(builder.toString());
+        }
+
+        return PgRefCursor.create(name, PgCursorTask.create(name, optionMap, this.adjutant), session);
     }
+
 
     @Override
     public Mono<TransactionStatus> transactionStatus() {

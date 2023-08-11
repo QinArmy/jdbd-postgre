@@ -30,6 +30,13 @@ public enum CursorDirection {
      * must specified count
      */
     BACKWARD,
-    BACKWARD_ALL
+    BACKWARD_ALL;
+
+
+    @Override
+    public final String toString() {
+        return String.format("%s.%s", CursorDirection.class.getName(), this.name());
+    }
+
 
 }

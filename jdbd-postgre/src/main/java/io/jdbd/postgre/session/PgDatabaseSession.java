@@ -104,18 +104,6 @@ abstract class PgDatabaseSession<S extends DatabaseSession> extends PgDatabaseMe
         return flux;
     }
 
-
-    /**
-     * @see <a href="https://www.postgresql.org/docs/current/sql-declare.html">define a cursor</a>
-     */
-    @Override
-    public final Publisher<RefCursor> declareCursor(final String sql) {
-        if (!PgStrings.hasText(sql)) {
-            return Mono.error(PgExceptions.sqlHaveNoText());
-        }
-        return this.protocol.declareCursor(Stmts.stmt(sql));
-    }
-
     @Override
     public final Publisher<ResultStates> executeBatchUpdate(final List<String> sqlGroup) {
         if (PgCollections.isEmpty(sqlGroup)) {
@@ -197,10 +185,9 @@ abstract class PgDatabaseSession<S extends DatabaseSession> extends PgDatabaseMe
         return PgMultiStatement.create(this);
     }
 
-
     @Override
-    public final RefCursor refCursor(String name) {
-        return this.protocol.refCursor(name, this);
+    public final RefCursor refCursor(String name, Map<Option<?>, ?> optionMap) {
+        return this.protocol.refCursor(name, optionMap, this);
     }
 
     @Override

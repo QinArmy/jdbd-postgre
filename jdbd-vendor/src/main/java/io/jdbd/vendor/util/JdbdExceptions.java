@@ -5,6 +5,7 @@ import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
 import io.jdbd.meta.SQLType;
 import io.jdbd.result.CurrentRow;
+import io.jdbd.result.CursorDirection;
 import io.jdbd.result.ResultStates;
 import io.jdbd.session.*;
 import io.jdbd.statement.OutParameter;
@@ -98,6 +99,13 @@ public abstract class JdbdExceptions {
     /**
      * @return {@link NullPointerException} not {@link JdbdException}
      */
+    public static NullPointerException cursorDirectionIsNull() {
+        return new NullPointerException("CursorDirection must non-null");
+    }
+
+    /**
+     * @return {@link NullPointerException} not {@link JdbdException}
+     */
     public static NullPointerException statesConsumerIsNull() {
         return new NullPointerException(String.format("%s consumer must non-null", ResultStates.class.getName()));
     }
@@ -107,6 +115,11 @@ public abstract class JdbdExceptions {
      */
     public static NullPointerException dataTypeIsNull() {
         return new NullPointerException("dataType must non-null");
+    }
+
+
+    public static JdbdException unexpectedCursorDirection(CursorDirection direction) {
+        return new JdbdException(String.format("unexpected %s", direction));
     }
 
     public static JdbdException dontSupportDataType(DataType dataType, String database) {
