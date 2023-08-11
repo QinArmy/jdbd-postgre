@@ -128,92 +128,45 @@ public final class PgKey<T> extends Key<T> {
 
     public static final PgKey<String> TARGET_SERVER_TYPE = new PgKey<>("targetServerType", String.class, null);
 
-    hostRecheckSeconds(Integer .class),
 
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
-
-    loadBalanceHosts(Integer .class),
-
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
-
-    socketFactory(Integer .class),
+    public static final PgKey<Integer> HOST_RECHECK_SECONDS = new PgKey<>("hostRecheckSeconds", Integer.class, 10);
 
 
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
+    public static final PgKey<Boolean> LOAD_BALANCE_HOSTS = new PgKey<>("loadBalanceHosts", Boolean.class, Boolean.FALSE);
 
-    socketFactoryArg(Integer .class),
+    public static final PgKey<String> REPLICATION = new PgKey<>("replication", String.class, "false"); // This parameter accepts two values; true and database .
 
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
-
-    reWriteBatchedInserts(Integer .class),
-
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
-
-    replication(Integer .class),
-
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
-
-    escapeSyntaxCallMode(Integer .class),
-
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
-
-    maxResultBuffer(Integer .class),
-
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
-
-    hideUnprivilegedObjects(String .class),
-
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
-
-    logServerErrorDetail(String .class),
-
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
+    public static final PgKey<String> ESCAPE_SYNTAX_CALL_MODE = new PgKey<>("escapeSyntaxCallMode", String.class, null);
 
 
-    xmlFactoryFactory(String .class),
+    public static final PgKey<Boolean> LOG_SERVER_ERROR_DETAIL = new PgKey<>("logServerErrorDetail", Boolean.class, Boolean.TRUE);
 
 
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
+    public static final PgKey<String> KEY_STORE_TYPE = new PgKey<>("keyStoreType", String.class, null);
 
-    keyStoreType(String .class),
+    public static final PgKey<String> KEY_STORE_URL = new PgKey<>("keyStoreUrl", String.class, null);
 
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
+    public static final PgKey<String> KEY_STORE_PASSWORD = new PgKey<>("keyStorePassword", String.class, null);
 
-    keyStoreUrl(String .class),
+    public static final PgKey<String> TRUST_STORE_TYPE = new PgKey<>("trustStoreType", String.class, null);
 
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
+    public static final PgKey<String> TRUST_STORE_URL = new PgKey<>("trustStoreUrl", String.class, null);
 
-    keyStorePassword(String .class),
+    public static final PgKey<String> TRUST_STORE_PASSWORD = new PgKey<>("trustStorePassword", String.class, null);
 
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
+    public static final PgKey<Boolean> FALLBACK_TO_SYSTEM_KEY_STORE = new PgKey<>("fallbackToSystemKeyStore", Boolean.class, Boolean.FALSE);
 
-    trustStoreType(String .class),
 
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
+    public static final PgKey<Integer> FACTORY_WORKER_COUNT = new PgKey<>("factoryWorkerCount", Integer.class, null);
 
-    trustStoreUrl(String .class),
 
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
+    public static final PgKey<Boolean> HEX_ESCAPES = new PgKey<>("hexEscapes", Boolean.class, Boolean.FALSE);
 
-    trustStorePassword(String .class),
 
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
+    public static final PgKey<String> LC_MONETARY = new PgKey<>("lc_monetary", String.class, null);
 
-    fallbackToSystemKeyStore(Boolean .class, "false"),
 
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
 
-    factoryWorkerCount(Integer .class, "100"),
-
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
-
-    hexEscapes(Boolean .class, "false"),
-
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
-
-    lc_monetary(String .class);
-
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
 
 
     private static final List<PgKey<?>> KEY_LIST = createKeyList();
