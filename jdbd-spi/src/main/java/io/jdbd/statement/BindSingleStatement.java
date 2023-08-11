@@ -5,7 +5,6 @@ import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
 import io.jdbd.result.CurrentRow;
-import io.jdbd.result.RefCursor;
 import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultStates;
 import io.jdbd.session.ChunkOption;
@@ -113,17 +112,6 @@ public interface BindSingleStatement extends ParametrizedStatement, MultiResultS
      */
     <R> Publisher<R> executeQuery(Function<CurrentRow, R> function, Consumer<ResultStates> statesConsumer);
 
-    /**
-     * <p>
-     * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
-     * </p>
-     * @throws JdbdException emmit(not throw) when
-     *                       <ul>
-     *                           <li>param bind error</li>
-     *                           <li>the java type of value of appropriate dataType isn't supported by the implementation of this method ,for example : {@link io.jdbd.meta.JdbdType#TINYTEXT} bind {@link io.jdbd.type.Text}</li>
-     *                       </ul>
-     */
-    Publisher<RefCursor> declareCursor();
 
     /**
      * {@inheritDoc }

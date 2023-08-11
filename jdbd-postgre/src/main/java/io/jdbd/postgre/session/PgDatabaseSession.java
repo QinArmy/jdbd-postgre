@@ -197,6 +197,12 @@ abstract class PgDatabaseSession<S extends DatabaseSession> extends PgDatabaseMe
         return PgMultiStatement.create(this);
     }
 
+
+    @Override
+    public final RefCursor refCursor(String name) {
+        return this.protocol.refCursor(name, this);
+    }
+
     @Override
     public final boolean inTransaction() throws JdbdException {
         return this.protocol.inTransaction();

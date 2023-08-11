@@ -1,5 +1,7 @@
 package io.jdbd.meta;
 
+import io.jdbd.session.DatabaseSession;
+
 /**
  * <p>
  * This enum is a implementation of {@link DataType} for the convenience that application bind parameter.
@@ -210,7 +212,6 @@ public enum JdbdType implements DataType {
     INTERVAL,
 
 
-
     /**
      * Identifies the SQL type {@code ROWID}.
      */
@@ -233,12 +234,17 @@ public enum JdbdType implements DataType {
     GEOMETRY,
 
 
-
     UNKNOWN,
 
 
     /**
      * Identifies the generic SQL type {@code REF_CURSOR}.
+     * <p>
+     * If {@link io.jdbd.result.ResultRowMeta#getJdbdType(int)} is this enum instance,then {@link io.jdbd.result.DataRow#get(int)} always is {@link String} instance.
+     * </p>
+     * <p>
+     * Application developer can get the instance of {@link io.jdbd.result.RefCursor} by {@link DatabaseSession#refCursor(String)}
+     * </p>
      *
      * @see io.jdbd.result.RefCursor
      */

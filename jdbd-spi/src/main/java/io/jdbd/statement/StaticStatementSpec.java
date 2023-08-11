@@ -110,25 +110,6 @@ public interface StaticStatementSpec {
      */
     <R> Publisher<R> executeQuery(String sql, Function<CurrentRow, R> function, Consumer<ResultStates> consumer);
 
-    /**
-     * <p>
-     * Declare one cursor.
-     * </p>
-     * <p>
-     * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
-     * </p>
-     *
-     * @param sql the statement that declare cursor.
-     * @return emit just one {@link RefCursor} or {@link Throwable}, Like {@code reactor.core.publisher.Mono} .
-     * @throws io.jdbd.JdbdException emit(not throw) when :
-     *                               <ul>
-     *                                   <li>{@link DatabaseSession#isSupportRefCursor()} return false</li>
-     *                                   <li>sql have no text</li>
-     *                                   <li>session have closed</li>
-     *                                   <li>server response error message,see {@link ServerException}</li>
-     *                               </ul>
-     */
-    Publisher<RefCursor> declareCursor(String sql);
 
     /**
      * <p>

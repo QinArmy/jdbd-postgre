@@ -2,8 +2,8 @@ package io.jdbd.result;
 
 import io.jdbd.JdbdException;
 import io.jdbd.session.Closeable;
+import io.jdbd.session.DatabaseSession;
 import io.jdbd.session.OptionSpec;
-import io.jdbd.statement.BindSingleStatement;
 import org.reactivestreams.Publisher;
 
 import java.util.function.Consumer;
@@ -17,12 +17,7 @@ import java.util.function.Function;
  * This interface is similar to {@code java.sql.ResultSet}, except that this interface is reactive.
  * </p>
  * <p>
- * Application developer can get the instance of this interface by :
- * <ul>
- *     <li>{@link io.jdbd.statement.StaticStatementSpec#declareCursor(String)}</li>
- *     <li>{@link BindSingleStatement#declareCursor()}</li>
- *     <li>{@link DataRow#get(int, Class)} </li>
- * </ul>
+ * Application developer can get the instance of this interface by {@link DatabaseSession#refCursor(String)}
  * </p>
  * <p>
  * The cursor will be close in following scenarios :
@@ -44,10 +39,16 @@ import java.util.function.Function;
  */
 public interface RefCursor extends OptionSpec, Closeable {
 
+
     /**
      * @return cursor name
      */
     String name();
+
+    /**
+     * @return the {@link DatabaseSession} that create this {@link RefCursor}.
+     */
+    DatabaseSession databaseSession();
 
     /*-------------------below fetch method-------------------*/
 

@@ -3,6 +3,7 @@ package io.jdbd.session;
 import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DatabaseMetaData;
+import io.jdbd.result.RefCursor;
 import io.jdbd.statement.*;
 import org.reactivestreams.Publisher;
 
@@ -156,6 +157,16 @@ public interface DatabaseSession extends StaticStatementSpec, DatabaseMetaSpec, 
      *                       </ul>
      */
     MultiStatement multiStatement() throws JdbdException;
+
+    /**
+     * <p>
+     * Create a instance of {@link RefCursor}. This method don't check session open ,don't check name whether exists or not in database.
+     * </p>
+     *
+     * @throws IllegalArgumentException throw when name have no text.
+     * @throws JdbdException            throw when {@link #isSupportRefCursor()} return false.
+     */
+    RefCursor refCursor(String name);
 
     /**
      * <p>
