@@ -104,6 +104,10 @@ abstract class PgDatabaseSession<S extends DatabaseSession> extends PgDatabaseMe
         return flux;
     }
 
+
+    /**
+     * @see <a href="https://www.postgresql.org/docs/current/sql-declare.html">define a cursor</a>
+     */
     @Override
     public final Publisher<RefCursor> declareCursor(final String sql) {
         if (!PgStrings.hasText(sql)) {

@@ -183,7 +183,7 @@ final class MySQLBindStatement extends MySQLStatement<BindStatement> implements 
         final Mono<ResultStates> mono;
         if (error == null) {
             this.fetchSize = 0;
-            mono = this.session.protocol.bindUpdate(Stmts.paramStmt(this.sql, paramGroup, this), isUsePrepare());
+            mono = this.session.protocol.paramUpdate(Stmts.paramStmt(this.sql, paramGroup, this), isUsePrepare());
         } else {
             mono = Mono.error(MySQLExceptions.wrap(error));
         }
@@ -220,7 +220,7 @@ final class MySQLBindStatement extends MySQLStatement<BindStatement> implements 
         if (error == null) {
             final ParamStmt stmt;
             stmt = Stmts.paramStmt(this.sql, paramGroup, this);
-            flux = this.session.protocol.bindQuery(stmt, isUsePrepare(), function);
+            flux = this.session.protocol.paramQuery(stmt, isUsePrepare(), function);
         } else {
             flux = Flux.error(MySQLExceptions.wrap(error));
         }
@@ -250,7 +250,7 @@ final class MySQLBindStatement extends MySQLStatement<BindStatement> implements 
         if (error == null) {
             final ParamBatchStmt stmt;
             stmt = Stmts.paramBatch(this.sql, paramGroupList, this);
-            flux = this.session.protocol.bindBatchUpdate(stmt, isUsePrepare());
+            flux = this.session.protocol.paramBatchUpdate(stmt, isUsePrepare());
         } else {
             flux = Flux.error(MySQLExceptions.wrap(error));
         }
@@ -279,7 +279,7 @@ final class MySQLBindStatement extends MySQLStatement<BindStatement> implements 
         if (error == null) {
             final ParamBatchStmt stmt;
             stmt = Stmts.paramBatch(this.sql, paramGroupList, this);
-            batchQuery = this.session.protocol.bindBatchQuery(stmt, isUsePrepare());
+            batchQuery = this.session.protocol.paramBatchQuery(stmt, isUsePrepare());
         } else {
             batchQuery = MultiResults.batchQueryError(MySQLExceptions.wrap(error));
         }
@@ -308,7 +308,7 @@ final class MySQLBindStatement extends MySQLStatement<BindStatement> implements 
         if (error == null) {
             final ParamBatchStmt stmt;
             stmt = Stmts.paramBatch(this.sql, paramGroupList, this);
-            multiResult = this.session.protocol.bindBatchAsMulti(stmt, isUsePrepare());
+            multiResult = this.session.protocol.paramBatchAsMulti(stmt, isUsePrepare());
         } else {
             multiResult = MultiResults.error(MySQLExceptions.wrap(error));
         }
@@ -337,7 +337,7 @@ final class MySQLBindStatement extends MySQLStatement<BindStatement> implements 
         if (error == null) {
             final ParamBatchStmt stmt;
             stmt = Stmts.paramBatch(this.sql, paramGroupList, this);
-            flux = this.session.protocol.bindBatchAsFlux(stmt, isUsePrepare());
+            flux = this.session.protocol.paramBatchAsFlux(stmt, isUsePrepare());
         } else {
             flux = MultiResults.fluxError(MySQLExceptions.wrap(error));
         }

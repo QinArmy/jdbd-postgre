@@ -144,6 +144,10 @@ final class PgPreparedStatement extends PgStatement<PreparedStatement> implement
         return null;
     }
 
+
+    /**
+     * @see <a href="https://www.postgresql.org/docs/current/sql-declare.html">define a cursor</a>
+     */
     @Override
     public Publisher<RefCursor> declareCursor() {
         return null;

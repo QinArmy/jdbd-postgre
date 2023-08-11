@@ -44,8 +44,6 @@ public interface DatabaseProtocol extends OptionSpec, Closeable {
      */
     <R> Flux<R> query(StaticStmt stmt, Function<CurrentRow, R> function);
 
-    BatchQuery batchQuery(StaticBatchStmt stmt);
-
 
     /**
      * <p>
@@ -53,6 +51,8 @@ public interface DatabaseProtocol extends OptionSpec, Closeable {
      * </p>
      */
     Flux<ResultStates> batchUpdate(StaticBatchStmt stmt);
+
+    BatchQuery batchQuery(StaticBatchStmt stmt);
 
     /**
      * <p>
@@ -75,37 +75,37 @@ public interface DatabaseProtocol extends OptionSpec, Closeable {
      * This method is one of underlying api of {@link BindStatement#executeUpdate()} method.
      * </p>
      */
-    Mono<ResultStates> bindUpdate(ParamStmt stmt, boolean usePrepare);
+    Mono<ResultStates> paramUpdate(ParamStmt stmt, boolean usePrepare);
 
     /**
      * <p>
      * This method is one of underlying api of below methods:
      * </p>
      */
-    <R> Flux<R> bindQuery(ParamStmt stmt, boolean usePrepare, Function<CurrentRow, R> function);
+    <R> Flux<R> paramQuery(ParamStmt stmt, boolean usePrepare, Function<CurrentRow, R> function);
 
     /**
      * <p>
      * This method is one of underlying api of {@link BindStatement#executeBatchUpdate()} method.
      * </p>
      */
-    Flux<ResultStates> bindBatchUpdate(ParamBatchStmt stmt, boolean usePrepare);
+    Flux<ResultStates> paramBatchUpdate(ParamBatchStmt stmt, boolean usePrepare);
 
-    BatchQuery bindBatchQuery(ParamBatchStmt stmt, boolean usePrepare);
+    BatchQuery paramBatchQuery(ParamBatchStmt stmt, boolean usePrepare);
 
     /**
      * <p>
      * This method is one of underlying api of {@link BindStatement#executeBatchAsMulti()} method.
      * </p>
      */
-    MultiResult bindBatchAsMulti(ParamBatchStmt stmt, boolean usePrepare);
+    MultiResult paramBatchAsMulti(ParamBatchStmt stmt, boolean usePrepare);
 
     /**
      * <p>
      * This method is one of underlying api of {@link BindStatement#executeBatchAsFlux()} method.
      * </p>
      */
-    OrderedFlux bindBatchAsFlux(ParamBatchStmt stmt, boolean usePrepare);
+    OrderedFlux paramBatchAsFlux(ParamBatchStmt stmt, boolean usePrepare);
 
     /**
      * <p>

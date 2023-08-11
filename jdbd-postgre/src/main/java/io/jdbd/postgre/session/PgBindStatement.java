@@ -1,29 +1,18 @@
 package io.jdbd.postgre.session;
 
 import io.jdbd.JdbdException;
+import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
-import io.jdbd.postgre.PgType;
-import io.jdbd.postgre.stmt.BindValue;
-import io.jdbd.postgre.util.PgBinds;
 import io.jdbd.postgre.util.PgExceptions;
-import io.jdbd.postgre.util.PgFunctions;
 import io.jdbd.postgre.util.PgStrings;
-import io.jdbd.result.MultiResult;
-import io.jdbd.result.OrderedFlux;
-import io.jdbd.result.ResultRow;
-import io.jdbd.result.ResultStates;
+import io.jdbd.result.*;
 import io.jdbd.statement.BindStatement;
-import io.jdbd.vendor.ResultType;
-import io.jdbd.vendor.SubscribeException;
-import io.jdbd.vendor.result.MultiResults;
-import io.jdbd.vendor.util.JdbdBinds;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
-import reactor.util.annotation.Nullable;
+import org.reactivestreams.Publisher;
 
-import java.sql.JDBCType;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 
 /**
@@ -62,182 +51,76 @@ final class PgBindStatement extends PgStatement<BindStatement> implements BindSt
     }
 
     @Override
-    public BindStatement bind(final int indexBasedZero, final @Nullable Object nullable)
-            throws JdbdException {
-        this.paramGroup.add(BindValue.wrap(checkIndex(indexBasedZero), PgBinds.inferPgType(nullable), nullable));
-        return this;
+    public boolean isForcePrepare() {
+        return false;
     }
 
 
     @Override
-    public BindStatement bind(final int indexBasedZero, final JDBCType jdbcType, final @Nullable Object nullable)
-            throws JdbdException {
-        final PgType pgType = PgBinds.mapJdbcTypeToPgType(jdbcType, nullable);
-        this.paramGroup.add(BindValue.wrap(checkIndex(indexBasedZero), pgType, nullable));
-        return this;
-    }
-
-    @Override
-    public BindStatement bind(final int indexBasedZero, final DataType dataType, final @Nullable Object value)
-            throws JdbdException {
-
-        if (!(dataType instanceof PgType)) {
-            String m = String.format("sqlType isn't a instance of %s", PgType.class.getName());
-            throw new JdbdException(m);
-        }
-        this.paramGroup.add(BindValue.wrap(checkIndex(indexBasedZero), (PgType) dataType, value));
-        return this;
-    }
-
-    @Override
-    public BindStatement bind(int indexBasedZero, String dataTypeName,final @Nullable Object nullable) throws JdbdException {
-        return this;
+    public BindStatement bind(int indexBasedZero, DataType dataType, @Nullable Object value) throws JdbdException {
+        return null;
     }
 
     @Override
     public BindStatement addBatch() throws JdbdException {
-        final List<BindValue> paramGroup = this.paramGroup;
-        int firstGroupSize = this.firstGroupSize;
+        return null;
+    }
 
-        if (firstGroupSize < 0) {
-            firstGroupSize = paramGroup.size();
-            this.firstGroupSize = firstGroupSize;
-        }
 
-        if (paramGroup.size() != firstGroupSize) {
-            throw PgExceptions.notMatchWithFirstParamGroupCount(this.paramGroupList.size()
-                    , paramGroup.size(), firstGroupSize);
-        } else {
-            final JdbdException error = JdbdBinds.sortAndCheckParamGroup(this.paramGroupList.size(), paramGroup);
-            if (error != null) {
-                throw error;
-            }
-        }
-
-        switch (paramGroup.size()) {
-            case 0: {
-                this.paramGroupList.add(Collections.emptyList());
-            }
-            break;
-            case 1: {
-                this.paramGroupList.add(Collections.singletonList(paramGroup.get(0)));
-                this.paramGroup = new ArrayList<>(1);
-            }
-            break;
-            default: {
-                this.paramGroupList.add(Collections.unmodifiableList(paramGroup));
-                this.paramGroup = new ArrayList<>(firstGroupSize);
-            }
-
-        }
-        return this;
+    @Override
+    public Publisher<ResultStates> executeUpdate() {
+        return null;
     }
 
     @Override
-    public Mono<ResultStates> executeUpdate() {
-        final List<BindValue> paramGroup = this.paramGroup;
-
-        final Mono<ResultStates> mono;
-        if (!this.paramGroupList.isEmpty()) {
-            mono = Mono.error(new SubscribeException(ResultType.UPDATE, ResultType.BATCH_UPDATE));
-        } else {
-            final JdbdException error;
-            error = JdbdBinds.sortAndCheckParamGroup(0, paramGroup);
-            if (error == null) {
-                BindStmt stmt = PgStmts.bind(this.sql, paramGroup, this);
-                mono = this.session.protocol.bindUpdate(stmt);
-            } else {
-                mono = Mono.error(error);
-            }
-        }
-        return mono;
+    public Publisher<ResultRow> executeQuery() {
+        return null;
     }
 
     @Override
-    public Flux<ResultRow> executeQuery() {
-        return executeQuery(PgFunctions.noActionConsumer());
+    public <R> Publisher<R> executeQuery(Function<CurrentRow, R> function) {
+        return null;
     }
 
     @Override
-    public Flux<ResultRow> executeQuery(final Consumer<ResultStates> statesConsumer) {
-        Objects.requireNonNull(statesConsumer, "statesConsumer");
+    public <R> Publisher<R> executeQuery(Function<CurrentRow, R> function, Consumer<ResultStates> statesConsumer) {
+        return null;
+    }
 
-        final List<BindValue> paramGroup = this.paramGroup;
+    /**
+     * @see <a href="https://www.postgresql.org/docs/current/sql-declare.html">define a cursor</a>
+     */
+    @Override
+    public Publisher<RefCursor> declareCursor() {
+        return null;
+    }
 
-        final Flux<ResultRow> flux;
-        if (this.paramGroupList.isEmpty()) {
-            final JdbdException error = JdbdBinds.sortAndCheckParamGroup(0, paramGroup);
-            if (error != null) {
-                throw error;
-            }
-            BindStmt stmt = PgStmts.bind(this.sql, paramGroup, statesConsumer, this);
-            flux = this.session.protocol.bindQuery(stmt);
-        } else {
-            flux = Flux.error(new SubscribeException(ResultType.QUERY, ResultType.BATCH_UPDATE));
-        }
-        return flux;
+
+    @Override
+    public Publisher<ResultStates> executeBatchUpdate() {
+        return null;
     }
 
     @Override
-    public Flux<ResultStates> executeBatchUpdate() {
-        final Flux<ResultStates> flux;
-        if (this.paramGroupList.isEmpty()) {
-            flux = Flux.error(PgExceptions.noAnyParamGroupError());
-        } else {
-            BindBatchStmt stmt = PgStmts.bindBatch(this.sql, this.paramGroupList, this);
-            flux = this.session.protocol.bindBatch(stmt);
-        }
-        return flux;
+    public BatchQuery executeBatchQuery() {
+        return null;
     }
 
     @Override
     public MultiResult executeBatchAsMulti() {
-        final MultiResult result;
-        if (this.paramGroupList.isEmpty()) {
-            result = MultiResults.error(PgExceptions.noAnyParamGroupError());
-        } else {
-            BindBatchStmt stmt = PgStmts.bindBatch(this.sql, this.paramGroupList, this);
-            result = this.session.protocol.bindBatchAsMulti(stmt);
-        }
-        return result;
+        return null;
     }
 
     @Override
     public OrderedFlux executeBatchAsFlux() {
-        final OrderedFlux flux;
-        if (this.paramGroupList.isEmpty()) {
-            flux = MultiResults.fluxError(PgExceptions.noAnyParamGroupError());
-        } else {
-            BindBatchStmt stmt = PgStmts.bindBatch(this.sql, this.paramGroupList, this);
-            flux = this.session.protocol.bindBatchAsFlux(stmt);
-        }
-        return flux;
+        return null;
     }
-
-    /*################################## blow Statement method ##################################*/
-
-    @Override
-    public boolean setFetchSize(final int fetchSize) {
-        this.fetchSize = fetchSize;
-        return fetchSize > 0;
-    }
-
-    @Override
-    public boolean isSupportPublisher() {
-        return true;
-    }
-
-    @Override
-    public int getFetchSize() {
-        return this.fetchSize;
-    }
-
     /*################################## blow private method ##################################*/
 
     /**
-     * @throws JdbdSQLException when indexBasedZero error
+     * @throws JdbdException when indexBasedZero error
      */
-    private int checkIndex(final int indexBasedZero) throws JdbdSQLException {
+    private int checkIndex(final int indexBasedZero) throws JdbdException {
         if (indexBasedZero < 0) {
             throw PgExceptions.invalidParameterValue(this.paramGroupList.size(), indexBasedZero);
         }

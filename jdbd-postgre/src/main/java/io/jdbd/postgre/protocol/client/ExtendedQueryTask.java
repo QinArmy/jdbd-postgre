@@ -95,7 +95,7 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
         });
     }
 
-    static MultiResult batchAsMulti(BindBatchStmt stmt, TaskAdjutant adjutant) {
+    static MultiResult batchAsMulti(ParamBatchStmt stmt, TaskAdjutant adjutant) {
         return MultiResults.asMulti(adjutant, sink -> {
             try {
                 ExtendedQueryTask task = new ExtendedQueryTask(stmt, sink, adjutant);
@@ -106,7 +106,7 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
         });
     }
 
-    static OrderedFlux batchAsFlux(final BindBatchStmt stmt, final TaskAdjutant adjutant) {
+    static OrderedFlux batchAsFlux(final ParamBatchStmt stmt, final TaskAdjutant adjutant) {
         return MultiResults.asFlux(sink -> {
             try {
                 ExtendedQueryTask task = new ExtendedQueryTask(stmt, sink, adjutant);

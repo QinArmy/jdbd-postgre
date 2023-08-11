@@ -203,7 +203,7 @@ final class ComQueryTask extends MySQLCommandTask {
      * </p>
      *
      * @see ComPreparedTask#update(ParamStmt, TaskAdjutant)
-     * @see ClientProtocol0#bindUpdate(ParamStmt, boolean)
+     * @see ClientProtocol0#paramUpdate(ParamStmt, boolean)
      */
     static Mono<ResultStates> paramUpdate(final ParamStmt stmt, final TaskAdjutant adjutant) {
         return MultiResults.update(sink -> {
@@ -227,7 +227,7 @@ final class ComQueryTask extends MySQLCommandTask {
      * </ul>
      * </p>
      *
-     * @see ClientProtocol0#bindQuery(ParamStmt, boolean, Function)
+     * @see ClientProtocol0#paramQuery(ParamStmt, boolean, Function)
      */
     static <R> Flux<R> paramQuery(final ParamStmt stmt, final Function<CurrentRow, R> function,
                                   final TaskAdjutant adjutant) {
@@ -246,7 +246,7 @@ final class ComQueryTask extends MySQLCommandTask {
      * This method is one of underlying api of {@link BindStatement#executeBatchUpdate()} method.
      * </p>
      *
-     * @see ClientProtocol0#bindBatchUpdate(ParamBatchStmt, boolean)
+     * @see ClientProtocol0#paramBatchUpdate(ParamBatchStmt, boolean)
      */
     static Flux<ResultStates> paramBatchUpdate(final ParamBatchStmt stmt, final TaskAdjutant adjutant) {
         return MultiResults.batchUpdate(sink -> {

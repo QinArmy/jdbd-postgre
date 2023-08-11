@@ -204,7 +204,7 @@ abstract class MySQLDatabaseSession<S extends DatabaseSession> extends MySQLSess
         }
         final ParamStmt stmt;
         stmt = Stmts.single("SAVEPOINT ? ", MySQLType.VARCHAR, name);
-        return this.protocol.bindUpdate(stmt, false)
+        return this.protocol.paramUpdate(stmt, false)
                 .thenReturn(NamedSavePoint.fromName(name));
     }
 
@@ -217,7 +217,7 @@ abstract class MySQLDatabaseSession<S extends DatabaseSession> extends MySQLSess
 
         final ParamStmt stmt;
         stmt = Stmts.single("RELEASE SAVEPOINT ? ", MySQLType.VARCHAR, savepoint.name());
-        return this.protocol.bindUpdate(stmt, false)
+        return this.protocol.paramUpdate(stmt, false)
                 .thenReturn((S) this);
     }
 
@@ -230,7 +230,7 @@ abstract class MySQLDatabaseSession<S extends DatabaseSession> extends MySQLSess
 
         final ParamStmt stmt;
         stmt = Stmts.single("ROLLBACK TO SAVEPOINT ? ", MySQLType.VARCHAR, savepoint.name());
-        return this.protocol.bindUpdate(stmt, false)
+        return this.protocol.paramUpdate(stmt, false)
                 .thenReturn((S) this);
     }
 

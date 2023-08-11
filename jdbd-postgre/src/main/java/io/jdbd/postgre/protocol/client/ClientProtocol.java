@@ -52,99 +52,124 @@ final class ClientProtocol implements PgProtocol {
 
     @Override
     public Mono<ResultStates> update(StaticStmt stmt) {
-        return null;
+        return SimpleQueryTask.update(stmt, this.adjutant);
     }
 
     @Override
     public <R> Flux<R> query(StaticStmt stmt, Function<CurrentRow, R> function) {
-        return null;
-    }
-
-    @Override
-    public BatchQuery batchQuery(StaticBatchStmt stmt) {
-        return null;
+        return SimpleQueryTask.query(stmt, function, this.adjutant);
     }
 
     @Override
     public Flux<ResultStates> batchUpdate(StaticBatchStmt stmt) {
-        return null;
+        return SimpleQueryTask.batchUpdate(stmt, this.adjutant);
+    }
+
+    @Override
+    public BatchQuery batchQuery(StaticBatchStmt stmt) {
+        return SimpleQueryTask.batchQuery(stmt, this.adjutant);
     }
 
     @Override
     public MultiResult batchAsMulti(StaticBatchStmt stmt) {
-        return null;
+        return SimpleQueryTask.batchAsMulti(stmt, this.adjutant);
     }
 
     @Override
     public OrderedFlux batchAsFlux(StaticBatchStmt stmt) {
-        return null;
+        return SimpleQueryTask.batchAsFlux(stmt, this.adjutant);
     }
 
     @Override
     public OrderedFlux executeAsFlux(StaticMultiStmt stmt) {
-        return null;
+        return SimpleQueryTask.executeAsFlux(stmt, this.adjutant);
     }
 
     @Override
-    public Mono<ResultStates> bindUpdate(ParamStmt stmt, boolean usePrepare) {
-        return null;
+    public Mono<ResultStates> paramUpdate(ParamStmt stmt, boolean usePrepare) {
+        if (usePrepare) {
+            return ExtendedQueryTask.update(stmt, this.adjutant);
+        }
+        return SimpleQueryTask.paramUpdate(stmt, this.adjutant);
     }
 
     @Override
-    public <R> Flux<R> bindQuery(ParamStmt stmt, boolean usePrepare, Function<CurrentRow, R> function) {
-        return null;
+    public <R> Flux<R> paramQuery(ParamStmt stmt, boolean usePrepare, Function<CurrentRow, R> function) {
+        if (usePrepare) {
+            return ExtendedQueryTask.query(stmt, function, this.adjutant);
+        }
+        return SimpleQueryTask.paramQuery(stmt, function, this.adjutant);
     }
 
     @Override
-    public Flux<ResultStates> bindBatchUpdate(ParamBatchStmt stmt, boolean usePrepare) {
-        return null;
+    public Flux<ResultStates> paramBatchUpdate(ParamBatchStmt stmt, boolean usePrepare) {
+        if (usePrepare) {
+            return ExtendedQueryTask.batchUpdate(stmt, this.adjutant);
+        }
+        return SimpleQueryTask.paramBatchUpdate(stmt, this.adjutant);
     }
 
     @Override
-    public BatchQuery bindBatchQuery(ParamBatchStmt stmt, boolean usePrepare) {
-        return null;
+    public BatchQuery paramBatchQuery(ParamBatchStmt stmt, boolean usePrepare) {
+        if (usePrepare) {
+            return ExtendedQueryTask.batchQuery(stmt, this.adjutant);
+        }
+        return SimpleQueryTask.paramBatchQuery(stmt, this.adjutant);
     }
 
     @Override
-    public MultiResult bindBatchAsMulti(ParamBatchStmt stmt, boolean usePrepare) {
-        return null;
+    public MultiResult paramBatchAsMulti(ParamBatchStmt stmt, boolean usePrepare) {
+        if (usePrepare) {
+            return ExtendedQueryTask.batchAsMulti(stmt, this.adjutant);
+        }
+        return SimpleQueryTask.paramBatchAsMulti(stmt, this.adjutant);
     }
 
     @Override
-    public OrderedFlux bindBatchAsFlux(ParamBatchStmt stmt, boolean usePrepare) {
-        return null;
+    public OrderedFlux paramBatchAsFlux(ParamBatchStmt stmt, boolean usePrepare) {
+        if (usePrepare) {
+            return ExtendedQueryTask.batchAsFlux(stmt, this.adjutant);
+        }
+        return SimpleQueryTask.paramBatchAsFlux(stmt, this.adjutant);
     }
 
     @Override
     public Flux<ResultStates> multiStmtBatchUpdate(ParamMultiStmt stmt) {
-        return null;
+        return SimpleQueryTask.multiStmtBatchUpdate(stmt, this.adjutant);
     }
 
     @Override
     public BatchQuery multiStmtBatchQuery(ParamMultiStmt stmt) {
-        return null;
+        return SimpleQueryTask.multiStmtBatchQuery(stmt, this.adjutant);
     }
 
     @Override
     public MultiResult multiStmtAsMulti(ParamMultiStmt stmt) {
-        return null;
+        return SimpleQueryTask.multiStmtAsMulti(stmt, this.adjutant);
     }
 
     @Override
     public OrderedFlux multiStmtAsFlux(ParamMultiStmt stmt) {
-        return null;
+        return SimpleQueryTask.multiStmtAsFlux(stmt, this.adjutant);
     }
 
     @Override
     public Mono<PrepareTask> prepare(String sql) {
-        return null;
+        return ExtendedQueryTask.prepare(sql, this.adjutant);
     }
 
+    /**
+     * @see <a href="https://www.postgresql.org/docs/current/sql-declare.html">define a cursor</a>
+     */
     @Override
-    public Mono<RefCursor> declareCursor(StaticStmt stmt) {
-        return null;
+    public Mono<RefCursor> declareCursor(final StaticStmt stmt) {
+        return SimpleQueryTask.update(stmt, this.adjutant)
+                .flatMap(states -> createCursor(states, stmt));
     }
 
+    /**
+     * @see <a href="https://www.postgresql.org/docs/current/sql-declare.html">define a cursor</a>
+     */
     @Override
     public Mono<RefCursor> paramDeclareCursor(ParamStmt stmt, boolean useServerPrepare) {
         return null;
@@ -227,6 +252,11 @@ final class ClientProtocol implements PgProtocol {
     @Override
     public <T> T valueOf(Option<T> option) {
         return null;
+    }
+
+
+    private Mono<RefCursor> createCursor(ResultStates states, SingleStmt stmt) {
+        throw new UnsupportedOperationException();
     }
 
 

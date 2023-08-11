@@ -68,6 +68,9 @@ final class PgStaticStatement extends PgStatement<StaticStatement> implements St
         return flux;
     }
 
+    /**
+     * @see <a href="https://www.postgresql.org/docs/current/sql-declare.html">define a cursor</a>
+     */
     @Override
     public Publisher<RefCursor> declareCursor(final String sql) {
         if (!PgStrings.hasText(sql)) {
@@ -116,23 +119,6 @@ final class PgStaticStatement extends PgStatement<StaticStatement> implements St
         return this.session.protocol.executeAsFlux(Stmts.multiStmt(multiStmt, this));
     }
 
-    @Override
-    public boolean isSupportPublisher() {
-        //always false,static statement don't support.
-        return false;
-    }
-
-    @Override
-    public boolean isSupportPath() {
-        //always false,static statement don't support.
-        return false;
-    }
-
-    @Override
-    public boolean isSupportOutParameter() {
-        //always false,static statement don't support.
-        return false;
-    }
 
     @Override
     public String toString() {

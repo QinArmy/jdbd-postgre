@@ -61,7 +61,7 @@ final class SimpleQueryTask extends PgCommandTask implements SimpleStmtTask {
      * This method is underlying api of {@link StaticStatement#executeQuery(String)} method.
      * </p>
      */
-    static Flux<ResultRow> query(StaticStmt stmt, Function<CurrentRow, ResultRow> func, TaskAdjutant adjutant) {
+    static <R> Flux<R> query(final StaticStmt stmt, final Function<CurrentRow, R> func, final TaskAdjutant adjutant) {
         return MultiResults.query(func, stmt.getStatusConsumer(), sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
@@ -138,7 +138,7 @@ final class SimpleQueryTask extends PgCommandTask implements SimpleStmtTask {
      * This method is underlying api of {@link StaticStatement#executeAsFlux(String)} method.
      * </p>
      */
-    static OrderedFlux executeAsFlux(StaticStmt stmt, TaskAdjutant adjutant) {
+    static OrderedFlux executeAsFlux(final StaticMultiStmt stmt, final TaskAdjutant adjutant) {
         return MultiResults.asFlux(sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
@@ -176,7 +176,7 @@ final class SimpleQueryTask extends PgCommandTask implements SimpleStmtTask {
      * </ul>
      * </p>
      */
-    static Flux<ResultRow> paramQuery(ParamStmt stmt, Function<CurrentRow, ResultRow> func, TaskAdjutant adjutant) {
+    static <R> Flux<R> paramQuery(ParamStmt stmt, Function<CurrentRow, R> func, TaskAdjutant adjutant) {
         return MultiResults.query(func, stmt.getStatusConsumer(), sink -> {
             try {
                 SimpleQueryTask task = new SimpleQueryTask(stmt, sink, adjutant);
