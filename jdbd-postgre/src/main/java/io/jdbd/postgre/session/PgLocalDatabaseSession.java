@@ -1,6 +1,5 @@
 package io.jdbd.postgre.session;
 
-import io.jdbd.JdbdException;
 import io.jdbd.pool.PoolLocalDatabaseSession;
 import io.jdbd.postgre.protocol.client.PgProtocol;
 import io.jdbd.session.*;
@@ -55,11 +54,6 @@ class PgLocalDatabaseSession extends PgDatabaseSession<LocalDatabaseSession> imp
                 .thenReturn(this);
     }
 
-
-    @Override
-    public final boolean inTransaction() throws JdbdException {
-        return this.protocol.inTransaction();
-    }
 
     @Override
     public final Publisher<TransactionStatus> transactionStatus() {

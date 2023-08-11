@@ -7,6 +7,7 @@ import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.ObjectStreamException;
 import java.nio.charset.Charset;
+import java.time.Duration;
 import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.Objects;
@@ -47,6 +48,30 @@ public final class Option<T> {
 
     private static final ConcurrentMap<String, Option<?>> INSTANCE_MAP = Isolation.concurrentHashMap();
 
+    /**
+     * <p>
+     * Representing a name option. For example : transaction name in firebird database.
+     * </p>
+     */
+    public static final Option<String> NAME = Option.from("NAME", String.class);
+
+    /**
+     * <p>
+     * Representing a wait option. For example : transaction wait option.
+     * </p>
+     *
+     * @see <a href="https://firebirdsql.org/file/documentation/html/en/refdocs/fblangref40/firebird-40-language-reference.html#fblangref40-transacs-settransac">firebird : SET TRANSACTION</a>
+     */
+    public static final Option<Boolean> WAIT = Option.from("WAIT", Boolean.class);
+
+    /**
+     * <p>
+     * Representing transaction LOCK TIMEOUT,for example firebird database.
+     * </p>
+     *
+     * @see <a href="https://firebirdsql.org/file/documentation/html/en/refdocs/fblangref40/firebird-40-language-reference.html#fblangref40-transacs-settransac">firebird : SET TRANSACTION</a>
+     */
+    public static final Option<Duration> LOCK_TIMEOUT = Option.from("LOCK TIMEOUT", Duration.class);
 
     public static final Option<Isolation> ISOLATION = Option.from("ISOLATION", Isolation.class);
 

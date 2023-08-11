@@ -10,10 +10,13 @@ import java.util.Optional;
  * This interface representing database session that support XA transaction.
  * </p>
  * <p>
- * The 'Rm' of the name this interface means Resource Manager of XA transaction.
+ * This interface is is similar to {@code javax.sql.javax.sql.XAConnection} and {@code javax.transaction.xa.XAResource}, except that this interface is reactive.
  * </p>
  * <p>
- * The instance of this interface is created by {@link DatabaseSessionFactory}.
+ * The 'Rm' of the name of this interface means Resource Manager of XA transaction.
+ * </p>
+ * <p>
+ * The instance of this interface is created by {@link DatabaseSessionFactory#rmSession()}.
  * </p>
  * <p>
  * This interface extends {@link DatabaseSession} for support XA interface based on
@@ -39,6 +42,7 @@ import java.util.Optional;
  *         <li>{@link #forget(Xid, Map)}</li>
  *         <li>{@link #recover(int)}</li>
  *         <li>{@link #recover(int, Map)}</li>
+ *         <li>{@link #inTransaction()}</li>
  *         <li>{@link #isSupportForget()}</li>
  *         <li>{@link #startSupportFlags()}</li>
  *         <li>{@link #endSupportFlags()}</li>
@@ -114,7 +118,6 @@ public interface RmDatabaseSession extends DatabaseSession {
      * The transaction work has been prepared normally.
      */
     int XA_OK = 0;
-
 
 
     Publisher<RmDatabaseSession> start(Xid xid, int flags);

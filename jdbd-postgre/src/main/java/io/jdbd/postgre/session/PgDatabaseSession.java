@@ -194,6 +194,11 @@ abstract class PgDatabaseSession<S extends DatabaseSession> extends PgDatabaseMe
     }
 
     @Override
+    public final boolean inTransaction() throws JdbdException {
+        return this.protocol.inTransaction();
+    }
+
+    @Override
     public final Publisher<SavePoint> setSavePoint() {
         final StringBuilder builder;
         builder = PgStrings.builder()

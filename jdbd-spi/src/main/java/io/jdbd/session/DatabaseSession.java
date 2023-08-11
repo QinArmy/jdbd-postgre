@@ -13,7 +13,7 @@ import java.util.Map;
  * This interface representing database session.
  * </p>
  * <p>
- * This interface is is similar to {@code java.sql.Connection}, except that this interface is reactive.
+ * This interface is is similar to {@code java.sql.Connection} or {@code javax.sql.XAConnection}, except that this interface is reactive.
  * </p>
  * <p>
  * The instance of this interface is created by {@link DatabaseSessionFactory}.
@@ -155,6 +155,22 @@ public interface DatabaseSession extends StaticStatementSpec, DatabaseMetaSpec, 
      *                       </ul>
      */
     MultiStatement multiStatement() throws JdbdException;
+
+    /**
+     * <p>
+     * The state usually is returned database server by database client protocol.
+     * For example :
+     * <ul>
+     *     <li>MySQL <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_basic_ok_packet.html">Protocol::OK_Packet</a> </li>
+     *     <li>MySQL <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_basic_eof_packet.html">Protocol::EOF_Packet</a></li>
+     *     <li>PostgreSQL <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">ReadyForQuery (B)</a></li>
+     * </ul>
+     * </p>
+     *
+     * @return true : this session in transaction block.
+     * @throws JdbdException throw when session have closed.
+     */
+    boolean inTransaction() throws JdbdException;
 
     /**
      * <p>

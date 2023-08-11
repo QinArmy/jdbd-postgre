@@ -10,6 +10,9 @@ import java.util.Map;
  * This interface representing database session that support local transaction.
  * </p>
  * <p>
+ * This interface is is similar to {@code javax.sql.Connection} , except that this interface is reactive.
+ * </p>
+ * <p>
  * This interface is base interface of {@link io.jdbd.pool.PoolLocalDatabaseSession}.
  * </p>
  * <p>
@@ -67,6 +70,7 @@ public interface LocalDatabaseSession extends DatabaseSession {
      *     <ul>
      *         <li>{@link Option#WITH_CONSISTENT_SNAPSHOT}</li>
      *         <li>{@link Option#DEFERRABLE}</li>
+     *         <li>{@link Option#NAME}</li>
      *     </ul>
      * </p>
      *
@@ -88,23 +92,6 @@ public interface LocalDatabaseSession extends DatabaseSession {
      *                       </ul>
      */
     Publisher<LocalDatabaseSession> startTransaction(TransactionOption option, HandleMode mode);
-
-    /**
-     * <p>
-     * The state usually is returned database server by database client protocol.
-     * For example :
-     * <ul>
-     *     <li>MySQL <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_basic_ok_packet.html">Protocol::OK_Packet</a> </li>
-     *     <li>MySQL <a href="https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_basic_eof_packet.html">Protocol::EOF_Packet</a></li>
-     *     <li>PostgreSQL <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">ReadyForQuery (B)</a></li>
-     * </ul>
-     * </p>
-     *
-     * @return true : this session in local transaction block.
-     * @throws JdbdException throw when session have closed.
-     */
-    boolean inTransaction() throws JdbdException;
-
 
 
     /**

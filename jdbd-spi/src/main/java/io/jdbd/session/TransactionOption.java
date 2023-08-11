@@ -9,6 +9,7 @@ public interface TransactionOption extends OptionSpec {
 
     boolean isReadOnly();
 
+
     @Override
     int hashCode();
 
