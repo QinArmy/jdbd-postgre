@@ -84,12 +84,13 @@ public interface LocalDatabaseSession extends DatabaseSession {
      * @return emit <strong>this</strong> or {@link Throwable}. Like {@code reactor.core.publisher.Mono}.
      * @throws JdbdException emit(not throw) when
      *                       <ul>
-     *                           <li>appropriate transaction option is supported</li>
+     *                           li>appropriate {@link Isolation} isn't supported</li>
      *                           <li>have existed transaction and mode is {@link HandleMode#ERROR_IF_EXISTS},see {@link #inTransaction()}</li>
      *                           <li>session have closed, see {@link SessionCloseException}</li>
      *                           <li>network error</li>
      *                           <li>server response error message, see {@link io.jdbd.result.ServerException}</li>
      *                       </ul>
+     * @see #setTransactionCharacteristics(TransactionOption)
      */
     Publisher<LocalDatabaseSession> startTransaction(TransactionOption option, HandleMode mode);
 
@@ -171,6 +172,13 @@ public interface LocalDatabaseSession extends DatabaseSession {
      *                       </ul>
      */
     Publisher<LocalDatabaseSession> rollback(Map<Option<?>, ?> optionMap);
+
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    Publisher<LocalDatabaseSession> setTransactionCharacteristics(TransactionOption option);
 
 
     /**

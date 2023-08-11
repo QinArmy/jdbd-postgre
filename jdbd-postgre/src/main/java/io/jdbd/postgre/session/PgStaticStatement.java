@@ -127,7 +127,7 @@ final class PgStaticStatement extends PgStatement<StaticStatement> implements St
                 .append("[ factory : ")
                 .append(this.session.factoryName())
                 .append(" , session : ")
-                .append(this.session.identifier())
+                .append(this.session.sessionIdentifier())
                 .append(" , hash : ")
                 .append(System.identityHashCode(this))
                 .append(" ]")

@@ -12,6 +12,7 @@ import io.jdbd.result.*;
 import io.jdbd.session.DatabaseSession;
 import io.jdbd.session.Option;
 import io.jdbd.session.SavePoint;
+import io.jdbd.session.TransactionOption;
 import io.jdbd.statement.BindStatement;
 import io.jdbd.statement.MultiStatement;
 import io.jdbd.statement.PreparedStatement;
@@ -66,8 +67,8 @@ abstract class PgDatabaseSession<S extends DatabaseSession> extends PgDatabaseMe
     }
 
     @Override
-    public final long identifier() throws JdbdException {
-        return this.protocol.identifier();
+    public final long sessionIdentifier() throws JdbdException {
+        return this.protocol.sessionIdentifier();
     }
 
     @Override
@@ -188,6 +189,13 @@ abstract class PgDatabaseSession<S extends DatabaseSession> extends PgDatabaseMe
     @Override
     public final RefCursor refCursor(String name, Map<Option<?>, ?> optionMap) {
         return this.protocol.refCursor(name, optionMap, this);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public final Publisher<S> setTransactionCharacteristics(TransactionOption option) {
+        return this.protocol.setTransactionCharacteristics(option)
+                .thenReturn((S) this);
     }
 
     @Override

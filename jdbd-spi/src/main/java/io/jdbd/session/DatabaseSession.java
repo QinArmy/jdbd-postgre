@@ -65,7 +65,7 @@ public interface DatabaseSession extends StaticStatementSpec, DatabaseMetaSpec, 
      *
      * @throws JdbdException throw when session have closed.
      */
-    long identifier() throws JdbdException;
+    long sessionIdentifier() throws JdbdException;
 
     /**
      * <p>
@@ -174,6 +174,36 @@ public interface DatabaseSession extends StaticStatementSpec, DatabaseMetaSpec, 
      * @throws JdbdException            throw when {@link #isSupportRefCursor()} return false.
      */
     RefCursor refCursor(String name, Map<Option<?>, ?> optionMap);
+
+
+    /**
+     * <p>
+     * Just set the characteristics of session transaction, don't start transaction.
+     * </p>
+     * <p>
+     * The transaction options (eg: {@link Isolation}) can apply all transaction of session.
+     * </p>
+     * <p>
+     * The implementation of this method <strong>perhaps</strong> support some of following :
+     *     <ul>
+     *         <li>{@link Option#WITH_CONSISTENT_SNAPSHOT}</li>
+     *         <li>{@link Option#DEFERRABLE}</li>
+     *         <li>{@link Option#NAME}</li>
+     *     </ul>
+     * </p>
+     *
+     * @param option non-null transaction option, driver perhaps support dialect transaction option by {@link TransactionOption#valueOf(Option)}.
+     * @return emit <strong>this</strong> or {@link Throwable}. Like {@code reactor.core.publisher.Mono}.
+     * @throws JdbdException emit(not throw) when
+     *                       <ul>
+     *                           <li>appropriate {@link Isolation} isn't supported</li>
+     *                           <li>session have closed, see {@link SessionCloseException}</li>
+     *                           <li>network error</li>
+     *                           <li>server response error message, see {@link io.jdbd.result.ServerException}</li>
+     *                       </ul>
+     * @see LocalDatabaseSession#startTransaction(TransactionOption, HandleMode)
+     */
+    Publisher<? extends DatabaseSession> setTransactionCharacteristics(TransactionOption option);
 
     /**
      * <p>

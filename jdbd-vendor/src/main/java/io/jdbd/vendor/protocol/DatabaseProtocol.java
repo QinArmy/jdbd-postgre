@@ -22,7 +22,7 @@ public interface DatabaseProtocol extends OptionSpec, Closeable {
     Function<CurrentRow, ResultRow> ROW_FUNC = CurrentRow::asResultRow;
 
 
-    long identifier();
+    long sessionIdentifier();
 
 
     /**
@@ -137,7 +137,6 @@ public interface DatabaseProtocol extends OptionSpec, Closeable {
      */
     Mono<PrepareTask> prepare(String sql);
 
-    Mono<TransactionStatus> transactionStatus();
 
     Mono<Void> ping(int timeSeconds);
 
@@ -157,6 +156,10 @@ public interface DatabaseProtocol extends OptionSpec, Closeable {
 
 
     Mono<ResultStates> startTransaction(TransactionOption option, HandleMode mode);
+
+    Mono<ResultStates> setTransactionCharacteristics(TransactionOption option);
+
+    Mono<TransactionStatus> transactionStatus();
 
     boolean inTransaction();
 

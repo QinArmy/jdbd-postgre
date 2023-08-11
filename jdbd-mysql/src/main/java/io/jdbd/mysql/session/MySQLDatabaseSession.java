@@ -60,7 +60,7 @@ abstract class MySQLDatabaseSession<S extends DatabaseSession> extends MySQLSess
     }
 
     @Override
-    public final long identifier() {
+    public final long sessionIdentifier() {
         return this.protocol.threadId();
     }
 

@@ -44,7 +44,7 @@ final class ClientProtocol implements PgProtocol {
     }
 
     @Override
-    public long identifier() {
+    public long sessionIdentifier() {
         return this.adjutant.processId();
     }
 
@@ -195,6 +195,11 @@ final class ClientProtocol implements PgProtocol {
         return PgRefCursor.create(name, PgCursorTask.create(name, optionMap, this.adjutant), session);
     }
 
+    @Override
+    public Mono<ResultStates> startTransaction(TransactionOption option, HandleMode mode) {
+        return null;
+    }
+
 
     @Override
     public Mono<TransactionStatus> transactionStatus() {
@@ -218,16 +223,19 @@ final class ClientProtocol implements PgProtocol {
 
     @Override
     public boolean supportMultiStmt() {
-        return false;
+        // true : postgre support multi-statement
+        return true;
     }
 
     @Override
     public boolean supportOutParameter() {
-        return false;
+        // true : postgre support out parameter
+        return true;
     }
 
     @Override
     public boolean supportStmtVar() {
+        // false : postgre don't support statement-variable.
         return false;
     }
 
@@ -236,10 +244,6 @@ final class ClientProtocol implements PgProtocol {
         return null;
     }
 
-    @Override
-    public Mono<ResultStates> startTransaction(TransactionOption option, HandleMode mode) {
-        return null;
-    }
 
     @Override
     public boolean inTransaction() {

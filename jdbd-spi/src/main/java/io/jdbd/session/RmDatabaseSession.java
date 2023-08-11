@@ -352,6 +352,12 @@ public interface RmDatabaseSession extends DatabaseSession {
      */
     int recoverSupportFlags();
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    Publisher<RmDatabaseSession> setTransactionCharacteristics(TransactionOption option);
+
 
     /**
      * {@inheritDoc}
