@@ -1,6 +1,7 @@
 package io.jdbd.pool;
 
 import io.jdbd.session.DatabaseSession;
+import io.jdbd.session.DatabaseSessionFactory;
 import org.reactivestreams.Publisher;
 
 /**
@@ -11,6 +12,9 @@ import org.reactivestreams.Publisher;
  *         <li>{@link PoolLocalDatabaseSession}</li>
  *         <li>{@link PoolRmDatabaseSession}</li>
  *     </ul>
+ * </p>
+ * <p>
+ * The instance of this interface is created by {@link DatabaseSessionFactory}.
  * </p>
  * <p>
  *     This interface is used by pool vendor,application developer shouldn't use this interface.

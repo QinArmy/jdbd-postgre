@@ -4,6 +4,8 @@ import io.jdbd.Driver;
 import io.jdbd.DriverVersion;
 import org.reactivestreams.Publisher;
 
+import java.util.Map;
+
 
 /**
  * <p>
@@ -12,6 +14,14 @@ import org.reactivestreams.Publisher;
  *         <li>{@link #localSession()}</li>
  *         <li>{@link #rmSession()}</li>
  *     </ul>
+ * </p>
+ * <p>
+ * The instance of this interface is created by :
+ * <ul>
+ *     <li>{@link Driver#createSessionFactory(String, Map)}</li>
+ *     <li>{@link Driver#forPoolVendor(String, Map)}</li>
+ *     <li>pool vendor</li>
+ * </ul>
  * </p>
  *
  * @since 1.0
@@ -25,19 +35,51 @@ public interface DatabaseSessionFactory extends OptionSpec, Closeable {
 
     /**
      * <p>
-     * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
-     * </p>
-     */
-    Publisher<LocalDatabaseSession> localSession();
-
-    /**
-     * <p>
-     * Create one session that support XA transaction.
+     * Get the instance of {@link LocalDatabaseSession}.
      * </p>
      * <p>
      * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
      * </p>
      *
+     * @return emit just one {@link LocalDatabaseSession} instance or {@link Throwable}. Like {@code reactor.core.publisher.Mono}.
+     * <ul>
+     * <li>If the instance of {@link DatabaseSessionFactory} is created pool vendor , then always emit non-{@link io.jdbd.pool.PoolLocalDatabaseSession} instance.</li>
+     * <li>Else if the instance of {@link DatabaseSessionFactory} is created driver vendor ,then :
+     *      <ul>
+     *          <li>If the instance of {@link DatabaseSessionFactory} is created {@link Driver#forPoolVendor(String, Map)}, then always emit {@link io.jdbd.pool.PoolLocalDatabaseSession} instance.</li>
+     *          <li>Else always emit non-{@link io.jdbd.pool.PoolLocalDatabaseSession} instance.</li>
+     *      </ul>
+     * </li>
+     * <li>Else emit {@link LocalDatabaseSession} instance.</li>
+     * </ul>
+     * @throws io.jdbd.JdbdException emit(not throw) when
+     *                               <ul>
+     *                                   <li>network error</li>
+     *                                   <li>server response error message,see {@link io.jdbd.result.ServerException}</li>
+     *                               </ul>
+     */
+    Publisher<LocalDatabaseSession> localSession();
+
+
+    /**
+     * <p>
+     * Get the instance of {@link RmDatabaseSession}.
+     * </p>
+     * <p>
+     * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
+     * </p>
+     *
+     * @return emit just one {@link RmDatabaseSession} instance or {@link Throwable}. Like {@code reactor.core.publisher.Mono}.
+     * <ul>
+     * <li>If the instance of {@link DatabaseSessionFactory} is created pool vendor , then always emit non-{@link io.jdbd.pool.PoolRmDatabaseSession} instance.</li>
+     * <li>Else if the instance of {@link DatabaseSessionFactory} is created driver vendor ,then :
+     *      <ul>
+     *          <li>If the instance of {@link DatabaseSessionFactory} is created {@link Driver#forPoolVendor(String, Map)}, then always emit {@link io.jdbd.pool.PoolRmDatabaseSession} instance.</li>
+     *          <li>Else always emit non-{@link io.jdbd.pool.PoolRmDatabaseSession} instance.</li>
+     *      </ul>
+     * </li>
+     * <li>Else emit {@link RmDatabaseSession} instance.</li>
+     * </ul>
      * @throws io.jdbd.JdbdException emit(not throw) when
      *                               <ul>
      *                                   <li>driver don't support this method</li>

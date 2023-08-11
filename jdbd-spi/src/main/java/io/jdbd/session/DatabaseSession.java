@@ -10,7 +10,16 @@ import java.util.Map;
 
 /**
  * <p>
- * This interface representing database session, This interface is reactive version of {@code java.sql.Connection}.
+ * This interface representing database session.
+ * </p>
+ * <p>
+ * This interface is is similar to {@code java.sql.Connection}, except that this interface is reactive.
+ * </p>
+ * <p>
+ * The instance of this interface is created by {@link DatabaseSessionFactory}.
+ * </p>
+ * <p>
+ * This interface extends {@link StaticStatementSpec} , so this interface can execute static statement without any statement option. eg: timeout.
  * </p>
  * <p>
  * This interface is base interface of following :
@@ -24,11 +33,11 @@ import java.util.Map;
  * <p>
  *     Application developer can create statement by following methods :
  *     <ul>
- *         <li>{@link #statement()}</li>
- *         <li>{@link #prepare(String)}</li>
- *         <li>{@link #bindStatement(String)}</li>
- *         <li>{@link #bindStatement(String, boolean)}</li>
- *         <li>{@link #multiStatement()}</li>
+ *         <li>{@link #statement()} ,create static statement.</li>
+ *         <li>{@link #prepareStatement(String)} , create server-prepare statement</li>
+ *         <li>{@link #bindStatement(String)} , create the adaptor of client-prepared statement and server-prepared statement.</li>
+ *         <li>{@link #bindStatement(String, boolean)}, create the adaptor of client-prepared statement and server-prepared statement.</li>
+ *         <li>{@link #multiStatement()}, create multi-statement</li>
  *     </ul>
  * </p>
  *
@@ -94,7 +103,7 @@ public interface DatabaseSession extends StaticStatementSpec, DatabaseMetaSpec, 
      * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
      * </p>
      *
-     * @return the {@link Publisher} emit just one element or {@link Throwable}. Like {@code reactor.core.publisher.Mono}
+     * @return the {@link Publisher} emit just one {@link PreparedStatement} instance or {@link Throwable}. Like {@code reactor.core.publisher.Mono}
      * @throws JdbdException emit(not throw)
      *                       <ul>
      *                           <li>sql error</li>
@@ -102,7 +111,7 @@ public interface DatabaseSession extends StaticStatementSpec, DatabaseMetaSpec, 
      *                           <li>database server response error message , see {@link io.jdbd.result.ServerException}</li>
      *                       </ul>
      */
-    Publisher<PreparedStatement> prepare(String sql) throws JdbdException;
+    Publisher<PreparedStatement> prepareStatement(String sql) throws JdbdException;
 
     /**
      * <p>
@@ -162,6 +171,10 @@ public interface DatabaseSession extends StaticStatementSpec, DatabaseMetaSpec, 
      */
     Publisher<SavePoint> setSavePoint(String name);
 
+    Publisher<SavePoint> setSavePoint(String name, Map<Option<?>, ?> optionMap);
+
+
+    Publisher<? extends DatabaseSession> releaseSavePoint(SavePoint savepoint);
 
     /**
      * <p>
@@ -171,7 +184,7 @@ public interface DatabaseSession extends StaticStatementSpec, DatabaseMetaSpec, 
      * @return the {@link Publisher} that completes successfully by
      * emitting an element(<strong>this</strong>), or with an error. Like {@code  reactor.core.publisher.Mono}
      */
-    Publisher<? extends DatabaseSession> releaseSavePoint(SavePoint savepoint);
+    Publisher<? extends DatabaseSession> releaseSavePoint(SavePoint savepoint, Map<Option<?>, ?> optionMap);
 
 
     /**
@@ -183,6 +196,8 @@ public interface DatabaseSession extends StaticStatementSpec, DatabaseMetaSpec, 
      * emitting an element(<strong>this</strong>), or with an error. Like {@code  reactor.core.publisher.Mono}
      */
     Publisher<? extends DatabaseSession> rollbackToSavePoint(SavePoint savepoint);
+
+    Publisher<? extends DatabaseSession> rollbackToSavePoint(SavePoint savepoint, Map<Option<?>, ?> optionMap);
 
 
     DatabaseSession bindIdentifier(StringBuilder builder, String identifier);

@@ -88,7 +88,7 @@ public final class MySQLDatabaseSessionFactory implements DatabaseSessionFactory
     }
 
     @Override
-    public Mono<LocalDatabaseSession> localSession() {
+    public Publisher<LocalDatabaseSession> localSession() {
         if (this.closed.get()) {
             return Mono.error(MySQLExceptions.factoryClosed(this.name));
         }

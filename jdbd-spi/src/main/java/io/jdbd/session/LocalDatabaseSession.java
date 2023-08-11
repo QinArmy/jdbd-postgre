@@ -12,6 +12,28 @@ import java.util.Map;
  * <p>
  * This interface is base interface of {@link io.jdbd.pool.PoolLocalDatabaseSession}.
  * </p>
+ * <p>
+ * The instance of this interface is created by {@link DatabaseSessionFactory#localSession()} method.
+ * </p>
+ * <p>
+ * Application developer can control local transaction by following :
+ *     <ul>
+ *         <li>{@link #startTransaction(TransactionOption)}</li>
+ *         <li>{@link #startTransaction(TransactionOption, HandleMode)}</li>
+ *         <li>{@link #inTransaction()}</li>
+ *         <li>{@link #commit()}</li>
+ *         <li>{@link #commit(Map)}</li>
+ *         <li>{@link #rollback()}</li>
+ *         <li>{@link #rollback(Map)}</li>
+ *         <li>{@link #setSavePoint()}</li>
+ *         <li>{@link #setSavePoint(String)}</li>
+ *         <li>{@link #setSavePoint(String, Map)}</li>
+ *         <li>{@link #releaseSavePoint(SavePoint)}</li>
+ *         <li>{@link #releaseSavePoint(SavePoint, Map)}</li>
+ *         <li>{@link #rollbackToSavePoint(SavePoint)}</li>
+ *         <li>{@link #rollbackToSavePoint(SavePoint, Map)}</li>
+ *     </ul>
+ * </p>
  *
  * @since 1.0
  */
@@ -83,18 +105,6 @@ public interface LocalDatabaseSession extends DatabaseSession {
      */
     boolean inTransaction() throws JdbdException;
 
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    Publisher<LocalDatabaseSession> releaseSavePoint(SavePoint savepoint);
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    Publisher<LocalDatabaseSession> rollbackToSavePoint(SavePoint savepoint);
 
 
     /**
@@ -174,6 +184,31 @@ public interface LocalDatabaseSession extends DatabaseSession {
      *                       </ul>
      */
     Publisher<LocalDatabaseSession> rollback(Map<Option<?>, ?> optionMap);
+
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    Publisher<LocalDatabaseSession> releaseSavePoint(SavePoint savepoint);
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    Publisher<LocalDatabaseSession> releaseSavePoint(SavePoint savepoint, Map<Option<?>, ?> optionMap);
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    Publisher<LocalDatabaseSession> rollbackToSavePoint(SavePoint savepoint);
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    Publisher<LocalDatabaseSession> rollbackToSavePoint(SavePoint savepoint, Map<Option<?>, ?> optionMap);
 
 
     /**

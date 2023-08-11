@@ -583,6 +583,11 @@ public abstract class JdbdExceptions {
         return new JdbdException(m, SQLStates.INVALID_PARAMETER_VALUE, 0);
     }
 
+    public static JdbdException dontSupportOptionMap(String database, String method, @Nullable Map<Option<?>, ?> optionMap) {
+        String m = String.format("%s %s method don't support option map %s", database, method, optionMap);
+        return new JdbdException(m);
+    }
+
     public static JdbdException notSupportClientCharset(final Charset charset) {
         String m = String.format("client charset[%s] isn't supported,because %s encode ASCII to multi bytes.",
                 charset.name(), charset.name());

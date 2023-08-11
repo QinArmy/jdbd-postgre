@@ -3,6 +3,7 @@ package io.jdbd.result;
 import io.jdbd.JdbdException;
 import io.jdbd.session.Closeable;
 import io.jdbd.session.OptionSpec;
+import io.jdbd.statement.BindSingleStatement;
 import org.reactivestreams.Publisher;
 
 import java.util.function.Consumer;
@@ -10,7 +11,18 @@ import java.util.function.Function;
 
 /**
  * <p>
- * This interface representing reference of server sql cursor.
+ * This interface representing reference of server database cursor.
+ * </p>
+ * <p>
+ * This interface is similar to {@code java.sql.ResultSet}, except that this interface is reactive.
+ * </p>
+ * <p>
+ * Application developer can get the instance of this interface by :
+ * <ul>
+ *     <li>{@link io.jdbd.statement.StaticStatementSpec#declareCursor(String)}</li>
+ *     <li>{@link BindSingleStatement#declareCursor()}</li>
+ *     <li>{@link DataRow#get(int, Class)} </li>
+ * </ul>
  * </p>
  * <p>
  * The cursor will be close in following scenarios :
@@ -59,8 +71,9 @@ public interface RefCursor extends OptionSpec, Closeable {
      * Retrieve rows from a query using a cursor {@link #name()}.
      * </p>
      * <p>
-     *     <strong>NOTE</strong> : driver don't send message to database server before subscribing.
+     * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
      * </p>
+     *
      * @param direction must be one of following :
      *                  <ul>
      *                      <li>{@link CursorDirection#NEXT}</li>
@@ -86,8 +99,9 @@ public interface RefCursor extends OptionSpec, Closeable {
      * Retrieve rows from a query using a cursor {@link #name()}.
      * </p>
      * <p>
-     *     <strong>NOTE</strong> : driver don't send message to database server before subscribing.
+     * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
      * </p>
+     *
      * @param direction must be one of following :
      *                  <ul>
      *                      <li>{@link CursorDirection#NEXT}</li>
@@ -128,8 +142,9 @@ public interface RefCursor extends OptionSpec, Closeable {
      * Retrieve rows from a query using a cursor {@link #name()}.
      * </p>
      * <p>
-     *     <strong>NOTE</strong> : driver don't send message to database server before subscribing.
+     * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
      * </p>
+     *
      * @param direction must be one of following :
      *                  <ul>
      *                      <li>{@link CursorDirection#ABSOLUTE}</li>
@@ -272,10 +287,10 @@ public interface RefCursor extends OptionSpec, Closeable {
      * This method is equivalent to {@link #fetch(CursorDirection FORWARD_ALL, Function, Consumer)} and {@link #close()}.
      * </p>
      * <p>
-     *     <strong>NOTE</strong> : driver don't send message to database server before subscribing.
+     * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
      * </p>
      * <p>
-     *    This method is equivalent to following :
+     * This method is equivalent to following :
      * <pre>
      *         <code><br/>
      *     // cursor is instance of RefCursor
@@ -298,10 +313,10 @@ public interface RefCursor extends OptionSpec, Closeable {
      * This method is equivalent to {@link #fetch(CursorDirection FORWARD_ALL)} and {@link #close()}.
      * </p>
      * <p>
-     *     <strong>NOTE</strong> : driver don't send message to database server before subscribing.
+     * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
      * </p>
      * <p>
-     *    This method is equivalent to following :
+     * This method is equivalent to following :
      * <pre>
      *         <code><br/>
      *     // cursor is instance of RefCursor
@@ -324,8 +339,9 @@ public interface RefCursor extends OptionSpec, Closeable {
      * MOVE  a cursor without retrieving any data.
      * </p>
      * <p>
-     *     <strong>NOTE</strong> : driver don't send message to database server before subscribing.
+     * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
      * </p>
+     *
      * @param direction must be one of following :
      *                  <ul>
      *                      <li>{@link CursorDirection#NEXT}</li>
@@ -354,8 +370,9 @@ public interface RefCursor extends OptionSpec, Closeable {
      * MOVE  a cursor without retrieving any data.
      * </p>
      * <p>
-     *     <strong>NOTE</strong> : driver don't send message to database server before subscribing.
+     * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
      * </p>
+     *
      * @param direction must be one of following :
      *                  <ul>
      *                      <li>{@link CursorDirection#ABSOLUTE}</li>

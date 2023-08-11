@@ -147,7 +147,7 @@ abstract class MySQLDatabaseSession<S extends DatabaseSession> extends MySQLSess
     }
 
     @Override
-    public final Publisher<PreparedStatement> prepare(final String sql) {
+    public final Publisher<PreparedStatement> prepareStatement(final String sql) {
         if (!MySQLStrings.hasText(sql)) {
             return Mono.error(MySQLExceptions.sqlIsEmpty());
         }

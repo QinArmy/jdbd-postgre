@@ -7,7 +7,13 @@ import java.util.Optional;
 
 /**
  * <p>
- * This interface representing database session that support global transaction.
+ * This interface representing database session that support XA transaction.
+ * </p>
+ * <p>
+ * The 'Rm' of the name this interface means Resource Manager of XA transaction.
+ * </p>
+ * <p>
+ * The instance of this interface is created by {@link DatabaseSessionFactory}.
  * </p>
  * <p>
  * This interface extends {@link DatabaseSession} for support XA interface based on
@@ -15,6 +21,36 @@ import java.util.Optional;
  * This document is published by The Open Group and available at
  * <a href="http://www.opengroup.org/public/pubs/catalog/c193.htm">The XA Specification</a>,
  * here ,you can download the pdf about The XA Specification.
+ * </p>
+ * <p>
+ * Application developer can control XA transaction by following :
+ *     <ul>
+ *         <li>{@link #start(Xid, int)}</li>
+ *         <li>{@link #start(Xid, int, TransactionOption)}</li>
+ *         <li>{@link #end(Xid, int)}</li>
+ *         <li>{@link #end(Xid, int, Map)}</li>
+ *         <li>{@link #prepare(Xid)}</li>
+ *         <li>{@link #prepare(Xid, Map)}</li>
+ *         <li>{@link #commit(Xid, boolean)}</li>
+ *         <li>{@link #commit(Xid, boolean, Map)}</li>
+ *         <li>{@link #rollback(Xid)}</li>
+ *         <li>{@link #rollback(Xid, Map)}</li>
+ *         <li>{@link #forget(Xid)}</li>
+ *         <li>{@link #forget(Xid, Map)}</li>
+ *         <li>{@link #recover(int)}</li>
+ *         <li>{@link #recover(int, Map)}</li>
+ *         <li>{@link #isSupportForget()}</li>
+ *         <li>{@link #startSupportFlags()}</li>
+ *         <li>{@link #endSupportFlags()}</li>
+ *         <li>{@link #recoverSupportFlags()}</li>
+ *         <li>{@link #setSavePoint()}</li>
+ *         <li>{@link #setSavePoint(String)}</li>
+ *         <li>{@link #setSavePoint(String, Map)}</li>
+ *         <li>{@link #releaseSavePoint(SavePoint)}</li>
+ *         <li>{@link #releaseSavePoint(SavePoint, Map)}</li>
+ *         <li>{@link #rollbackToSavePoint(SavePoint)}</li>
+ *         <li>{@link #rollbackToSavePoint(SavePoint, Map)}</li>
+ *     </ul>
  * </p>
  *
  * @see <a href="http://www.opengroup.org/public/pubs/catalog/c193.html">The XA Specification</a>
@@ -79,32 +115,6 @@ public interface RmDatabaseSession extends DatabaseSession {
      */
     int XA_OK = 0;
 
-
-    @Override
-    Publisher<RmDatabaseSession> releaseSavePoint(SavePoint savepoint);
-
-    @Override
-    Publisher<RmDatabaseSession> rollbackToSavePoint(SavePoint savepoint);
-
-    /**
-     * @return true : support {@link #forget(Xid, Map)} method
-     */
-    boolean isSupportForget();
-
-    /**
-     * @return the sub set of {@link #start(Xid, int, TransactionOption)} support flags(bit set).
-     */
-    int startSupportFlags();
-
-    /**
-     * @return the sub set of {@link #end(Xid, int, Map)} support flags(bit set).
-     */
-    int endSupportFlags();
-
-    /**
-     * @return the sub set of {@link #recover(int, Map)} support flags(bit set).
-     */
-    int recoverSupportFlags();
 
 
     Publisher<RmDatabaseSession> start(Xid xid, int flags);
@@ -318,6 +328,54 @@ public interface RmDatabaseSession extends DatabaseSession {
      *                     </ul>
      */
     Publisher<Optional<Xid>> recover(int flags, Map<Option<?>, ?> optionMap);
+
+    /**
+     * @return true : support {@link #forget(Xid, Map)} method
+     */
+    boolean isSupportForget();
+
+    /**
+     * @return the sub set of {@link #start(Xid, int, TransactionOption)} support flags(bit set).
+     */
+    int startSupportFlags();
+
+    /**
+     * @return the sub set of {@link #end(Xid, int, Map)} support flags(bit set).
+     */
+    int endSupportFlags();
+
+    /**
+     * @return the sub set of {@link #recover(int, Map)} support flags(bit set).
+     */
+    int recoverSupportFlags();
+
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    Publisher<RmDatabaseSession> releaseSavePoint(SavePoint savepoint);
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    Publisher<RmDatabaseSession> releaseSavePoint(SavePoint savepoint, Map<Option<?>, ?> optionMap);
+
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    Publisher<RmDatabaseSession> rollbackToSavePoint(SavePoint savepoint);
+
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    Publisher<RmDatabaseSession> rollbackToSavePoint(SavePoint savepoint, Map<Option<?>, ?> optionMap);
+
 
     /**
      * {@inheritDoc}

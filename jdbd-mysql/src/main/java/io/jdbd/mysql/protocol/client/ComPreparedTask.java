@@ -175,11 +175,11 @@ final class ComPreparedTask extends MySQLCommandTask implements PrepareStmtTask,
      * <p>
      * This method is underlying api of below methods:
      * <ul>
-     *     <li>{@link DatabaseSession#prepare(String)}</li>
+     *     <li>{@link DatabaseSession#prepareStatement(String)}</li>
      * </ul>
      * </p>
      *
-     * @see DatabaseSession#prepare(String)
+     * @see DatabaseSession#prepareStatement(String)
      * @see #ComPreparedTask(ParamSingleStmt, ResultSink, TaskAdjutant)
      */
     static Mono<PrepareTask> prepare(final String sql, final TaskAdjutant adjutant) {

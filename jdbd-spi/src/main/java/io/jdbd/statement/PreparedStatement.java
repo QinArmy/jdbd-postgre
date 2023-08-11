@@ -17,7 +17,7 @@ import java.util.function.Function;
 
 /**
  * <p>
- * This interface is reactive version of {@code java.sql.PreparedStatement}
+ * This interface is is similar to {@code java.sql.PreparedStatement}, except that this interface is reactive.
  * </p>
  * <p>
  * You should invoke one of following :
@@ -35,10 +35,19 @@ import java.util.function.Function;
  * </ul>
  * </p>
  * <p>
- *     <strong>NOTE</strong>: {@link PreparedStatement} is auto close after you invoke executeXxx() method,or binding occur error,so
- *     {@link PreparedStatement} have no close() method.
+ * The instance of this interface is created by {@link DatabaseSession#prepareStatement(String)} method.
+ * </p>
+ * <p>
+ *     <strong>NOTE</strong>: this interface is auto closing when
+ *     <ul>
+ *         <li>after executeXxx() method accomplishing</li>
+ *         <li>binding occur error</li>
+ *         <li>set statement option occur error,for example : {@link #setTimeout(int)}</li>
+ *     </ul> ,
+ *     so {@link PreparedStatement} have no close() method.
  * </p>
  *
+ * @see DatabaseSession#prepareStatement(String)
  * @see BindStatement
  */
 public interface PreparedStatement extends BindSingleStatement {

@@ -4,6 +4,7 @@ import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
 import io.jdbd.session.ChunkOption;
+import io.jdbd.session.DatabaseSession;
 import io.jdbd.session.Option;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
@@ -23,7 +24,9 @@ import java.util.function.Function;
  * This interface is similar to {@link StaticStatementSpec#executeAsFlux(String)} method,
  * except that support sql parameter placeholder({@code ?}) with client-prepare.
  * </p>
- *
+ * <p>
+ * The instance of this interface is created by {@link DatabaseSession#multiStatement()} method.
+ * </p>
  * @since 1.0
  */
 public interface MultiStatement extends MultiResultStatement, ParametrizedStatement {

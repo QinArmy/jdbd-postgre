@@ -34,6 +34,7 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
  * @see <a href="https://www.postgresql.org/docs/current/sql-prepare-transaction.html">PREPARE TRANSACTION</a>
  * @see <a href="https://www.postgresql.org/docs/current/sql-commit-prepared.html">COMMIT PREPARED</a>
  * @see <a href="https://www.postgresql.org/docs/current/sql-rollback-prepared.html">ROLLBACK PREPARED</a>
+ * @see <a href="https://www.postgresql.org/docs/current/view-pg-prepared-xacts.html">pg_prepared_xacts</a>
  * @since 1.0
  */
 class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implements RmDatabaseSession {
@@ -47,9 +48,11 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
         return new PgPoolRmDatabaseSession(factory, protocol);
     }
 
+
     private static final AtomicReferenceFieldUpdater<PgRmDatabaseSession, XaStatesTriple> CURRENT_TRIPLE = AtomicReferenceFieldUpdater
             .newUpdater(PgRmDatabaseSession.class, XaStatesTriple.class, "currentTriple");
 
+    //TODO add cache XaStatesTriple for reset/reconnect
     private final ConcurrentMap<Xid, XaStatesTriple> preparedXaMp = PgCollections.concurrentHashMap();
 
     private volatile XaStatesTriple currentTriple = null;
@@ -67,26 +70,6 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
                 .map(status -> mapTransactionStatus(status, currentXaPair));
     }
 
-    @Override
-    public final boolean isSupportForget() {
-        //always false, postgre don't support
-        return false;
-    }
-
-    @Override
-    public final int startSupportFlags() {
-        return TM_NO_FLAGS;
-    }
-
-    @Override
-    public final int endSupportFlags() {
-        return (TM_SUCCESS | TM_FAIL);
-    }
-
-    @Override
-    public final int recoverSupportFlags() {
-        return (TM_START_RSCAN | TM_END_RSCAN | TM_NO_FLAGS);
-    }
 
     @Override
     public final Publisher<RmDatabaseSession> start(Xid xid, int flags) {
@@ -215,6 +198,8 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
             } else {
                 mono = Mono.error(PgExceptions.xaStatesDontSupportCommitCommand(triple.xid, triple.xaStates));
             }
+        } else if (!PgCollections.isEmpty(optionMap)) {
+            mono = Mono.error(PgExceptions.xaDontSupportOptionMap("commit", optionMap));
         } else if (triple.xaStates == XaStates.PREPARED) {
             final StringBuilder builder = new StringBuilder(64);
             builder.append("COMMIT PREPARED ");
@@ -247,6 +232,8 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
         } else if ((triple = this.preparedXaMp.get(xid)) == null) {
             String m = String.format("xa %s isn't prepared transaction.", xid);
             mono = Mono.error(new XaException(m, XaException.XAER_PROTO));
+        } else if (!PgCollections.isEmpty(optionMap)) {
+            mono = Mono.error(PgExceptions.xaDontSupportOptionMap("rollback", optionMap));
         } else {
             final StringBuilder builder = new StringBuilder(80);
             builder.append("ROLLBACK PREPARED ");
@@ -274,22 +261,48 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
         return this.recover(flags, Collections.emptyMap());
     }
 
+    /**
+     * @see <a href="https://www.postgresql.org/docs/current/view-pg-prepared-xacts.html">pg_prepared_xacts</a>
+     */
     @Override
-    public final Publisher<Optional<Xid>> recover(final int flags, Map<Option<?>, ?> optionMap) {
+    public final Publisher<Optional<Xid>> recover(final int flags, final Map<Option<?>, ?> optionMap) {
         final int supportBitSet = recoverSupportFlags();
 
         final Flux<Optional<Xid>> flux;
         if (((~supportBitSet) & flags) != 0) {
             flux = Flux.error(PgExceptions.xaInvalidFlagForRecover(flags));
+        } else if (!PgCollections.isEmpty(optionMap)) {
+            flux = Flux.error(PgExceptions.xaDontSupportOptionMap("recover", optionMap));
         } else if ((flags & TM_START_RSCAN) == 0) {
             flux = Flux.empty();
         } else {
-            final String sql = "SELECT gid FROM pg_prepared_xacts AS t WHERE t.database = current_database()";
+            final String sql = "SELECT t.gid FROM pg_prepared_xacts AS t WHERE t.database = current_database()";
             flux = this.protocol.query(Stmts.stmt(sql), this::mapXid);
         }
         return flux;
     }
 
+
+    @Override
+    public final boolean isSupportForget() {
+        //always false, postgre don't support
+        return false;
+    }
+
+    @Override
+    public final int startSupportFlags() {
+        return TM_NO_FLAGS;
+    }
+
+    @Override
+    public final int endSupportFlags() {
+        return (TM_SUCCESS | TM_FAIL);
+    }
+
+    @Override
+    public final int recoverSupportFlags() {
+        return (TM_START_RSCAN | TM_END_RSCAN | TM_NO_FLAGS);
+    }
 
     /**
      * @see #commit(Xid, boolean, Map)

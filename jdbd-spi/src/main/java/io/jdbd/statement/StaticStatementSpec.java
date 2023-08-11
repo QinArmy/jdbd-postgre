@@ -10,14 +10,14 @@ import java.util.function.Function;
 
 /**
  * <p>
+ * This interface representing the ability that execute static sql statement that couldn't contain any sql parameter placeholder({@code ?})
+ * </p>
+ * <p>
  * This interface is base interface of following:
  *     <ul>
  *         <li>{@link StaticStatement},it execute static statement with statement options. eg: timeout</li>
- *         <li>{@link DatabaseSession},it execute static statement without any statement options. eg: timeout</li>
+ *         <li>{@link DatabaseSession},it execute static statement without any statement option. eg: timeout</li>
  *     </ul>
- * </p>
- * <p>
- * This interface representing the statement couldn't contain any sql parameter placeholder({@code ?}) .
  * </p>
  *
  * @since 1.0
@@ -93,7 +93,7 @@ public interface StaticStatementSpec {
      * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
      * </p>
      *
-     * @return the {@link Publisher} emit 0-n element or {@link Throwable}, Like {@code reactor.core.publisher.Flux} .
+     * @return the {@link Publisher} emit 0-N element or {@link Throwable}, Like {@code reactor.core.publisher.Flux} .
      * @throws NullPointerException  emit(not throw) when
      *                               <ul>
      *                                   <li>function is null</li>
@@ -119,10 +119,11 @@ public interface StaticStatementSpec {
      * </p>
      *
      * @param sql the statement that declare cursor.
-     * @return emit one {@link RefCursor} or {@link io.jdbd.JdbdException}
+     * @return emit just one {@link RefCursor} or {@link Throwable}, Like {@code reactor.core.publisher.Mono} .
      * @throws io.jdbd.JdbdException emit(not throw) when :
      *                               <ul>
      *                                   <li>{@link DatabaseSession#isSupportRefCursor()} return false</li>
+     *                                   <li>sql have no text</li>
      *                                   <li>session have closed</li>
      *                                   <li>server response error message,see {@link ServerException}</li>
      *                               </ul>
@@ -162,7 +163,7 @@ public interface StaticStatementSpec {
      * Execute one or more static sql statement (separated by semicolons {@code ;}) .
      * </p>
      * <p>
-     * This interface is similar to {@link MultiStatement} interface,
+     * This method is similar to {@link MultiStatement} interface,
      * except that don't support any sql parameter placeholder({@code ?}).
      * </p>
      * <p>
@@ -170,6 +171,15 @@ public interface StaticStatementSpec {
      * </p>
      *
      * @param multiStmt a single single sql statement or multi sql statement (separated by semicolons {@code ;})
+     * @return the {@link OrderedFlux} emit 0-N {@link ResultItem} or {@link Throwable}, Like {@code reactor.core.publisher.Flux} .
+     * @throws io.jdbd.JdbdException emit(not throw) when
+     *                               <ul>
+     *                                   <li>multiStmt have no text</li>
+     *                                   <li>multiStmt syntax error</li>
+     *                                   <li>session have closed, see {@link io.jdbd.session.SessionCloseException}</li>
+     *                                   <l>network error</l>
+     *                                   <li>server response error message, see {@link ServerException}</li>
+     *                               </ul>
      */
     OrderedFlux executeAsFlux(String multiStmt);
 

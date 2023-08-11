@@ -43,7 +43,7 @@ public class PreparedStatementSuiteTests extends AbstractStatementTests {
         final String sql = String.format("UPDATE my_types AS t SET my_boolean = TRUE WHERE t.id = %s", id);
 
         final ResultStates states;
-        states = Mono.from(session.prepare(sql))
+        states = Mono.from(session.prepareStatement(sql))
                 .flatMapMany(PreparedStatement::executeUpdate)
                 .blockFirst();
 
@@ -67,7 +67,7 @@ public class PreparedStatementSuiteTests extends AbstractStatementTests {
 
         final List<ResultRow> rowList;
 
-        rowList = Flux.from(session.prepare(sql))
+        rowList = Flux.from(session.prepareStatement(sql))
                 .flatMap(PreparedStatement::executeQuery)
                 .collectList()
                 .block();
@@ -95,7 +95,7 @@ public class PreparedStatementSuiteTests extends AbstractStatementTests {
 
         final List<ResultStates> statesList;
 
-        statesList = Mono.from(session.prepare(sql))
+        statesList = Mono.from(session.prepareStatement(sql))
                 .flatMapMany(statement -> {
                     statement.addBatch();
                     return statement.executeBatchUpdate();
@@ -122,7 +122,7 @@ public class PreparedStatementSuiteTests extends AbstractStatementTests {
         final String sql = String.format("UPDATE my_types AS t SET my_boolean = TRUE WHERE t.id = %s", id);
 
         final ResultStates states;
-        states = Mono.from(session.prepare(sql))
+        states = Mono.from(session.prepareStatement(sql))
                 .flatMap(statement -> {
                     statement.addBatch();
                     return Mono.from(statement.executeBatchAsMulti().nextUpdate());
@@ -147,7 +147,7 @@ public class PreparedStatementSuiteTests extends AbstractStatementTests {
         final String sql = String.format("UPDATE my_types AS t SET my_boolean = TRUE WHERE t.id = %s", id);
 
         final List<ResultStates> statesList;
-        statesList = Mono.from(session.prepare(sql))
+        statesList = Mono.from(session.prepareStatement(sql))
                 .flatMapMany(statement -> {
                     statement.addBatch();
                     return Flux.from(statement.executeBatchAsFlux());
@@ -178,7 +178,7 @@ public class PreparedStatementSuiteTests extends AbstractStatementTests {
         final String sql = "UPDATE my_types AS t SET my_boolean = TRUE WHERE t.id = ? ";
 
         final ResultStates states;
-        states = Mono.from(session.prepare(sql))
+        states = Mono.from(session.prepareStatement(sql))
                 .flatMap(statement -> {
                     statement.bind(0, id);
                     return Mono.from(statement.executeUpdate());
@@ -210,7 +210,7 @@ public class PreparedStatementSuiteTests extends AbstractStatementTests {
         final AtomicReference<ResultStates> statesHolder = new AtomicReference<>(null);
         final List<ResultRow> rowList;
 
-        rowList = Mono.from(session.prepare(sql))
+        rowList = Mono.from(session.prepareStatement(sql))
                 .flatMapMany(statement -> {
                     statement.bind(0, id);
                     return statement.executeQuery(statesHolder::set);
@@ -249,7 +249,7 @@ public class PreparedStatementSuiteTests extends AbstractStatementTests {
         final String sql = "UPDATE my_types AS t SET my_boolean = TRUE WHERE t.id = ? ";
 
         final List<ResultStates> stateList;
-        stateList = Mono.from(session.prepare(sql))
+        stateList = Mono.from(session.prepareStatement(sql))
                 .flatMapMany(statement -> {
                     for (int i = 0; i < batchCount; i++) {
                         statement.bind(0, startId + i);
@@ -292,7 +292,7 @@ public class PreparedStatementSuiteTests extends AbstractStatementTests {
         final String sql = "UPDATE my_types AS t SET my_boolean = TRUE WHERE t.id = ? ";
 
         final MultiResult multiResult;
-        multiResult = Mono.from(session.prepare(sql))
+        multiResult = Mono.from(session.prepareStatement(sql))
                 .map(statement -> {
                     for (int i = 0; i < batchCount; i++) {
                         statement.bind(0, startId + i);
@@ -335,7 +335,7 @@ public class PreparedStatementSuiteTests extends AbstractStatementTests {
         final String sql = "UPDATE my_types AS t SET my_boolean = TRUE WHERE t.id = ? ";
 
         final List<ResultStates> statesList;
-        statesList = Mono.from(session.prepare(sql))
+        statesList = Mono.from(session.prepareStatement(sql))
                 .flatMapMany(statement -> {
                     for (int i = 0; i < batchCount; i++) {
                         statement.bind(0, startId + i);
@@ -376,7 +376,7 @@ public class PreparedStatementSuiteTests extends AbstractStatementTests {
         final long startId = START_ID + 32;
 
         final ResultStates states;
-        states = Mono.from(session.prepare(sql))
+        states = Mono.from(session.prepareStatement(sql))
                 .flatMap(statement -> Mono.from(statement.abandonBind())) // abandonBind
                 .flatMap(s -> {
                     LOG.info("abandonBind success execute next PreparedStatement");
@@ -407,7 +407,7 @@ public class PreparedStatementSuiteTests extends AbstractStatementTests {
         final long startId = START_ID + 33;
 
         final ResultStates states;
-        states = Mono.from(session.prepare(sql))
+        states = Mono.from(session.prepareStatement(sql))
                 .flatMap(statement -> {// binding occur error start.
                     Mono<DatabaseSession> sessionMono;
                     try {
@@ -418,7 +418,7 @@ public class PreparedStatementSuiteTests extends AbstractStatementTests {
                     }
                     return sessionMono;
                 }) // binding occur error end.
-                .flatMap(s -> Mono.from(s.prepare(sql)))
+                .flatMap(s -> Mono.from(s.prepareStatement(sql)))
                 .flatMap(statement -> {
                     statement.bind(0, startId);
                     return Mono.from(statement.executeUpdate());

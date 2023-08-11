@@ -132,7 +132,7 @@ public interface DatabaseProtocol extends OptionSpec, Closeable {
 
     /**
      * <p>
-     * This method is underlying api of {@link DatabaseSession#prepare(String)} methods:
+     * This method is underlying api of {@link DatabaseSession#prepareStatement(String)} methods:
      * </p>
      */
     Mono<PrepareTask> prepare(String sql);

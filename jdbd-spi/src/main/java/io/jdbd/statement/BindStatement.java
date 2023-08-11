@@ -4,6 +4,7 @@ import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
 import io.jdbd.session.ChunkOption;
+import io.jdbd.session.DatabaseSession;
 import io.jdbd.session.Option;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
@@ -13,6 +14,9 @@ import java.util.function.Function;
 /**
  * <p>
  * This interface representing the adaptor of client-prepared statement and server-prepared statement.
+ * </p>
+ * <p>
+ * The instance of this interface is created by {@link DatabaseSession#bindStatement(String, boolean)} method.
  * </p>
  *
  * @see io.jdbd.session.DatabaseSession#bindStatement(String, boolean)

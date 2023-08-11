@@ -18,7 +18,7 @@ import java.util.function.Function;
  *     The implementation of this interface is used by underlying implementation of {@link io.jdbd.statement.PreparedStatement}.
  * </p>
  *
- * @see DatabaseSession#prepare(String)
+ * @see DatabaseSession#prepareStatement(String)
  */
 public interface PrepareStmt extends ParamSingleStmt {
 
