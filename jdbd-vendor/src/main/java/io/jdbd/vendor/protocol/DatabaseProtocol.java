@@ -18,12 +18,12 @@ import java.util.function.Function;
 
 public interface DatabaseProtocol extends OptionSpec, Closeable {
 
-    long identifier();
 
     Function<CurrentRow, ResultRow> ROW_FUNC = CurrentRow::asResultRow;
 
 
-    void bindIdentifier(StringBuilder builder, String identifier);
+    long identifier();
+
 
     /**
      * <p>
@@ -174,6 +174,8 @@ public interface DatabaseProtocol extends OptionSpec, Closeable {
 
     @Override
     <T> Mono<T> close();
+
+    void bindIdentifier(StringBuilder builder, String identifier);
 
 
 }

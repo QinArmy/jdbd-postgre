@@ -47,7 +47,7 @@ public final class ClientProtocolFactory extends FixedEnv implements PgProtocolF
         return connectionManager.connect();
     }
 
-    private static final class SessionManagerImpl implements SessionManager {
+    private static final class SessionManagerImpl implements ProtocolManager {
 
 
         private static final Logger LOG = LoggerFactory.getLogger(SessionManagerImpl.class);

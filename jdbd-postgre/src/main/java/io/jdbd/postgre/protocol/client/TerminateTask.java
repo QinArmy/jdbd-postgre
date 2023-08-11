@@ -13,7 +13,7 @@ import java.util.function.Consumer;
  */
 final class TerminateTask extends PgTask {
 
-    static Mono<Void> terminate(TaskAdjutant adjutant) {
+    static <T> Mono<T> terminate(TaskAdjutant adjutant) {
         return Mono.create(sink -> {
             try {
                 TerminateTask task = new TerminateTask(adjutant, sink);
@@ -25,9 +25,9 @@ final class TerminateTask extends PgTask {
     }
 
 
-    private final MonoSink<Void> sink;
+    private final MonoSink<?> sink;
 
-    private TerminateTask(TaskAdjutant adjutant, MonoSink<Void> sink) {
+    private TerminateTask(TaskAdjutant adjutant, MonoSink<?> sink) {
         super(adjutant, sink::error);
         this.sink = sink;
     }

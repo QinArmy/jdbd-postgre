@@ -1,10 +1,7 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.result.*;
-import io.jdbd.session.HandleMode;
-import io.jdbd.session.ServerVersion;
-import io.jdbd.session.TransactionOption;
-import io.jdbd.session.TransactionStatus;
+import io.jdbd.session.*;
 import io.jdbd.vendor.stmt.*;
 import io.jdbd.vendor.task.PrepareTask;
 import reactor.core.publisher.Flux;
@@ -32,15 +29,14 @@ final class ClientProtocol implements PgProtocol {
         }
     }
 
-    private final SessionManager connManager;
-
-    final TaskAdjutant adjutant;
+    private final ProtocolManager protocolManager;
+    private final TaskAdjutant adjutant;
 
     private final Map<String, String> initializedParamMap;
 
-    private ClientProtocol(final ConnectionWrapper wrapper) {
-        this.connManager = wrapper.sessionManager;
-        this.adjutant = this.connManager.taskAdjutant();
+    private ClientProtocol(ConnectionWrapper wrapper) {
+        this.protocolManager = wrapper.sessionManager;
+        this.adjutant = this.protocolManager.taskAdjutant();
         this.initializedParamMap = wrapper.initializedParamMap;
     }
 
@@ -49,6 +45,10 @@ final class ClientProtocol implements PgProtocol {
         return this.adjutant.processId();
     }
 
+    @Override
+    public void bindIdentifier(StringBuilder builder, String identifier) {
+        //TODO
+    }
 
     @Override
     public Mono<ResultStates> update(StaticStmt stmt) {
@@ -141,6 +141,16 @@ final class ClientProtocol implements PgProtocol {
     }
 
     @Override
+    public Mono<RefCursor> declareCursor(StaticStmt stmt) {
+        return null;
+    }
+
+    @Override
+    public Mono<RefCursor> paramDeclareCursor(ParamStmt stmt, boolean useServerPrepare) {
+        return null;
+    }
+
+    @Override
     public Mono<TransactionStatus> transactionStatus() {
         return null;
     }
@@ -171,11 +181,6 @@ final class ClientProtocol implements PgProtocol {
     }
 
     @Override
-    public boolean supportSavePoints() {
-        return false;
-    }
-
-    @Override
     public boolean supportStmtVar() {
         return false;
     }
@@ -185,9 +190,6 @@ final class ClientProtocol implements PgProtocol {
         return null;
     }
 
-    /**
-     * @see <a href="https://www.postgresql.org/docs/current/sql-start-transaction.html">START TRANSACTION</a>
-     */
     @Override
     public Mono<ResultStates> startTransaction(TransactionOption option, HandleMode mode) {
         return null;
@@ -199,12 +201,12 @@ final class ClientProtocol implements PgProtocol {
     }
 
     @Override
-    public Mono<ResultStates> commit() {
+    public Mono<ResultStates> commit(Map<Option<?>, ?> optionMap) {
         return null;
     }
 
     @Override
-    public Mono<ResultStates> rollback() {
+    public Mono<ResultStates> rollback(Map<Option<?>, ?> optionMap) {
         return null;
     }
 
@@ -214,7 +216,16 @@ final class ClientProtocol implements PgProtocol {
     }
 
     @Override
-    public Mono<Void> close() {
+    public <T> Mono<T> close() {
+        if (!this.adjutant.isActive()) {
+            return Mono.empty();
+        }
+        return TerminateTask.terminate(this.adjutant);
+    }
+
+
+    @Override
+    public <T> T valueOf(Option<T> option) {
         return null;
     }
 

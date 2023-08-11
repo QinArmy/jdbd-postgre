@@ -5,7 +5,7 @@ import reactor.core.publisher.Mono;
 
 import java.util.Map;
 
-interface SessionManager {
+interface ProtocolManager {
 
     Mono<Void> reConnect();
 
