@@ -20,7 +20,8 @@ public abstract class Stmts {
         throw new UnsupportedOperationException();
     }
 
-    public static final Consumer<ResultStates> IGNORE_RESULT_STATES = Stmts::ignoreResultStates;
+    public static final Consumer<ResultStates> IGNORE_RESULT_STATES = states -> {
+    };
 
     protected static final List<ParamValue> EMPTY_PARAM_GROUP = Collections.emptyList();
 
@@ -618,9 +619,5 @@ public abstract class Stmts {
 
     }//OptionMultiStmt
 
-
-    private static void ignoreResultStates(ResultStates states) {
-        //no-op
-    }
 
 }

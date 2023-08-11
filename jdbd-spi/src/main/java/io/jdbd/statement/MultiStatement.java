@@ -10,14 +10,32 @@ import org.reactivestreams.Subscriber;
 
 import java.util.function.Function;
 
+/**
+ * <p>
+ * This interface representing the multi sql statement (separated by semicolons {@code ;})
+ * that support sql parameter placeholder({@code ?}) with client-prepare.
+ * </p>
+ * <p>
+ * If you invoke only once {@link #addStatement(String)} ,then this interface is similar to {@link BindStatement},
+ * except that don't support server-prepare.
+ * </p>
+ * <p>
+ * This interface is similar to {@link StaticStatementSpec#executeAsFlux(String)} method,
+ * except that support sql parameter placeholder({@code ?}) with client-prepare.
+ * </p>
+ *
+ * @since 1.0
+ */
 public interface MultiStatement extends MultiResultStatement, ParametrizedStatement {
 
     /**
      * @param sql must have text.
+     * @return <strong>this</strong>
      * @throws IllegalArgumentException when sql has no text.
      * @throws JdbdException            when reuse this instance after invoke below method:
      *                                  <ul>
      *                                      <li>{@link #executeBatchUpdate()}</li>
+     *                                      <li>{@link #executeBatchQuery()}</li>
      *                                      <li>{@link #executeBatchAsMulti()}</li>
      *                                      <li>{@link #executeBatchAsFlux()}</li>
      *                                  </ul>

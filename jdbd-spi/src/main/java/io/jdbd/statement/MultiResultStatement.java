@@ -35,6 +35,9 @@ public interface MultiResultStatement extends Statement {
      * <p>
      * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
      * </p>
+     *
+     * @see BindSingleStatement#addBatch()
+     * @see MultiStatement#addStatement(String)
      */
     Publisher<ResultStates> executeBatchUpdate();
 
@@ -42,6 +45,8 @@ public interface MultiResultStatement extends Statement {
      * <p>
      * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
      * </p>
+     * @see BindSingleStatement#addBatch()
+     * @see MultiStatement#addStatement(String)
      */
     BatchQuery executeBatchQuery();
 
@@ -50,9 +55,8 @@ public interface MultiResultStatement extends Statement {
      * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
      * </p>
      *
-     * @see BindStatement#executeBatchAsMulti()
-     * @see PreparedStatement#executeBatchAsMulti()
-     * @see MultiStatement#executeBatchAsMulti()
+     * @see BindSingleStatement#addBatch()
+     * @see MultiStatement#addStatement(String)
      */
     MultiResult executeBatchAsMulti();
 
@@ -60,9 +64,8 @@ public interface MultiResultStatement extends Statement {
      * <p>
      *     <strong>NOTE</strong> : driver don't send message to database server before subscribing.
      * </p>
-     * @see BindStatement#executeBatchAsMulti()
-     * @see PreparedStatement#executeBatchAsMulti()
-     * @see MultiStatement#executeBatchAsMulti()
+     * @see BindSingleStatement#addBatch()
+     * @see MultiStatement#addStatement(String)
      */
     OrderedFlux executeBatchAsFlux();
 

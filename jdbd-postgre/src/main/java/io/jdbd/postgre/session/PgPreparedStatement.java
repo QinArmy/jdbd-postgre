@@ -11,8 +11,10 @@ import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.result.*;
 import io.jdbd.session.DatabaseSession;
 import io.jdbd.statement.PreparedStatement;
+import io.jdbd.vendor.protocol.DatabaseProtocol;
 import io.jdbd.vendor.stmt.JdbdValues;
 import io.jdbd.vendor.stmt.ParamValue;
+import io.jdbd.vendor.stmt.Stmts;
 import io.jdbd.vendor.task.PrepareTask;
 import org.reactivestreams.Publisher;
 
@@ -129,12 +131,12 @@ final class PgPreparedStatement extends PgStatement<PreparedStatement> implement
 
     @Override
     public Publisher<ResultRow> executeQuery() {
-        return null;
+        return this.executeQuery(DatabaseProtocol.ROW_FUNC, Stmts.IGNORE_RESULT_STATES);
     }
 
     @Override
     public <R> Publisher<R> executeQuery(Function<CurrentRow, R> function) {
-        return null;
+        return this.executeQuery(function, Stmts.IGNORE_RESULT_STATES);
     }
 
     @Override
@@ -174,23 +176,13 @@ final class PgPreparedStatement extends PgStatement<PreparedStatement> implement
         return this.session;
     }
 
-    @Override
-    public boolean isSupportPublisher() {
-        // true : server-prepare statement support
-        return true;
-    }
 
     @Override
-    public boolean isSupportPath() {
-        // true : server-prepare statement support
-        return true;
+    void closeOnBindError(Throwable error) {
+        this.stmtTask.closeOnBindError(error);
+        this.clearStatementToAvoidReuse();
     }
 
-    @Override
-    public boolean isSupportOutParameter() {
-        // true : server-prepare statement support
-        return true;
-    }
 
     /*################################## blow private method ##################################*/
 

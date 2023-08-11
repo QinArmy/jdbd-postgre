@@ -16,6 +16,9 @@ import java.util.function.Function;
  *         <li>{@link DatabaseSession},it execute static statement without any statement options. eg: timeout</li>
  *     </ul>
  * </p>
+ * <p>
+ * This interface representing the statement couldn't contain any sql parameter placeholder({@code ?}) .
+ * </p>
  *
  * @since 1.0
  */
@@ -156,8 +159,17 @@ public interface StaticStatementSpec {
 
     /**
      * <p>
+     * Execute one or more static sql statement (separated by semicolons {@code ;}) .
+     * </p>
+     * <p>
+     * This interface is similar to {@link MultiStatement} interface,
+     * except that don't support any sql parameter placeholder({@code ?}).
+     * </p>
+     * <p>
      * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
      * </p>
+     *
+     * @param multiStmt a single single sql statement or multi sql statement (separated by semicolons {@code ;})
      */
     OrderedFlux executeAsFlux(String multiStmt);
 

@@ -9,6 +9,7 @@ import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.session.ChunkOption;
 import io.jdbd.session.DatabaseSession;
 import io.jdbd.session.Option;
+import io.jdbd.statement.BindSingleStatement;
 import io.jdbd.statement.Statement;
 import io.jdbd.vendor.stmt.NamedValue;
 import io.jdbd.vendor.stmt.ParamValue;
@@ -68,6 +69,24 @@ abstract class PgStatement<S extends Statement> implements Statement, StmtOption
         return false;
     }
 
+
+    @Override
+    public final boolean isSupportPublisher() {
+        //  server-prepare statement support
+        return this instanceof BindSingleStatement;
+    }
+
+    @Override
+    public final boolean isSupportPath() {
+        // server-prepare statement support
+        return this instanceof BindSingleStatement;
+    }
+
+    @Override
+    public final boolean isSupportOutParameter() {
+        // server-prepare statement support
+        return this instanceof BindSingleStatement;
+    }
 
     @Override
     public final <T> T valueOf(Option<T> option) {

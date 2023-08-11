@@ -18,7 +18,10 @@ import java.util.function.Function;
 
 /**
  * <p>
- * This interface is base interface of followning:
+ * This interface representing the single sql statement that support sql parameter placeholder({@code ?}) .
+ * </p>
+ * <p>
+ * This interface is base interface of following:
  *     <ul>
  *         <li>{@link BindStatement}</li>
  *         <li>{@link PreparedStatement}</li>
@@ -55,6 +58,11 @@ public interface BindSingleStatement extends ParametrizedStatement, MultiResultS
      * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
      * </p>
      *
+     * @throws JdbdException emmit(not throw) when
+     *                       <ul>
+     *                           <li>param bind error</li>
+     *                           <li>the java type of value of appropriate dataType isn't supported by the implementation of this method ,for example : {@link io.jdbd.meta.JdbdType#TINYTEXT} bind {@link io.jdbd.type.Text}</li>
+     *                       </ul>
      * @see BindStatement#executeUpdate()
      * @see PreparedStatement#executeUpdate()
      */
@@ -62,16 +70,33 @@ public interface BindSingleStatement extends ParametrizedStatement, MultiResultS
 
     /**
      * <p>
-     * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
+     * This method is equivalent to following :
+     * <pre>
+     *         <code><br/>
+     *             // stmt is instance of {@link BindSingleStatement}.
+     *             stmt.executeQuery(CurrentRow::asResultRow,states -> {}) ; // ignore ResultStates instance.
+     *         </code>
+     *     </pre>
      * </p>
      *
-     * @see BindStatement#executeQuery()
-     * @see PreparedStatement#executeQuery()
+     * @see #executeQuery(Function, Consumer)
      */
-
     Publisher<ResultRow> executeQuery();
 
 
+    /**
+     * <p>
+     * This method is equivalent to following :
+     * <pre>
+     *         <code><br/>
+     *             // stmt is instance of {@link BindSingleStatement}.
+     *             stmt.executeQuery(function,states -> {}) ; // ignore ResultStates instance.
+     *         </code>
+     *     </pre>
+     * </p>
+     *
+     * @see #executeQuery(Function, Consumer)
+     */
     <R> Publisher<R> executeQuery(Function<CurrentRow, R> function);
 
 
@@ -79,6 +104,12 @@ public interface BindSingleStatement extends ParametrizedStatement, MultiResultS
      * <p>
      * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
      * </p>
+     *
+     * @throws JdbdException emmit(not throw) when
+     *                       <ul>
+     *                           <li>param bind error</li>
+     *                           <li>the java type of value of appropriate dataType isn't supported by the implementation of this method ,for example : {@link io.jdbd.meta.JdbdType#TINYTEXT} bind {@link io.jdbd.type.Text}</li>
+     *                       </ul>
      */
     <R> Publisher<R> executeQuery(Function<CurrentRow, R> function, Consumer<ResultStates> statesConsumer);
 
@@ -86,6 +117,11 @@ public interface BindSingleStatement extends ParametrizedStatement, MultiResultS
      * <p>
      * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
      * </p>
+     * @throws JdbdException emmit(not throw) when
+     *                       <ul>
+     *                           <li>param bind error</li>
+     *                           <li>the java type of value of appropriate dataType isn't supported by the implementation of this method ,for example : {@link io.jdbd.meta.JdbdType#TINYTEXT} bind {@link io.jdbd.type.Text}</li>
+     *                       </ul>
      */
     Publisher<RefCursor> declareCursor();
 
@@ -117,7 +153,6 @@ public interface BindSingleStatement extends ParametrizedStatement, MultiResultS
      * {@inheritDoc }
      */
     <T> BindSingleStatement setOption(Option<T> option, @Nullable T value) throws JdbdException;
-
 
 
 }

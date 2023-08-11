@@ -12,7 +12,10 @@ import java.util.function.Function;
 
 /**
  * <p>
- * This interface is reactive version of {@code java.sql.Statement}
+ * This interface is reactive version of {@code java.sql.Statement}.
+ * <p>
+ * This interface representing the statement couldn't contain any sql parameter placeholder({@code ?}) .
+ * </p>
  * </p>
  */
 public interface StaticStatement extends Statement, StaticStatementSpec {
