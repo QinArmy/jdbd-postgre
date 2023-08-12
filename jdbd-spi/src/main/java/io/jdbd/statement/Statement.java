@@ -99,6 +99,8 @@ public interface Statement extends OptionSpec {
      *                                                <li>{@link io.jdbd.meta.JdbdType#USER_DEFINED}</li>
      *                                                <li>{@link io.jdbd.meta.JdbdType#REF_CURSOR}</li>
      *                                                <li>{@link io.jdbd.meta.JdbdType#ARRAY}</li>
+     *                                                <li>{@link io.jdbd.meta.JdbdType#COMPOSITE}</li>
+     *                                                <li>{@link io.jdbd.meta.JdbdType#INTERNAL_USE}</li>
      *                                     </ul>
      *                              </li>
      *                              <li>dataType isn't supported by database.</li>

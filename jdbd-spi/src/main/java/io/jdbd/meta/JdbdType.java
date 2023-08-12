@@ -233,6 +233,7 @@ public enum JdbdType implements DataType {
      */
     GEOMETRY,
 
+    /*-------------------below isn't supported by io.jdbd.statement.ParametrizedStatement.bind() and io.jdbd.statement.Statement.bindStmtVar()-------------------*/
 
     UNKNOWN,
 
@@ -252,9 +253,28 @@ public enum JdbdType implements DataType {
 
 
     /**
+     * <p>
      * Identifies the generic SQL type {@code ARRAY}.
+     *     <ul>
+     *         <li>{@link io.jdbd.statement.ParametrizedStatement#bind(int, DataType, Object)} don't support this enum instance.</li>
+     *         <li>{@link io.jdbd.statement.Statement#bindStmtVar(String, DataType, Object)} don't support this enum instance.</li>
+     *     </ul>
+     *  This enum instance is only returned by {@link io.jdbd.result.ResultRowMeta#getJdbdType(int)}
+     * </p>
      */
     ARRAY,
+
+    /**
+     * <p>
+     * Identifies the generic SQL type {@code COMPOSITE}.
+     *     <ul>
+     *         <li>{@link io.jdbd.statement.ParametrizedStatement#bind(int, DataType, Object)} don't support this enum instance.</li>
+     *         <li>{@link io.jdbd.statement.Statement#bindStmtVar(String, DataType, Object)} don't support this enum instance.</li>
+     *     </ul>
+     *  This enum instance is only returned by {@link io.jdbd.result.ResultRowMeta#getJdbdType(int)}
+     * </p>
+     */
+    COMPOSITE,
 
 
     /**
@@ -270,6 +290,19 @@ public enum JdbdType implements DataType {
      * </p>
      */
     USER_DEFINED,
+
+
+    /**
+     * <p>
+     * Identifies the SQL type that is used by database internal-use.
+     *     <ul>
+     *         <li>{@link io.jdbd.statement.ParametrizedStatement#bind(int, DataType, Object)} don't support this enum instance.</li>
+     *         <li>{@link io.jdbd.statement.Statement#bindStmtVar(String, DataType, Object)} don't support this enum instance.</li>
+     *     </ul>
+     *  This enum instance is only returned by {@link io.jdbd.result.ResultRowMeta#getJdbdType(int)}
+     * </p>
+     */
+    INTERNAL_USE,
 
 
     /**

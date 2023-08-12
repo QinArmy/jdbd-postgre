@@ -14,7 +14,7 @@ import io.jdbd.statement.ParametrizedStatement;
  * <p>
  *     The Known superinterfaces:
  *     <ul>
- *         <li>{@link SQLType} representing database build-in data type</li>
+ *         <li>{@link SQLType} representing database build-in / internal-use data type</li>
  *     </ul>
  * </p>
  * <p>
@@ -44,6 +44,7 @@ public interface DataType {
     boolean isArray();
 
     boolean isUnknown();
+
 
     boolean isUserDefined();
 

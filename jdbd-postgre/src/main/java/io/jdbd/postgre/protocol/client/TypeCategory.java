@@ -18,7 +18,7 @@ enum TypeCategory {
 
     COMPOSITE,
 
-    DATE_TIME,
+    DATE_OR_TIME,
 
     ENUM,
 
@@ -67,7 +67,7 @@ enum TypeCategory {
                 category = COMPOSITE;
                 break;
             case "D":
-                category = DATE_TIME;
+                category = DATE_OR_TIME;
                 break;
 
             case "E":

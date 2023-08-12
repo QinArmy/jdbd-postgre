@@ -4,7 +4,7 @@ import io.jdbd.lang.Nullable;
 
 /**
  * <p>
- * This interface representing driver have known database build-in data type.
+ * This interface representing driver have known database build-in / internal-use data type.
  * </p>
  *
  * @since 1.0
