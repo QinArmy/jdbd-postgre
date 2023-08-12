@@ -37,4 +37,11 @@ How to clear channel?
 
 10. 为什么 text protocol 不支持 Publisher?
     * 因为 如果参数出错已发出的部分不可撒回.
+
+11. 为什么 io.jdbd.session.Option 一定要加上 javaType ?
+    * 在运行时获取 type 信息
+    * 由于 option 太多,在不断增加的过程中 name 可能重复,但 java type 可能不同,若不加 javaType 则可能造成 bug.
+    
+
+    
     

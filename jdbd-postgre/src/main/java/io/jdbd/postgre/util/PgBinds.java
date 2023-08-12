@@ -71,76 +71,76 @@ public abstract class PgBinds extends JdbdBinds {
 
         //add alias pairs
 
-        map.putIfAbsent("bool", PgType.BOOLEAN);
-        map.putIfAbsent("int2", PgType.SMALLINT);
-        map.putIfAbsent("smallserial", PgType.SMALLINT);
-        map.putIfAbsent("int", PgType.INTEGER);
+        map.putIfAbsent("BOOL", PgType.BOOLEAN);
+        map.putIfAbsent("INT2", PgType.SMALLINT);
+        map.putIfAbsent("SMALLSERIAL", PgType.SMALLINT);
+        map.putIfAbsent("INT", PgType.INTEGER);
 
-        map.putIfAbsent("int4", PgType.INTEGER);
-        map.putIfAbsent("serial", PgType.INTEGER);
-        map.putIfAbsent("xid", PgType.INTEGER);  // https://www.postgresql.org/docs/current/datatype-oid.html
-        map.putIfAbsent("cid", PgType.INTEGER);  // https://www.postgresql.org/docs/current/datatype-oid.html
+        map.putIfAbsent("INT4", PgType.INTEGER);
+        map.putIfAbsent("SERIAL", PgType.INTEGER);
+        // map.putIfAbsent("xid", PgType.INTEGER);  // https://www.postgresql.org/docs/current/datatype-oid.html
+        // map.putIfAbsent("cid", PgType.INTEGER);  // https://www.postgresql.org/docs/current/datatype-oid.html
 
-        map.putIfAbsent("int8", PgType.BIGINT);
-        map.putIfAbsent("bigint", PgType.BIGINT);
-        map.putIfAbsent("bigserial", PgType.BIGINT);
-        map.putIfAbsent("serial8", PgType.BIGINT);
+        map.putIfAbsent("INT8", PgType.BIGINT);
+        map.putIfAbsent("BIGINT", PgType.BIGINT);
+        map.putIfAbsent("BIGSERIAL", PgType.BIGINT);
+        map.putIfAbsent("SERIAL8", PgType.BIGINT);
 
-        map.putIfAbsent("xid8", PgType.BIGINT); // https://www.postgresql.org/docs/current/datatype-oid.html  TODO what's tid ?
-        map.putIfAbsent("numeric", PgType.DECIMAL);
-        map.putIfAbsent("decimal", PgType.DECIMAL);
-        map.putIfAbsent("float8", PgType.FLOAT8);
+        // map.putIfAbsent("xid8", PgType.BIGINT); // https://www.postgresql.org/docs/current/datatype-oid.html  TODO what's tid ?
+        map.putIfAbsent("NUMERIC", PgType.DECIMAL);
+        map.putIfAbsent("DECIMAL", PgType.DECIMAL);
+        map.putIfAbsent("FLOAT8", PgType.FLOAT8);
 
-        map.putIfAbsent("double precision", PgType.FLOAT8);
-        map.putIfAbsent("float", PgType.FLOAT8);
-        map.putIfAbsent("float4", PgType.REAL);
-        map.putIfAbsent("real", PgType.REAL);
+        map.putIfAbsent("DOUBLE PRECISION", PgType.FLOAT8);
+        map.putIfAbsent("FLOAT", PgType.FLOAT8);
+        map.putIfAbsent("FLOAT4", PgType.REAL);
+        map.putIfAbsent("REAL", PgType.REAL);
 
-        map.putIfAbsent("char", PgType.CHAR);
-        map.putIfAbsent("character", PgType.CHAR);
-        map.putIfAbsent("varchar", PgType.VARCHAR);
-        map.putIfAbsent("character varying", PgType.VARCHAR);
+        map.putIfAbsent("CHAR", PgType.CHAR);
+        map.putIfAbsent("CHARACTER", PgType.CHAR);
+        map.putIfAbsent("VARCHAR", PgType.VARCHAR);
+        map.putIfAbsent("CHARACTER VARYING", PgType.VARCHAR);
 
-        map.putIfAbsent("txid_snapshot", PgType.TEXT);
-        map.putIfAbsent("time without time zone", PgType.TIME);  // TODO txid_snapshot is text?
-        map.putIfAbsent("time with time zone", PgType.TIMETZ);
-        map.putIfAbsent("timestamp without time zone", PgType.TIMESTAMP);
+        //map.putIfAbsent("txid_snapshot", PgType.TEXT);  // TODO txid_snapshot is text?
+        map.putIfAbsent("TIME WITHOUT TIME ZONE", PgType.TIME);
+        map.putIfAbsent("TIME WITH TIME ZONE", PgType.TIMETZ);
+        map.putIfAbsent("TIMESTAMP WITHOUT TIME ZONE", PgType.TIMESTAMP);
 
-        map.putIfAbsent("timestamp with time zone", PgType.TIMESTAMPTZ);
-        map.putIfAbsent("bit varying", PgType.VARBIT);
-        map.putIfAbsent("bool[]", PgType.BOOLEAN_ARRAY);
-        map.putIfAbsent("int2[]", PgType.SMALLINT_ARRAY);
+        map.putIfAbsent("TIMESTAMP WITH TIME ZONE", PgType.TIMESTAMPTZ);
+        map.putIfAbsent("BIT VARYING", PgType.VARBIT);
+        map.putIfAbsent("BOOL[]", PgType.BOOLEAN_ARRAY);
+        map.putIfAbsent("INT2[]", PgType.SMALLINT_ARRAY);
 
-        map.putIfAbsent("smallserial[]", PgType.SMALLINT_ARRAY);
-        map.putIfAbsent("int[]", PgType.INTEGER_ARRAY);
-        map.putIfAbsent("int4[]", PgType.INTEGER_ARRAY);
-        map.putIfAbsent("serial[]", PgType.INTEGER_ARRAY);
+        map.putIfAbsent("SMALLSERIAL[]", PgType.SMALLINT_ARRAY);
+        map.putIfAbsent("INT[]", PgType.INTEGER_ARRAY);
+        map.putIfAbsent("INT4[]", PgType.INTEGER_ARRAY);
+        map.putIfAbsent("SERIAL[]", PgType.INTEGER_ARRAY);
 
-        map.putIfAbsent("xid[]", PgType.INTEGER);  // https://www.postgresql.org/docs/current/datatype-oid.html
-        map.putIfAbsent("cid[]", PgType.INTEGER);  // https://www.postgresql.org/docs/current/datatype-oid.html
+        // map.putIfAbsent("xid[]", PgType.INTEGER);  // https://www.postgresql.org/docs/current/datatype-oid.html
+        // map.putIfAbsent("cid[]", PgType.INTEGER);  // https://www.postgresql.org/docs/current/datatype-oid.html
 
-        map.putIfAbsent("int8[]", PgType.BIGINT_ARRAY);
-        map.putIfAbsent("serial8[]", PgType.BIGINT_ARRAY);
-        map.putIfAbsent("bigserial[]", PgType.BIGINT_ARRAY);
-        map.putIfAbsent("numeric[]", PgType.DECIMAL_ARRAY);
+        map.putIfAbsent("INT8[]", PgType.BIGINT_ARRAY);
+        map.putIfAbsent("SERIAL8[]", PgType.BIGINT_ARRAY);
+        map.putIfAbsent("BIGSERIAL[]", PgType.BIGINT_ARRAY);
+        map.putIfAbsent("NUMERIC[]", PgType.DECIMAL_ARRAY);
 
-        map.putIfAbsent("float[]", PgType.FLOAT8_ARRAY);
-        map.putIfAbsent("double precision[]", PgType.FLOAT8_ARRAY);
-        map.putIfAbsent("float4[]", PgType.REAL_ARRAY);
-        map.putIfAbsent("character[]", PgType.CHAR_ARRAY);
+        map.putIfAbsent("FLOAT[]", PgType.FLOAT8_ARRAY);
+        map.putIfAbsent("DOUBLE PRECISION[]", PgType.FLOAT8_ARRAY);
+        map.putIfAbsent("FLOAT4[]", PgType.REAL_ARRAY);
+        map.putIfAbsent("CHARACTER[]", PgType.CHAR_ARRAY);
 
-        map.putIfAbsent("character varying[]", PgType.VARCHAR_ARRAY);
-        map.putIfAbsent("txid_snapshot[]", PgType.TEXT_ARRAY);
-        map.putIfAbsent("time without time zone[]", PgType.TIME_ARRAY);
-        map.putIfAbsent("time with time zone[]", PgType.TIMETZ_ARRAY);
+        map.putIfAbsent("CHARACTER VARYING[]", PgType.VARCHAR_ARRAY);
+        // map.putIfAbsent("txid_snapshot[]", PgType.TEXT_ARRAY);
+        map.putIfAbsent("TIME WITHOUT TIME ZONE[]", PgType.TIME_ARRAY);
+        map.putIfAbsent("TIME WITH TIME ZONE[]", PgType.TIMETZ_ARRAY);
 
-        map.putIfAbsent("timestamp without time zone[]", PgType.TIMESTAMP_ARRAY);
-        map.putIfAbsent("timestamp with time zone[]", PgType.TIMESTAMPTZ_ARRAY);
-        map.putIfAbsent("bit varying[]", PgType.VARBIT_ARRAY);
+        map.putIfAbsent("TIMESTAMP WITHOUT TIME ZONE[]", PgType.TIMESTAMP_ARRAY);
+        map.putIfAbsent("TIMESTAMP WITH TIME ZONE[]", PgType.TIMESTAMPTZ_ARRAY);
+        map.putIfAbsent("BIT VARYING[]", PgType.VARBIT_ARRAY);
 
 
 //        map.putIfAbsent("pg_lsn[]",PgType.BOOLEAN);
-//        map.putIfAbsent("pg_snapshot[]",PgType.BOOLEAN); // TODO add ?
+//        map.putIfAbsent("pg_snapshot[]",PgType.BOOLEAN);
 //        map.putIfAbsent("aclitem[]",PgType.BOOLEAN);
 
         return PgCollections.unmodifiableMap(map);
