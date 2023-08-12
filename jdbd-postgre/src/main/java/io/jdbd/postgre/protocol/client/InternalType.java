@@ -4,28 +4,15 @@ package io.jdbd.postgre.protocol.client;
 import io.jdbd.meta.JdbdType;
 import io.jdbd.meta.SQLType;
 import io.jdbd.postgre.PgDriver;
-import io.jdbd.postgre.util.PgCollections;
 import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.result.CurrentRow;
+import reactor.core.publisher.Flux;
 
 import java.util.Locale;
-import java.util.Map;
 
 /**
  * <p>
  * This class representing postgre internal data type. For example regclass,xid,cid,xid8 .
- * </p>
- * <p>
- * Query sql like following :
- * <pre>
- *     <code><br/>
- *       select t.oid, t.typname,t.typcategory,t.typarray, pn.nspname
- *       from pg_namespace pn
- *                join pg_type as t on t.typnamespace = pn.oid
- *       where pn.nspname  in ('pg_catalog', 'pg_toast', 'information_schema')
- *       and t.typname in ('bool','_bool')
- *     </code>
- * </pre>
  * </p>
  *
  * @see <a href="https://www.postgresql.org/docs/current/datatype-oid.html">Object Identifier Types</a>
@@ -34,41 +21,37 @@ import java.util.Map;
  */
 final class InternalType implements SQLType {
 
-    static final InternalType XID = new InternalType(28, "XID", TypeCategory.USER_DEFINED);
 
-    static final InternalType XID_ARRAY = new InternalType(1011, XID);
-
-
-    static final InternalType TID = new InternalType(27, "tid", TypeCategory.USER_DEFINED);
-
-    static final InternalType TID_ARRAY = new InternalType(1010, TID);
-
-    static final InternalType CID = new InternalType(27, "cid", TypeCategory.USER_DEFINED);
-
-    static final InternalType CID_ARRAY = new InternalType(1010, TID);
+    private static final String INTERNAL_TYPES_SQL = "SELECT t.oid, t.typname, t.typcategory, t.typtype, t.typarray, pn.nspname\n" +
+            "FROM pg_namespace pn\n" +
+            "         JOIN pg_type AS t ON t.typnamespace = pn.oid\n" +
+            "WHERE pn.nspname IN ('pg_catalog', 'pg_toast', 'information_schema')\n" +
+            "  AND t.typcategory = 'U'\n" +
+            "  AND t.typname NOT IN\n" +
+            "      ('bytea', 'json', 'xml', 'xid8', 'macaddr', 'macaddr8', 'refcursor', 'uuid', 'tsvector', 'tsquery', 'jsonb',\n" +
+            "       'jsonpath')";
 
 
-    private static Map<Integer, InternalType> createKnownInternalTypeMap() {
-        final Map<Integer, InternalType> map = PgCollections.hashMap();
-        InternalType type;
+    /**
+     * @param builder just append sql,don't append semicolons {@code ; } .
+     */
+    static void appendInternalQuery(StringBuilder builder) {
+        builder.append(INTERNAL_TYPES_SQL);
+    }
 
-        type = new InternalType(27, "tid", TypeCategory.USER_DEFINED);
-        map.put(type.oid, type);
-        map.put(1011, new InternalType(1011, type));
 
-        type = new InternalType(28, "xid", TypeCategory.USER_DEFINED);
-        map.put(type.oid, type);
-        map.put(1011, new InternalType(1011, type));
-
-        type = new InternalType(29, "cid", TypeCategory.USER_DEFINED);
-        map.put(type.oid, type);
-        map.put(1012, new InternalType(1012, type));
-
-        type = new InternalType(5069, "xid8", TypeCategory.USER_DEFINED);
-        map.put(type.oid, type);
-        map.put(271, new InternalType(271, type));
-
-        return PgCollections.unmodifiableMap(map);
+    /**
+     * @see #INTERNAL_TYPES_SQL
+     */
+    static Flux<InternalType> from(final CurrentRow row) {
+        if (!"U".equals(row.get(2))) {
+            // avoid bug
+            return Flux.empty();
+        }
+        final InternalType[] types = new InternalType[2];
+        types[0] = new InternalType(row); // create base type
+        types[1] = new InternalType(row.getNonNull(3, Integer.class), types[0]); // create array type of base type.
+        return Flux.fromArray(types);
     }
 
 
@@ -80,18 +63,13 @@ final class InternalType implements SQLType {
 
     final InternalType elementType;
 
+    /**
+     * @see #INTERNAL_TYPES_SQL
+     */
     private InternalType(final CurrentRow row) {
         this.oid = row.getNonNull(0, Integer.class);
         this.typeName = row.getNonNull(1, String.class);
         this.category = TypeCategory.from(row.getNonNull(2, String.class));
-        this.elementType = null;
-    }
-
-
-    private InternalType(int oid, String typeName, TypeCategory category) {
-        this.oid = oid;
-        this.typeName = typeName;
-        this.category = category;
         this.elementType = null;
     }
 
