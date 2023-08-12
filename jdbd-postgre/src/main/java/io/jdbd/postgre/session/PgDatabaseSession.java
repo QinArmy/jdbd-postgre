@@ -2,6 +2,7 @@ package io.jdbd.postgre.session;
 
 import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
+import io.jdbd.meta.DataType;
 import io.jdbd.meta.DatabaseMetaData;
 import io.jdbd.postgre.PgDriver;
 import io.jdbd.postgre.protocol.client.PgProtocol;
@@ -54,11 +55,14 @@ abstract class PgDatabaseSession<S extends DatabaseSession> extends PgDatabaseMe
 
     final PgDatabaseSessionFactory factory;
 
+    final Function<String, DataType> internalOrUserTypeFunc;
+
     private final AtomicInteger savePointIndex = new AtomicInteger(0);
 
     PgDatabaseSession(PgDatabaseSessionFactory factory, PgProtocol protocol) {
         super(protocol);
         this.factory = factory;
+        this.internalOrUserTypeFunc = protocol.internalOrUserTypeFunc();
     }
 
     @Override

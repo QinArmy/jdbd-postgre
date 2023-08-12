@@ -4,8 +4,6 @@ import io.jdbd.JdbdException;
 import io.jdbd.postgre.PgConstant;
 import io.jdbd.postgre.PgType;
 import io.jdbd.type.Interval;
-import io.jdbd.type.Point;
-import io.jdbd.type.geometry.Circle;
 import io.jdbd.vendor.stmt.ParamValue;
 import io.jdbd.vendor.stmt.Value;
 import io.jdbd.vendor.util.JdbdArrays;
@@ -14,359 +12,23 @@ import io.jdbd.vendor.util.JdbdExceptions;
 import io.qinarmy.util.FastStack;
 import io.qinarmy.util.Pair;
 import io.qinarmy.util.Stack;
-import org.reactivestreams.Publisher;
-import reactor.util.annotation.Nullable;
 
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.Charset;
-import java.nio.file.Path;
-import java.sql.JDBCType;
 import java.sql.SQLException;
 import java.time.*;
-import java.time.temporal.Temporal;
 import java.util.BitSet;
 import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Function;
 
 public abstract class PgBinds extends JdbdBinds {
 
 
-    private static Map<String, PgType> createPgTypeMap() {
-        final PgType[] pgTypeArray = PgType.values();
-        final Map<String, PgType> map = PgCollections.hashMap((int) ((pgTypeArray.length + 10) / 0.75f));
-
-        String typeName;
-        PgType elementType;
-        for (final PgType type : pgTypeArray) {
-            switch (type) {
-                case REF_CURSOR:
-                case REF_CURSOR_ARRAY:
-                case OID:
-                case OID_ARRAY:
-                case UNSPECIFIED:
-                    continue;
-                default:
-                    //no-op
-            }
-
-            if (type.isArray()) {
-                elementType = type.elementType();
-                assert elementType != null;
-                typeName = elementType.typeName() + "[]";
-            } else {
-                typeName = type.typeName();
-            }
-
-            if (map.putIfAbsent(typeName, type) != null) {
-                // no bug,never here
-                String m = String.format("type[%s] error", type.name());
-                throw new IllegalStateException(m);
-            }
-
-        }
-
-        //add alias pairs
-
-        map.putIfAbsent("BOOL", PgType.BOOLEAN);
-        map.putIfAbsent("INT2", PgType.SMALLINT);
-        map.putIfAbsent("SMALLSERIAL", PgType.SMALLINT);
-        map.putIfAbsent("INT", PgType.INTEGER);
-
-        map.putIfAbsent("INT4", PgType.INTEGER);
-        map.putIfAbsent("SERIAL", PgType.INTEGER);
-        // map.putIfAbsent("xid", PgType.INTEGER);  // https://www.postgresql.org/docs/current/datatype-oid.html
-        // map.putIfAbsent("cid", PgType.INTEGER);  // https://www.postgresql.org/docs/current/datatype-oid.html
-
-        map.putIfAbsent("INT8", PgType.BIGINT);
-        map.putIfAbsent("BIGINT", PgType.BIGINT);
-        map.putIfAbsent("BIGSERIAL", PgType.BIGINT);
-        map.putIfAbsent("SERIAL8", PgType.BIGINT);
-
-        // map.putIfAbsent("xid8", PgType.BIGINT); // https://www.postgresql.org/docs/current/datatype-oid.html  TODO what's tid ?
-        map.putIfAbsent("NUMERIC", PgType.DECIMAL);
-        map.putIfAbsent("DECIMAL", PgType.DECIMAL);
-        map.putIfAbsent("FLOAT8", PgType.FLOAT8);
-
-        map.putIfAbsent("DOUBLE PRECISION", PgType.FLOAT8);
-        map.putIfAbsent("FLOAT", PgType.FLOAT8);
-        map.putIfAbsent("FLOAT4", PgType.REAL);
-        map.putIfAbsent("REAL", PgType.REAL);
-
-        map.putIfAbsent("CHAR", PgType.CHAR);
-        map.putIfAbsent("CHARACTER", PgType.CHAR);
-        map.putIfAbsent("VARCHAR", PgType.VARCHAR);
-        map.putIfAbsent("CHARACTER VARYING", PgType.VARCHAR);
-
-        //map.putIfAbsent("txid_snapshot", PgType.TEXT);  // TODO txid_snapshot is text?
-        map.putIfAbsent("TIME WITHOUT TIME ZONE", PgType.TIME);
-        map.putIfAbsent("TIME WITH TIME ZONE", PgType.TIMETZ);
-        map.putIfAbsent("TIMESTAMP WITHOUT TIME ZONE", PgType.TIMESTAMP);
-
-        map.putIfAbsent("TIMESTAMP WITH TIME ZONE", PgType.TIMESTAMPTZ);
-        map.putIfAbsent("BIT VARYING", PgType.VARBIT);
-        map.putIfAbsent("BOOL[]", PgType.BOOLEAN_ARRAY);
-        map.putIfAbsent("INT2[]", PgType.SMALLINT_ARRAY);
-
-        map.putIfAbsent("SMALLSERIAL[]", PgType.SMALLINT_ARRAY);
-        map.putIfAbsent("INT[]", PgType.INTEGER_ARRAY);
-        map.putIfAbsent("INT4[]", PgType.INTEGER_ARRAY);
-        map.putIfAbsent("SERIAL[]", PgType.INTEGER_ARRAY);
-
-        // map.putIfAbsent("xid[]", PgType.INTEGER);  // https://www.postgresql.org/docs/current/datatype-oid.html
-        // map.putIfAbsent("cid[]", PgType.INTEGER);  // https://www.postgresql.org/docs/current/datatype-oid.html
-
-        map.putIfAbsent("INT8[]", PgType.BIGINT_ARRAY);
-        map.putIfAbsent("SERIAL8[]", PgType.BIGINT_ARRAY);
-        map.putIfAbsent("BIGSERIAL[]", PgType.BIGINT_ARRAY);
-        map.putIfAbsent("NUMERIC[]", PgType.DECIMAL_ARRAY);
-
-        map.putIfAbsent("FLOAT[]", PgType.FLOAT8_ARRAY);
-        map.putIfAbsent("DOUBLE PRECISION[]", PgType.FLOAT8_ARRAY);
-        map.putIfAbsent("FLOAT4[]", PgType.REAL_ARRAY);
-        map.putIfAbsent("CHARACTER[]", PgType.CHAR_ARRAY);
-
-        map.putIfAbsent("CHARACTER VARYING[]", PgType.VARCHAR_ARRAY);
-        // map.putIfAbsent("txid_snapshot[]", PgType.TEXT_ARRAY);
-        map.putIfAbsent("TIME WITHOUT TIME ZONE[]", PgType.TIME_ARRAY);
-        map.putIfAbsent("TIME WITH TIME ZONE[]", PgType.TIMETZ_ARRAY);
-
-        map.putIfAbsent("TIMESTAMP WITHOUT TIME ZONE[]", PgType.TIMESTAMP_ARRAY);
-        map.putIfAbsent("TIMESTAMP WITH TIME ZONE[]", PgType.TIMESTAMPTZ_ARRAY);
-        map.putIfAbsent("BIT VARYING[]", PgType.VARBIT_ARRAY);
-
-
-//        map.putIfAbsent("pg_lsn[]",PgType.BOOLEAN);
-//        map.putIfAbsent("pg_snapshot[]",PgType.BOOLEAN);
-//        map.putIfAbsent("aclitem[]",PgType.BOOLEAN);
-
-        return PgCollections.unmodifiableMap(map);
-    }
-
-
-    public static PgType mapJdbcTypeToPgType(final JDBCType jdbcType, @Nullable Object nullable) {
-        final PgType pgType;
-        switch (Objects.requireNonNull(jdbcType, "jdbcType")) {
-            case BIT:
-                pgType = PgType.VARBIT;
-                break;
-            case BOOLEAN:
-                pgType = PgType.BOOLEAN;
-                break;
-            case TINYINT:
-            case SMALLINT:
-                pgType = PgType.SMALLINT;
-                break;
-            case INTEGER:
-                pgType = PgType.INTEGER;
-                break;
-            case BIGINT:
-            case ROWID:
-                pgType = PgType.BIGINT;
-                break;
-            case TIME:
-                pgType = PgType.TIME;
-                break;
-            case DATE:
-                pgType = PgType.DATE;
-                break;
-            case TIMESTAMP:
-                pgType = PgType.TIMESTAMP;
-                break;
-            case TIME_WITH_TIMEZONE:
-                pgType = PgType.TIMETZ;
-                break;
-            case TIMESTAMP_WITH_TIMEZONE:
-                pgType = PgType.TIMESTAMPTZ;
-                break;
-            case FLOAT:
-            case REAL:
-                pgType = PgType.REAL;
-                break;
-            case DOUBLE:
-                pgType = PgType.FLOAT8;
-                break;
-            case NUMERIC:
-            case DECIMAL:
-                pgType = PgType.DECIMAL;
-                break;
-            case CHAR:
-            case NCHAR:
-                pgType = PgType.CHAR;
-                break;
-            case VARCHAR:
-            case NVARCHAR:
-                pgType = PgType.VARCHAR;
-                break;
-            case CLOB:
-            case NCLOB:
-            case LONGVARCHAR:
-            case LONGNVARCHAR:
-                pgType = PgType.TEXT;
-                break;
-            case BINARY:
-            case VARBINARY:
-            case BLOB:
-            case LONGVARBINARY:
-                pgType = PgType.BYTEA;
-                break;
-            case ARRAY:
-                pgType = nullable == null ? PgType.UNSPECIFIED : mapPgArrayType(nullable.getClass());
-                break;
-            case REF: //TODO check this
-            case REF_CURSOR:
-                pgType = PgType.REF_CURSOR;
-                break;
-            case SQLXML:
-                pgType = PgType.XML;
-                break;
-            case OTHER:
-            case JAVA_OBJECT:
-            case DISTINCT:
-            case STRUCT:
-            case DATALINK:
-            case NULL: {
-                pgType = inferPgType(nullable);
-            }
-            break;
-            default:
-                throw PgExceptions.createUnexpectedEnumException(jdbcType);
-        }
-        return pgType;
-    }
-
-
-    public static PgType inferPgType(final @Nullable Object nullable) throws UnsupportedBindJavaTypeException {
-        final PgType pgType;
-        if (nullable == null) {
-            pgType = PgType.UNSPECIFIED;
-        } else if (nullable instanceof Number) {
-            if (nullable instanceof Integer) {
-                pgType = PgType.INTEGER;
-            } else if (nullable instanceof Long) {
-                pgType = PgType.BIGINT;
-            } else if (nullable instanceof Short || nullable instanceof Byte) {
-                pgType = PgType.SMALLINT;
-            } else if (nullable instanceof Double) {
-                pgType = PgType.FLOAT8;
-            } else if (nullable instanceof Float) {
-                pgType = PgType.REAL;
-            } else {
-                pgType = PgType.DECIMAL;
-            }
-        } else if (nullable instanceof String || nullable instanceof Enum) {
-            pgType = PgType.VARCHAR;
-        } else if (nullable instanceof Boolean) {
-            pgType = PgType.BOOLEAN;
-        } else if (nullable instanceof Temporal) {
-            if (nullable instanceof LocalDateTime) {
-                pgType = PgType.TIMESTAMP;
-            } else if (nullable instanceof OffsetDateTime || nullable instanceof ZonedDateTime) {
-                pgType = PgType.TIMESTAMPTZ;
-            } else if (nullable instanceof LocalTime) {
-                pgType = PgType.TIME;
-            } else if (nullable instanceof OffsetTime) {
-                pgType = PgType.TIMETZ;
-            } else if (nullable instanceof Instant) {
-                pgType = PgType.BIGINT;
-            } else if (nullable instanceof LocalDate || nullable instanceof YearMonth || nullable instanceof Year) {
-                pgType = PgType.DATE;
-            } else {
-                throw PgExceptions.notSupportBindJavaType(nullable.getClass());
-            }
-        } else if (nullable instanceof byte[] || nullable instanceof Path || nullable instanceof Publisher) {
-            pgType = PgType.BYTEA;
-        } else if (nullable instanceof MonthDay) {
-            pgType = PgType.DATE;
-        } else if (nullable instanceof Point) {
-            pgType = PgType.POINT;
-        } else if (nullable instanceof Circle) {
-            pgType = PgType.CIRCLE;
-        } else if (nullable instanceof BitSet) {
-            pgType = PgType.VARBIT;
-        } else if (nullable instanceof UUID) {
-            pgType = PgType.UUID;
-        } else if (nullable instanceof Duration
-                || nullable instanceof Period
-                || nullable instanceof Interval) {
-            pgType = PgType.INTERVAL;
-        } else if (nullable.getClass().isArray()) {
-            pgType = mapPgArrayType(nullable.getClass());
-        } else {
-            throw PgExceptions.notSupportBindJavaType(nullable.getClass());
-        }
-        return pgType;
-    }
-
-
-    public static PgType mapPgArrayType(final Class<?> arrayClass) throws UnsupportedBindJavaTypeException {
-        final Pair<Class<?>, Integer> pair;
-        pair = JdbdArrays.getArrayDimensions(arrayClass);
-
-        final Class<?> componentClass = pair.getFirst();
-        final int dimensions = pair.getSecond();
-
-        final PgType pgType;
-        if (componentClass == Integer.class
-                || componentClass == int.class) {
-            pgType = PgType.INTEGER_ARRAY;
-        } else if (componentClass == Long.class
-                || componentClass == long.class) {
-            pgType = PgType.BIGINT_ARRAY;
-        } else if (componentClass == Boolean.class
-                || componentClass == boolean.class) {
-            pgType = PgType.BOOLEAN_ARRAY;
-        } else if (componentClass == Short.class
-                || componentClass == Byte.class
-                || componentClass == short.class) {
-            pgType = PgType.SMALLINT_ARRAY;
-        } else if ((componentClass == byte.class)) {
-            pgType = dimensions > 1 ? PgType.BYTEA_ARRAY : PgType.BYTEA;
-        } else if ((componentClass == Publisher.class)) {
-            pgType = PgType.BYTEA_ARRAY;
-        } else if (componentClass == Double.class) {
-            pgType = PgType.FLOAT8_ARRAY;
-        } else if (componentClass == Float.class) {
-            pgType = PgType.REAL_ARRAY;
-        } else if (componentClass == Character.class
-                || componentClass == char.class) {
-            pgType = PgType.CHAR_ARRAY;
-        } else if (componentClass == String.class
-                || componentClass.isEnum()) {
-            pgType = PgType.VARCHAR;
-        } else if (componentClass == BigDecimal.class
-                || componentClass == BigInteger.class) {
-            pgType = PgType.DECIMAL_ARRAY;
-        } else if (componentClass == LocalDate.class) {
-            pgType = PgType.DATE_ARRAY;
-        } else if (componentClass == LocalTime.class) {
-            pgType = PgType.TIME_ARRAY;
-        } else if (componentClass == LocalDateTime.class) {
-            pgType = PgType.TIMESTAMP_ARRAY;
-        } else if (componentClass == OffsetDateTime.class
-                || componentClass == ZonedDateTime.class) {
-            pgType = PgType.TIMESTAMPTZ_ARRAY;
-        } else if (componentClass == OffsetTime.class) {
-            pgType = PgType.TIMETZ_ARRAY;
-        } else if (componentClass == Point.class) {
-            pgType = PgType.POINT_ARRAY;
-        } else if (componentClass == Circle.class) {
-            pgType = PgType.CIRCLE_ARRAY;
-        } else if (componentClass == UUID.class) {
-            pgType = PgType.UUID_ARRAY;
-        } else if (componentClass == BitSet.class) {
-            pgType = PgType.VARBIT_ARRAY;
-        } else if (componentClass == Duration.class
-                || componentClass == Period.class
-                || componentClass == Interval.class) {
-            pgType = PgType.INTERVAL_ARRAY;
-        } else {
-            throw PgExceptions.notSupportBindJavaType(arrayClass);
-        }
-        return pgType;
+    private PgBinds() {
+        throw new UnsupportedOperationException();
     }
 
 
@@ -903,6 +565,92 @@ public abstract class PgBinds extends JdbdBinds {
             throw JdbdExceptions.nonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
         }
         return bindNonNullToArray(batchIndex, pgType, paramValue, function);
+    }
+
+
+    public static Map<String, PgType> createPgTypeMap() {
+        final PgType[] pgTypeArray = PgType.values();
+        final Map<String, PgType> map = PgCollections.hashMap((int) ((pgTypeArray.length + 48) / 0.75f));
+
+        for (final PgType type : pgTypeArray) {
+            switch (type) {
+                case REF_CURSOR:
+                case REF_CURSOR_ARRAY:
+                case UNSPECIFIED:
+                    continue;
+                default:
+                    //no-op
+            }
+
+            if (map.putIfAbsent(type.typeName(), type) != null) {
+                // no bug,never here
+                String m = String.format("type[%s] error", type.name());
+                throw new IllegalStateException(m);
+            }
+
+        }
+
+        //add alias pairs
+
+        map.putIfAbsent("BOOL", PgType.BOOLEAN);
+        map.putIfAbsent("INT2", PgType.SMALLINT);
+        map.putIfAbsent("SMALLSERIAL", PgType.SMALLINT);
+        map.putIfAbsent("INT", PgType.INTEGER);
+
+        map.putIfAbsent("INT4", PgType.INTEGER);
+        map.putIfAbsent("SERIAL", PgType.INTEGER);
+        map.putIfAbsent("INT8", PgType.BIGINT);
+        map.putIfAbsent("BIGINT", PgType.BIGINT);
+
+        map.putIfAbsent("BIGSERIAL", PgType.BIGINT);
+        map.putIfAbsent("SERIAL8", PgType.BIGINT);
+        map.putIfAbsent("NUMERIC", PgType.DECIMAL);
+        map.putIfAbsent("DECIMAL", PgType.DECIMAL);
+
+        map.putIfAbsent("FLOAT8", PgType.FLOAT8);
+        map.putIfAbsent("DOUBLE PRECISION", PgType.FLOAT8);
+        map.putIfAbsent("FLOAT", PgType.FLOAT8);
+        map.putIfAbsent("FLOAT4", PgType.REAL);
+
+        map.putIfAbsent("REAL", PgType.REAL);
+        map.putIfAbsent("CHAR", PgType.CHAR);
+        map.putIfAbsent("CHARACTER", PgType.CHAR);
+        map.putIfAbsent("VARCHAR", PgType.VARCHAR);
+
+        map.putIfAbsent("CHARACTER VARYING", PgType.VARCHAR);
+        map.putIfAbsent("TIME WITHOUT TIME ZONE", PgType.TIME);
+        map.putIfAbsent("TIME WITH TIME ZONE", PgType.TIMETZ);
+        map.putIfAbsent("TIMESTAMP WITHOUT TIME ZONE", PgType.TIMESTAMP);
+
+        map.putIfAbsent("TIMESTAMP WITH TIME ZONE", PgType.TIMESTAMPTZ);
+        map.putIfAbsent("BIT VARYING", PgType.VARBIT);
+        map.putIfAbsent("BOOL[]", PgType.BOOLEAN_ARRAY);
+        map.putIfAbsent("INT2[]", PgType.SMALLINT_ARRAY);
+
+        map.putIfAbsent("SMALLSERIAL[]", PgType.SMALLINT_ARRAY);
+        map.putIfAbsent("INT[]", PgType.INTEGER_ARRAY);
+        map.putIfAbsent("INT4[]", PgType.INTEGER_ARRAY);
+        map.putIfAbsent("SERIAL[]", PgType.INTEGER_ARRAY);
+
+        map.putIfAbsent("INT8[]", PgType.BIGINT_ARRAY);
+        map.putIfAbsent("SERIAL8[]", PgType.BIGINT_ARRAY);
+        map.putIfAbsent("BIGSERIAL[]", PgType.BIGINT_ARRAY);
+        map.putIfAbsent("NUMERIC[]", PgType.DECIMAL_ARRAY);
+
+        map.putIfAbsent("FLOAT[]", PgType.FLOAT8_ARRAY);
+        map.putIfAbsent("DOUBLE PRECISION[]", PgType.FLOAT8_ARRAY);
+        map.putIfAbsent("FLOAT4[]", PgType.REAL_ARRAY);
+        map.putIfAbsent("CHARACTER[]", PgType.CHAR_ARRAY);
+
+        map.putIfAbsent("CHARACTER VARYING[]", PgType.VARCHAR_ARRAY);
+        map.putIfAbsent("TIME WITHOUT TIME ZONE[]", PgType.TIME_ARRAY);
+        map.putIfAbsent("TIME WITH TIME ZONE[]", PgType.TIMETZ_ARRAY);
+
+        map.putIfAbsent("TIMESTAMP WITHOUT TIME ZONE[]", PgType.TIMESTAMP_ARRAY);
+        map.putIfAbsent("TIMESTAMP WITH TIME ZONE[]", PgType.TIMESTAMPTZ_ARRAY);
+        map.putIfAbsent("BIT VARYING[]", PgType.VARBIT_ARRAY);
+
+        return PgCollections.unmodifiableMap(map);
     }
 
 

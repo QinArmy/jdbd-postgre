@@ -6,7 +6,6 @@ import io.jdbd.meta.SQLType;
 import io.jdbd.postgre.PgDriver;
 import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.result.CurrentRow;
-import reactor.core.publisher.Flux;
 
 import java.util.Locale;
 
@@ -43,15 +42,11 @@ final class InternalType implements SQLType {
     /**
      * @see #INTERNAL_TYPES_SQL
      */
-    static Flux<InternalType> from(final CurrentRow row) {
-        if (!"U".equals(row.get(2))) {
-            // avoid bug
-            return Flux.empty();
-        }
+    static InternalType[] from(final CurrentRow row) {
         final InternalType[] types = new InternalType[2];
         types[0] = new InternalType(row); // create base type
         types[1] = new InternalType(row.getNonNull(3, Integer.class), types[0]); // create array type of base type.
-        return Flux.fromArray(types);
+        return types;
     }
 
 

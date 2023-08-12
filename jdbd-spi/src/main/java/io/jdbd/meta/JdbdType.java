@@ -386,4 +386,73 @@ public enum JdbdType implements DataType {
     }
 
 
+//            case NULL:
+//            case BOOLEAN:
+//
+//            case TINYINT:
+//            case SMALLINT:
+//            case MEDIUMINT:
+//            case INTEGER:
+//            case BIGINT:
+//
+//            case DECIMAL:
+//            case NUMERIC:
+//            case FLOAT:
+//            case REAL:
+//            case DOUBLE:
+//
+//            case TINYINT_UNSIGNED:
+//            case SMALLINT_UNSIGNED:
+//            case MEDIUMINT_UNSIGNED:
+//            case INTEGER_UNSIGNED:
+//            case BIGINT_UNSIGNED:
+//            case DECIMAL_UNSIGNED:
+//
+//            case CHAR:
+//            case VARCHAR:
+//            case ENUM:
+//            case TINYTEXT:
+//            case MEDIUMTEXT:
+//            case TEXT:
+//            case LONGTEXT:
+//
+//            case JSON:
+//            case JSONB:
+//            case XML:
+//
+//            case BINARY:
+//            case VARBINARY:
+//            case TINYBLOB:
+//            case MEDIUMBLOB:
+//            case BLOB:
+//            case LONGBLOB:
+//
+//            case YEAR:
+//            case MONTH_DAY:
+//            case YEAR_MONTH:
+//
+//            case TIME:
+//            case TIME_WITH_TIMEZONE:
+//            case DATE:
+//            case TIMESTAMP:
+//            case TIMESTAMP_WITH_TIMEZONE:
+//
+//            case BIT:
+//            case VARBIT:
+//
+//            case DURATION:
+//            case PERIOD:
+//            case INTERVAL:
+//
+//            case UNKNOWN:
+//            case ARRAY:
+//            case INTERNAL_USE:
+//            case COMPOSITE:
+//            case USER_DEFINED:
+//            case ROWID:
+//            case REF_CURSOR:
+//            case GEOMETRY:
+//            case DIALECT_TYPE:
+
+
 }

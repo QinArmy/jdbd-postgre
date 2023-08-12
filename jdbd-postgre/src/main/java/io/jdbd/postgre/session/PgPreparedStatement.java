@@ -5,7 +5,6 @@ import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
 import io.jdbd.meta.JdbdType;
 import io.jdbd.postgre.PgDriver;
-import io.jdbd.postgre.util.PgBinds;
 import io.jdbd.postgre.util.PgCollections;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.result.*;
@@ -27,8 +26,10 @@ import java.util.function.Function;
  * <p>
  * This class is a implementation of {@link PreparedStatement} with postgre client protocol.
  * </p>
+ *
+ * @since 1.0
  */
-final class PgPreparedStatement extends PgStatement<PreparedStatement> implements PreparedStatement {
+final class PgPreparedStatement extends PgParametrizedStatement<PreparedStatement> implements PreparedStatement {
 
     static PgPreparedStatement create(PgDatabaseSession<?> session, PrepareTask stmtTask) {
         return new PgPreparedStatement(session, stmtTask);
@@ -101,7 +102,7 @@ final class PgPreparedStatement extends PgStatement<PreparedStatement> implement
             error = PgExceptions.dataTypeIsNull();
         } else if (value != null && dataType == JdbdType.NULL) {
             error = PgExceptions.nonNullBindValueOf(dataType);
-        } else if ((type = PgBinds.mapDataType(dataType)) == null) {
+        } else if ((type = mapDataType(dataType)) == null) {
             error = PgExceptions.dontSupportDataType(dataType, PgDriver.POSTGRE_SQL);
         } else {
             error = null;
