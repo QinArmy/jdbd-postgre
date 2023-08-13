@@ -95,7 +95,7 @@ abstract class PgStatement<S extends Statement> implements Statement, StmtOption
     }
 
     @Override
-    public List<NamedValue> getStmtVarList() {
+    public final List<NamedValue> getStmtVarList() {
         return Collections.emptyList();
     }
 
