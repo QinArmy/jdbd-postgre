@@ -22,13 +22,38 @@ import java.util.Map;
  */
 public interface Driver {
 
+    /**
+     * <p>
+     * Required , jdbd always support
+     * </p>
+     */
     String USER = "user";
 
+    /**
+     * <p>
+     * Required , jdbd always support
+     * </p>
+     */
     String PASSWORD = "password";
 
+    /**
+     * <p>
+     * Required , jdbd always support, if application developer don't put this property,then {@link DatabaseSessionFactory#name()} always return 'unnamed' .
+     * </p>
+     */
     String FACTORY_NAME = "factoryName";
 
+
     String CLIENT_INFO = "clientInfo";
+
+    /**
+     * <p>
+     * Optional , driver perhaps support.
+     * </p>
+     *
+     * @see io.jdbd.session.Option#AUTO_RECONNECT
+     */
+    String AUTO_RECONNECT = "autoReconnect";
 
 
     /**

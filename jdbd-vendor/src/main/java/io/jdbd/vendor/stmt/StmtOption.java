@@ -17,7 +17,7 @@ import java.util.function.Function;
  * <p>
  * This interface is base interface of following :
  *     <ul>
- *         <li>the implementation of {@link io.jdbd.statement.Statement} (here ,perhaps not must),be determined by driver vendor.</li>
+ *         <li>the implementation of {@link io.jdbd.statement.Statement} (here ,perhaps not must),it's up to driver vendor.</li>
  *         <li>{@link Stmt}</li>
  *     </ul>
  * </p>

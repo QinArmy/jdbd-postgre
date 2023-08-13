@@ -1,6 +1,7 @@
 package io.jdbd.session;
 
 import io.jdbd.Driver;
+import io.jdbd.result.RefCursor;
 
 import java.io.IOException;
 import java.io.InvalidObjectException;
@@ -75,11 +76,83 @@ public final class Option<T> {
 
     public static final Option<Isolation> ISOLATION = Option.from("ISOLATION", Isolation.class);
 
+    /**
+     * <p>
+     * This option representing read-only transaction.
+     * </p>
+     * <p>
+     * This option always is supported by {@link TransactionOption}.
+     * </p>
+     * <p>
+     * When this option is supported by {@link DatabaseSession} , this option representing the session in read-only transaction block<br/>
+     * after last statement executing , now the {@link #IN_TRANSACTION} always true.
+     * </p>
+     * <p>
+     * When this option is supported by {@link io.jdbd.result.ResultStates} , this option representing the session in read-only transaction block
+     * after current statement executing, now the {@link #IN_TRANSACTION} always true. <br/>
+     * <strong>NOTE</strong> : the 'current' statement perhaps is a part of multi-statement or is CALL command that execute procedures,<br/>
+     * that means the read-only transaction block perhaps have ended by next statement.
+     * </p>
+     *
+     * @see #IN_TRANSACTION
+     */
     public static final Option<Boolean> READ_ONLY = Option.from("READ ONLY", Boolean.class);
 
+
+    /**
+     * <p>
+     * This option representing {@link DatabaseSession} in transaction block.
+     * </p>
+     * <p>
+     * This option always is supported by {@link TransactionOption}.
+     * </p>
+     * <p>
+     * When this option is supported by {@link DatabaseSession} , this option representing the session in transaction block<br/>
+     * after last statement executing.
+     * </p>
+     * <p>
+     * When this option is supported by {@link io.jdbd.result.ResultStates} , this option representing the session in transaction block
+     * after current statement executing.<br/>
+     * <strong>NOTE</strong> : the 'current' statement perhaps is a part of multi-statement or is CALL command that execute procedures<br/>
+     * that means the transaction block perhaps have ended by next statement.
+     * </p>
+     *
+     * @see #READ_ONLY
+     */
     public static final Option<Boolean> IN_TRANSACTION = Option.from("IN TRANSACTION", Boolean.class);
 
+    /**
+     * <p>
+     * When this option is supported by {@link DatabaseSession} , this option representing the session is auto commit<br/>
+     * after last statement executing.
+     * </p>
+     * <p>
+     * When this option is supported by {@link io.jdbd.result.ResultStates} , this option representing the session is auto commit
+     * after current statement executing.<br/>
+     * <strong>NOTE</strong> : the 'current' statement perhaps is a part of multi-statement or is CALL command that execute procedures<br/>
+     * that means the auto commit status perhaps have modified by next statement.
+     * </p>
+     *
+     * @see #READ_ONLY
+     * @see #IN_TRANSACTION
+     */
     public static final Option<Boolean> AUTO_COMMIT = Option.from("AUTO COMMIT", Boolean.class);
+
+    /**
+     * <p>
+     * This option representing {@link DatabaseSession} is read only, <strong>usually</strong> (not always) database is read only. <br/>
+     * That means application developer can't modify the read only status by sql.
+     * </p>
+     * <p>
+     * This option <strong>perhaps</strong> is supported by following :
+     *     <ul>
+     *         <li>{@link io.jdbd.result.ResultStates#valueOf(Option)}</li>
+     *         <li>{@link DatabaseSession#valueOf(Option)}</li>
+     *     </ul>
+     * </p>
+     */
+    public static final Option<Boolean> READ_ONLY_SESSION = Option.from("READ ONLY SESSION", Boolean.class);
+
 
     /**
      * <p>
@@ -188,7 +261,21 @@ public final class Option<T> {
      */
     public static final Option<Boolean> BINARY_HEX_ESCAPES = Option.from("BINARY HEX ESCAPES", Boolean.class);
 
+    /**
+     * @see Driver#AUTO_RECONNECT
+     */
     public static final Option<Boolean> AUTO_RECONNECT = Option.from("AUTO RECONNECT", Boolean.class);
+
+
+    /**
+     * <p>
+     * When this option is supported by {@link io.jdbd.result.ResultStates},this option representing the statement that produce
+     * the {@link io.jdbd.result.ResultStates} declare a cursor. For example : execute postgre DECLARE command.
+     * </p>
+     *
+     * @see <a href="https://www.postgresql.org/docs/current/sql-declare.html">PostgreSQL DECLARE</a>
+     */
+    public static final Option<RefCursor> CURSOR = Option.from("CURSOR", RefCursor.class);
 
 
     private final String name;

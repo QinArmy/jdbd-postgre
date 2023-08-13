@@ -3,6 +3,7 @@ package io.jdbd.result;
 import io.jdbd.JdbdException;
 import io.jdbd.session.Closeable;
 import io.jdbd.session.DatabaseSession;
+import io.jdbd.session.Option;
 import io.jdbd.session.OptionSpec;
 import org.reactivestreams.Publisher;
 
@@ -17,7 +18,12 @@ import java.util.function.Function;
  * This interface is similar to {@code java.sql.ResultSet}, except that this interface is reactive.
  * </p>
  * <p>
- * Application developer can get the instance of this interface by {@link DatabaseSession#refCursor(String, java.util.Map)}
+ * Application developer can get the instance of this interface by following method:
+ * <ul>
+ *     <li>{@link DatabaseSession#refCursor(String, java.util.Map)}</li>
+ *     <li>{@link DataRow#get(int, Class)}</li>
+ *     <li>{@link ResultStates#valueOf(Option)}, see {@link Option#CURSOR}</li>
+ * </ul>
  * </p>
  * <p>
  * The cursor will be close in following scenarios :
@@ -32,6 +38,7 @@ import java.util.function.Function;
  * If you don't close cursor ,the {@link io.jdbd.session.DatabaseSession} that create this {@link RefCursor} can still execute new {@link io.jdbd.statement.Statement},
  * but you shouldn't do this.
  * </p>
+ *
  * @see io.jdbd.session.Option#AUTO_CLOSE_ON_ERROR
  * @see io.jdbd.meta.JdbdType#REF_CURSOR
  * @see CursorDirection

@@ -2,6 +2,7 @@ package io.jdbd.result;
 
 
 import io.jdbd.lang.Nullable;
+import io.jdbd.session.Option;
 import io.jdbd.session.OptionSpec;
 import io.jdbd.statement.Statement;
 
@@ -25,6 +26,7 @@ import io.jdbd.statement.Statement;
  * @since 1.0
  */
 public interface ResultStates extends ResultItem, OptionSpec {
+
 
     boolean isSupportInsertId();
 
@@ -67,5 +69,19 @@ public interface ResultStates extends ResultItem, OptionSpec {
     @Nullable
     Warning warning();
 
+    /**
+     * <p>
+     * This the implementation <strong>perhaps</strong> support following :
+     *     <ul>
+     *         <li>{@link Option#IN_TRANSACTION}</li>
+     *         <li>{@link Option#READ_ONLY} </li>
+     *         <li>{@link Option#AUTO_COMMIT}</li>
+     *         <li>{@link Option#CURSOR}</li>
+     *     </ul>
+     * </p>
+     */
+    @Nullable
+    @Override
+    <T> T valueOf(Option<T> option);
 
 }
