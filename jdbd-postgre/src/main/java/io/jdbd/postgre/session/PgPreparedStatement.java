@@ -10,15 +10,19 @@ import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.result.*;
 import io.jdbd.session.DatabaseSession;
 import io.jdbd.statement.PreparedStatement;
+import io.jdbd.vendor.ResultType;
+import io.jdbd.vendor.SubscribeException;
 import io.jdbd.vendor.protocol.DatabaseProtocol;
-import io.jdbd.vendor.stmt.JdbdValues;
-import io.jdbd.vendor.stmt.ParamValue;
-import io.jdbd.vendor.stmt.Stmts;
+import io.jdbd.vendor.result.MultiResults;
+import io.jdbd.vendor.stmt.*;
 import io.jdbd.vendor.task.PrepareTask;
 import io.jdbd.vendor.util.JdbdBinds;
 import org.reactivestreams.Publisher;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -162,7 +166,45 @@ final class PgPreparedStatement extends PgParametrizedStatement<PreparedStatemen
 
     @Override
     public Publisher<ResultStates> executeUpdate() {
-        return null;
+        List<ParamValue> paramGroup = this.paramGroup;
+        final int paramSize = paramGroup == null ? 0 : paramGroup.size();
+
+        final RuntimeException error;
+        if (paramGroup == EMPTY_PARAM_GROUP) {
+            error = PgExceptions.cannotReuseStatement(PreparedStatement.class);
+        } else if (this.rowMeta != null) {
+            error = new SubscribeException(ResultType.UPDATE, ResultType.QUERY);
+        } else if (this.paramGroupList != null) {
+            error = new SubscribeException(ResultType.UPDATE, ResultType.BATCH_UPDATE);
+        } else if (paramSize != this.paramCount) {
+            error = PgExceptions.parameterCountMatch(0, this.paramCount, paramSize);
+        } else if (paramGroup == null) {
+            error = null;
+            paramGroup = EMPTY_PARAM_GROUP;
+        } else {
+            error = JdbdBinds.sortAndCheckParamGroup(0, paramGroup);
+        }
+
+
+        final Set<String> unknownTypeSet = this.unknownTypeSet;
+        final Mono<ResultStates> mono;
+        if (error != null) {
+            this.stmtTask.closeOnBindError(error); // close prepare statement.
+            mono = Mono.error(PgExceptions.wrap(error));
+        } else if (unknownTypeSet != null
+                && unknownTypeSet.size() > 0
+                && this.session.protocol.isNeedQueryUnknownType(unknownTypeSet)) {
+            this.fetchSize = 0;
+            final ParamStmt stmt = Stmts.paramStmt(this.sql, paramGroup, this);
+            this.stmtTask.suspendTask(); // must suspend task for query unknown type task
+            mono = this.session.protocol.queryUnknownTypesIfNeed(unknownTypeSet)
+                    .then(Mono.defer(() -> this.stmtTask.executeUpdate(stmt)));
+        } else {
+            this.fetchSize = 0;
+            mono = this.stmtTask.executeUpdate(Stmts.paramStmt(this.sql, paramGroup, this));
+        }
+        clearStatementToAvoidReuse();
+        return mono;
     }
 
     @Override
@@ -176,28 +218,212 @@ final class PgPreparedStatement extends PgParametrizedStatement<PreparedStatemen
     }
 
     @Override
-    public <R> Publisher<R> executeQuery(Function<CurrentRow, R> function, Consumer<ResultStates> statesConsumer) {
-        return null;
+    public <R> Publisher<R> executeQuery(final @Nullable Function<CurrentRow, R> function,
+                                         final @Nullable Consumer<ResultStates> statesConsumer) {
+        List<ParamValue> paramGroup = this.paramGroup;
+        final int paramSize = paramGroup == null ? 0 : paramGroup.size();
+
+        final RuntimeException error;
+        if (paramGroup == EMPTY_PARAM_GROUP) {
+            error = PgExceptions.cannotReuseStatement(PreparedStatement.class);
+        } else if (this.rowMeta == null) {
+            error = new SubscribeException(ResultType.QUERY, ResultType.UPDATE);
+        } else if (this.paramGroupList != null) {
+            error = new SubscribeException(ResultType.QUERY, ResultType.BATCH_UPDATE);
+        } else if (paramSize != this.paramCount) {
+            error = PgExceptions.parameterCountMatch(0, this.paramCount, paramSize);
+        } else if (function == null) {
+            error = PgExceptions.queryMapFuncIsNull();
+        } else if (statesConsumer == null) {
+            error = PgExceptions.statesConsumerIsNull();
+        } else if (paramGroup == null) {
+            error = null;
+            paramGroup = EMPTY_PARAM_GROUP;
+        } else {
+            error = JdbdBinds.sortAndCheckParamGroup(0, paramGroup);
+        }
+
+        final Set<String> unknownTypeSet = this.unknownTypeSet;
+        final Flux<R> flux;
+        if (error != null) {
+            this.stmtTask.closeOnBindError(error); // close prepare statement.
+            flux = Flux.error(PgExceptions.wrap(error));
+        } else if (unknownTypeSet != null
+                && unknownTypeSet.size() > 0
+                && this.session.protocol.isNeedQueryUnknownType(unknownTypeSet)) {
+
+            final ParamStmt stmt = Stmts.paramStmt(this.sql, paramGroup, statesConsumer, this);
+            this.stmtTask.suspendTask(); // must suspend task for query unknown type task
+            flux = this.session.protocol.queryUnknownTypesIfNeed(unknownTypeSet)
+                    .thenMany(Flux.defer(() -> this.stmtTask.executeQuery(stmt, function)));
+        } else {
+            flux = this.stmtTask.executeQuery(Stmts.paramStmt(this.sql, paramGroup, this), function);
+        }
+        clearStatementToAvoidReuse();
+        return flux;
     }
 
     @Override
     public Publisher<ResultStates> executeBatchUpdate() {
-        return null;
+        final List<List<ParamValue>> paramGroupList = this.paramGroupList;
+        final List<ParamValue> paramGroup = this.paramGroup;
+
+        final RuntimeException error;
+        if (paramGroup == EMPTY_PARAM_GROUP) {
+            error = PgExceptions.cannotReuseStatement(PreparedStatement.class);
+        } else if (paramGroup != null) {
+            error = PgExceptions.noInvokeAddBatch();
+        } else if (paramGroupList == null || paramGroupList.size() == 0) {
+            error = PgExceptions.noAnyParamGroupError();
+        } else if (this.rowMeta != null) {
+            error = new SubscribeException(ResultType.QUERY, ResultType.BATCH_UPDATE);
+        } else {
+            error = null;
+        }
+
+        final Set<String> unknownTypeSet = this.unknownTypeSet;
+        final Flux<ResultStates> flux;
+        if (error != null) {
+            this.stmtTask.closeOnBindError(error); // close prepare statement.
+            flux = Flux.error(PgExceptions.wrap(error));
+        } else if (unknownTypeSet != null
+                && unknownTypeSet.size() > 0
+                && this.session.protocol.isNeedQueryUnknownType(unknownTypeSet)) {
+            this.fetchSize = 0;
+            final ParamBatchStmt stmt = Stmts.paramBatch(this.sql, paramGroupList, this);
+            this.stmtTask.suspendTask(); // must suspend task for query unknown type task
+            flux = this.session.protocol.queryUnknownTypesIfNeed(unknownTypeSet)
+                    .thenMany(Flux.defer(() -> this.stmtTask.executeBatchUpdate(stmt)));
+        } else {
+            this.fetchSize = 0;
+            flux = this.stmtTask.executeBatchUpdate(Stmts.paramBatch(this.sql, paramGroupList, this));
+        }
+        clearStatementToAvoidReuse();
+        return flux;
     }
 
     @Override
     public BatchQuery executeBatchQuery() {
-        return null;
+        final List<List<ParamValue>> paramGroupList = this.paramGroupList;
+        final List<ParamValue> paramGroup = this.paramGroup;
+
+        final RuntimeException error;
+        if (paramGroup == EMPTY_PARAM_GROUP) {
+            error = PgExceptions.cannotReuseStatement(PreparedStatement.class);
+        } else if (paramGroup != null) {
+            error = PgExceptions.noInvokeAddBatch();
+        } else if (paramGroupList == null || paramGroupList.size() == 0) {
+            error = PgExceptions.noAnyParamGroupError();
+        } else if (this.rowMeta == null) {
+            error = new SubscribeException(ResultType.BATCH_QUERY, ResultType.UPDATE);
+        } else {
+            error = null;
+        }
+
+
+        final Set<String> unknownTypeSet = this.unknownTypeSet;
+        final BatchQuery batchQuery;
+        if (error != null) {
+            this.stmtTask.closeOnBindError(error); // close prepare statement.
+            batchQuery = MultiResults.batchQueryError(PgExceptions.wrap(error));
+        } else if (unknownTypeSet != null
+                && unknownTypeSet.size() > 0
+                && this.session.protocol.isNeedQueryUnknownType(unknownTypeSet)) {
+
+            final ParamBatchStmt stmt = Stmts.paramBatch(this.sql, paramGroupList, this);
+            this.stmtTask.suspendTask(); // must suspend task for query unknown type task
+            final Mono<Void> mono;
+            mono = this.session.protocol.queryUnknownTypesIfNeed(unknownTypeSet);
+            batchQuery = MultiResults.deferBatchQuery(mono, () -> this.stmtTask.executeBatchQuery(stmt));
+
+        } else {
+            batchQuery = this.stmtTask.executeBatchQuery(Stmts.paramBatch(this.sql, paramGroupList, this));
+        }
+        clearStatementToAvoidReuse();
+        return batchQuery;
     }
 
     @Override
     public MultiResult executeBatchAsMulti() {
-        return null;
+        final List<List<ParamValue>> paramGroupList = this.paramGroupList;
+        final List<ParamValue> paramGroup = this.paramGroup;
+
+        final RuntimeException error;
+        if (paramGroup == EMPTY_PARAM_GROUP) {
+            error = PgExceptions.cannotReuseStatement(PreparedStatement.class);
+        } else if (paramGroup != null) {
+            error = PgExceptions.noInvokeAddBatch();
+        } else if (paramGroupList == null || paramGroupList.size() == 0) {
+            error = PgExceptions.noAnyParamGroupError();
+        } else {
+            error = null;
+        }
+
+        if (this.rowMeta == null) {
+            this.fetchSize = 0;
+        }
+
+        final Set<String> unknownTypeSet = this.unknownTypeSet;
+        final MultiResult multiResult;
+        if (error != null) {
+            this.stmtTask.closeOnBindError(error); // close prepare statement.
+            multiResult = MultiResults.error(PgExceptions.wrap(error));
+        } else if (unknownTypeSet != null
+                && unknownTypeSet.size() > 0
+                && this.session.protocol.isNeedQueryUnknownType(unknownTypeSet)) {
+
+            final ParamBatchStmt stmt = Stmts.paramBatch(this.sql, paramGroupList, this);
+            this.stmtTask.suspendTask(); // must suspend task for query unknown type task
+            final Mono<Void> mono;
+            mono = this.session.protocol.queryUnknownTypesIfNeed(unknownTypeSet);
+            multiResult = MultiResults.deferMulti(mono, () -> this.stmtTask.executeBatchAsMulti(stmt));
+
+        } else {
+            multiResult = this.stmtTask.executeBatchAsMulti(Stmts.paramBatch(this.sql, paramGroupList, this));
+        }
+        clearStatementToAvoidReuse();
+        return multiResult;
     }
 
     @Override
     public OrderedFlux executeBatchAsFlux() {
-        return null;
+        final List<List<ParamValue>> paramGroupList = this.paramGroupList;
+        final List<ParamValue> paramGroup = this.paramGroup;
+
+        final RuntimeException error;
+        if (paramGroup == EMPTY_PARAM_GROUP) {
+            error = PgExceptions.cannotReuseStatement(PreparedStatement.class);
+        } else if (paramGroup != null) {
+            error = PgExceptions.noInvokeAddBatch();
+        } else if (paramGroupList == null || paramGroupList.size() == 0) {
+            error = PgExceptions.noAnyParamGroupError();
+        } else {
+            error = null;
+        }
+
+        if (this.rowMeta == null) {
+            this.fetchSize = 0;
+        }
+
+        final OrderedFlux flux;
+        if (error != null) {
+            this.stmtTask.closeOnBindError(error); // close prepare statement.
+            flux = MultiResults.fluxError(PgExceptions.wrap(error));
+        } else if (unknownTypeSet != null
+                && unknownTypeSet.size() > 0
+                && this.session.protocol.isNeedQueryUnknownType(unknownTypeSet)) {
+
+            final ParamBatchStmt stmt = Stmts.paramBatch(this.sql, paramGroupList, this);
+            this.stmtTask.suspendTask(); // must suspend task for query unknown type task
+            final Mono<Void> mono;
+            mono = this.session.protocol.queryUnknownTypesIfNeed(unknownTypeSet);
+            flux = MultiResults.deferFlux(mono, () -> this.stmtTask.executeBatchAsFlux(stmt));
+
+        } else {
+            flux = this.stmtTask.executeBatchAsFlux(Stmts.paramBatch(this.sql, paramGroupList, this));
+        }
+        clearStatementToAvoidReuse();
+        return flux;
     }
 
     @Override
@@ -219,6 +445,7 @@ final class PgPreparedStatement extends PgParametrizedStatement<PreparedStatemen
 
     private void clearStatementToAvoidReuse() {
         this.paramGroupList = null;
+        this.unknownTypeSet = null;
         this.paramGroup = EMPTY_PARAM_GROUP;
     }
 

@@ -34,7 +34,9 @@ public interface PrepareTask {
 
     String getSql();
 
-   void abandonBind();
+    void abandonBind();
+
+    void suspendTask();
 
     @Nullable
     Warning getWarning();

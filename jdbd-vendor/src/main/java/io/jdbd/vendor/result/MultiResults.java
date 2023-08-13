@@ -7,6 +7,7 @@ import reactor.core.publisher.Mono;
 
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 public abstract class MultiResults {
 
@@ -49,8 +50,20 @@ public abstract class MultiResults {
         throw new UnsupportedOperationException();
     }
 
+    public static BatchQuery deferBatchQuery(Mono<Void> empty, Supplier<BatchQuery> supplier) {
+        throw new UnsupportedOperationException();
+    }
+
+    public static OrderedFlux deferFlux(Mono<Void> empty, Supplier<OrderedFlux> supplier) {
+        throw new UnsupportedOperationException();
+    }
+
     public static MultiResult asMulti(ITaskAdjutant adjutant, Consumer<ResultSink> consumer) {
         return MultiResultSubscriber.create(adjutant, consumer);
+    }
+
+    public static MultiResult deferMulti(Mono<Void> mono, Supplier<MultiResult> supplier) {
+        throw new UnsupportedOperationException();
     }
 
     public static OrderedFlux asFlux(Consumer<ResultSink> consumer) {

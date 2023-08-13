@@ -7,10 +7,10 @@ import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.result.*;
 import io.jdbd.statement.BindStatement;
+import io.jdbd.vendor.stmt.ParamValue;
 import org.reactivestreams.Publisher;
 
-import java.util.ArrayList;
-import java.util.LinkedList;
+import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -22,7 +22,7 @@ import java.util.function.Function;
  *
  * @see PgDatabaseSession#bindStatement(String)
  */
-final class PgBindStatement extends PgStatement<BindStatement> implements BindStatement {
+final class PgBindStatement extends PgParametrizedStatement<BindStatement> implements BindStatement {
 
     /**
      * @see PgDatabaseSession#bindStatement(String)
@@ -31,33 +31,41 @@ final class PgBindStatement extends PgStatement<BindStatement> implements BindSt
         if (!PgStrings.hasText(sql)) {
             throw new IllegalArgumentException("sql must be have text.");
         }
-        return new PgBindStatement(sql, session);
+        return new PgBindStatement(sql, session, forceServerPrepared);
     }
 
     private final String sql;
 
-    private final List<List<BindValue>> paramGroupList = new LinkedList<>();
+    private final boolean forceServerPrepared;
 
-    private List<BindValue> paramGroup = new ArrayList<>();
+    private List<List<ParamValue>> paramGroupList;
+
+    private List<ParamValue> paramGroup;
 
     private int firstGroupSize = -1;
 
     private int fetchSize = 0;
 
 
-    private PgBindStatement(String sql, PgDatabaseSession session) {
+    /**
+     * private constructor
+     */
+    private PgBindStatement(String sql, PgDatabaseSession<?> session, boolean forceServerPrepared) {
         super(session);
         this.sql = sql;
+        this.forceServerPrepared = forceServerPrepared;
     }
 
     @Override
     public boolean isForcePrepare() {
-        return false;
+        return this.forceServerPrepared;
     }
 
 
     @Override
-    public BindStatement bind(int indexBasedZero, DataType dataType, @Nullable Object value) throws JdbdException {
+    public BindStatement bind(final int indexBasedZero, final @Nullable DataType dataType, final @Nullable Object value)
+            throws JdbdException {
+
         return null;
     }
 

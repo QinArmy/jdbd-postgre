@@ -5,8 +5,10 @@ import io.jdbd.result.RefCursor;
 import io.jdbd.session.DatabaseSession;
 import io.jdbd.session.Option;
 import io.jdbd.vendor.protocol.DatabaseProtocol;
+import reactor.core.publisher.Mono;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 
 /**
@@ -22,5 +24,9 @@ public interface PgProtocol extends DatabaseProtocol {
     RefCursor refCursor(String name, Map<Option<?>, ?> optionMap, DatabaseSession session);
 
     Function<String, DataType> internalOrUserTypeFunc();
+
+    boolean isNeedQueryUnknownType(Set<String> unknownTypeSet);
+
+    Mono<Void> queryUnknownTypesIfNeed(Set<String> unknownTypeSet);
 
 }
