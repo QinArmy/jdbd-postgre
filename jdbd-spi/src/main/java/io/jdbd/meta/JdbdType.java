@@ -50,8 +50,9 @@ public enum JdbdType implements DataType {
      *        LocalDatabaseSession session;
      *        BindStatement stmt = session.bindStatement("CALL my_test_procedure( ? , ? , ?)");
      *        stmt.bind(0,JdbdType.INTEGER,1);
-     *        stmt.bind(1,JdbdType.OUT,null); // the value of JdbdType.OUT must null.
+     *        stmt.bind(1,JdbdType.OUT,null); // the value of JdbdType.OUT must be null.
      *        stmt.bind(2,JdbdType.INTEGER,InOutParameter.from("my_inout",6666)); //
+     *
      *        Flux.from(stmt.executeQuery())
      *              //.filter(ResultItem::isOutResultItem) // actually , here don't need filter,  because the sql produce just one result.
      *              .map(this::handleOutParameter)
@@ -68,6 +69,9 @@ public enum JdbdType implements DataType {
      * <p>
      * If you want to bind INOUT parameter,you can use appropriate {@link DataType} and {@link io.jdbd.statement.InOutParameter}.
      * </p>
+     *
+     * @see io.jdbd.statement.InOutParameter
+     * @see io.jdbd.result.OutResultItem
      */
     OUT,
 

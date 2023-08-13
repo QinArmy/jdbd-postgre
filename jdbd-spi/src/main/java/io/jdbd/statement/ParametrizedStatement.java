@@ -62,7 +62,7 @@ public interface ParametrizedStatement extends Statement {
      *                          <li>{@link Interval} the composite of {@link java.time.Period} and {@link java.time.Duration}</li>
      *                          <li>{@link Parameter} :
      *                              <ol>
-     *                                  <li>{@link InOutParameter} that representing out parameter of stored procedure,see {@link  OutResultItem}</li>
+     *                                  <li>{@link InOutParameter} that representing INOUT parameter of stored procedure,see {@link  OutResultItem}</li>
      *                                  <li>{@link Blob} long binary</li>
      *                                  <li>{@link Clob} long string</li>
      *                                  <li>{@link Text} long text</li>

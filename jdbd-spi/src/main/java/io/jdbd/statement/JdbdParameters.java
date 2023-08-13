@@ -20,6 +20,9 @@ abstract class JdbdParameters {
     static InOutParameter outParam(@Nullable String name, @Nullable Object value) {
         if (name == null) {
             throw new NullPointerException("out parameter name must non-null");
+        } else if (value instanceof InOutParameter) {
+            String m = String.format("value must be non-%s", InOutParameter.class.getName());
+            throw new IllegalArgumentException(m);
         }
         return new JdbdOutParameter(name, value);
     }
