@@ -1,17 +1,22 @@
-package io.jdbd.result;
+package io.jdbd.statement;
 
-import io.jdbd.statement.InOutParameter;
+import io.jdbd.meta.DataType;
+import io.jdbd.result.OutResultItem;
 
 /**
  * <p>
- * This interface representing out parameter of stored procedure/function, that is returned by database server.
+ * This interface representing OUT/INOUT parameter of stored procedure/function.
+ * You create instance of {@link OutParameter} by {@link OutParameter#out(String)}.
  * </p>
  * <p>
- * <strong>NOTE</strong> :
- * <ul>
- *     <li>For procedure (CALL command) jdbd guarantee that produce the instance of this interface.</li>
- *     <li>For function jdbd don't guarantee that produce the instance of this interface.</li>
- * </ul>
+ * This interface is base interface of {@link InOutParameter}.
+ * </p>
+ * <p>
+ * OUT/INOUT parameter is usually supported by following statement :
+ *     <ul>
+ *         <li>{@link PreparedStatement}</li>
+ *         <li>{@link BindStatement}</li>
+ *     </ul>
  * </p>
  * <p>
  * For example :
@@ -83,11 +88,45 @@ import io.jdbd.statement.InOutParameter;
  * </pre>
  * </p>
  *
- * @see InOutParameter
+ * @see ParametrizedStatement#bind(int, DataType, Object)
  * @see OutResultItem
  * @since 1.0
  */
-public interface OutResultItem extends ResultItem {
+public interface OutParameter extends Parameter {
+
+    /**
+     * @return OUT/INOUT parameter name,empty is allowed by some database , for example : MySQL ,PostgreSQL,because these database don't need.
+     */
+    String name();
+
+
+    /**
+     * override {@link Object#hashCode()}
+     */
+    @Override
+    int hashCode();
+
+    /**
+     * override {@link Object#equals(Object)}
+     */
+    @Override
+    boolean equals(Object obj);
+
+    /**
+     * override {@link Object#toString()}
+     *
+     * @return out parameter info, contain {@link System#identityHashCode(Object)},
+     */
+    @Override
+    String toString();
+
+    /**
+     * @param name OUT/INOUT parameter name,empty is allowed by some database , for example : MySQL ,PostgreSQL,because these database don't need.
+     * @throws NullPointerException throw when name is null .
+     */
+    default OutParameter out(String name) {
+        return JdbdParameters.outParam(name);
+    }
 
 
 }

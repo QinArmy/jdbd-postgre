@@ -59,10 +59,10 @@ public interface ParametrizedStatement extends Statement {
      *                       <ul>
      *                          <li>generic java type,for example : {@link Boolean} , {@link Integer} , {@link String} ,{@link Enum} ,byte[],{@code Integer[]} ,{@link java.time.LocalDateTime} , {@link java.time.Duration} ,{@link java.time.YearMonth} ,{@link java.util.BitSet},{@link java.util.List}</li>
      *                          <li>{@link Point} spatial point type</li>
-     *                          <li>{@link Interval} the composite of {@link java.time.Period} and {@link java.time.Duration}</li>
      *                          <li>{@link Parameter} :
      *                              <ol>
-     *                                  <li>{@link InOutParameter} that representing INOUT parameter of stored procedure,see {@link  OutResultItem}</li>
+     *                                  <li>{@link OutParameter} that representing OUT parameter of stored procedure/function,see {@link  OutResultItem}</li>
+     *                                  <li>{@link InOutParameter} that representing INOUT parameter of stored procedure/function,see {@link  OutResultItem}</li>
      *                                  <li>{@link Blob} long binary</li>
      *                                  <li>{@link Clob} long string</li>
      *                                  <li>{@link Text} long text</li>
@@ -98,7 +98,6 @@ public interface ParametrizedStatement extends Statement {
      *                              </li>
      *                              <li>dataType isn't supported by database.</li>
      *                              <li>dataType is {@link io.jdbd.meta.JdbdType#NULL} and value isn't null</li>
-     *                              <li>dataType is {@link io.jdbd.meta.JdbdType#OUT} and value isn't null</li>
      *                              </ul>
      */
     ParametrizedStatement bind(int indexBasedZero, DataType dataType, @Nullable Object value) throws JdbdException;

@@ -101,7 +101,7 @@ final class PgPreparedStatement extends PgParametrizedStatement<PreparedStatemen
             error = PgExceptions.invalidParameterValue(groupSize, indexBasedZero);
         } else if (dataType == null) {
             error = PgExceptions.dataTypeIsNull();
-        } else if (value != null && (dataType == JdbdType.NULL || dataType == JdbdType.OUT)) {
+        } else if (value != null && dataType == JdbdType.NULL) {
             error = PgExceptions.nonNullBindValueOf(dataType);
         } else if ((type = mapDataType(dataType)) == null) {
             error = PgExceptions.dontSupportDataType(dataType, PgDriver.POSTGRE_SQL);

@@ -17,15 +17,73 @@ abstract class JdbdParameters {
         throw new UnsupportedOperationException();
     }
 
-    static InOutParameter outParam(@Nullable String name, @Nullable Object value) {
+    static InOutParameter inoutParam(@Nullable String name, @Nullable Object value) {
         if (name == null) {
-            throw new NullPointerException("out parameter name must non-null");
-        } else if (value instanceof InOutParameter) {
-            String m = String.format("value must be non-%s", InOutParameter.class.getName());
+            throw new NullPointerException("inout parameter name must non-null");
+        } else if (value instanceof OutParameter) {
+            String m = String.format("value must be non-%s", OutParameter.class.getName());
             throw new IllegalArgumentException(m);
         }
-        return new JdbdOutParameter(name, value);
+        return new JdbdInOutParameter(name, value);
     }
+
+    static OutParameter outParam(final @Nullable String name) {
+        if (name == null) {
+            throw new NullPointerException("out parameter name must non-null");
+        }
+        final OutParameter parameter;
+        if (name.equals("")) {
+            parameter = JdbdOutParameter.EMPTY;
+        } else {
+            parameter = new JdbdOutParameter(name);
+        }
+        return parameter;
+    }
+
+    private static final class JdbdOutParameter implements OutParameter {
+
+        private static final JdbdOutParameter EMPTY = new JdbdOutParameter("");
+
+        private final String name;
+
+        private JdbdOutParameter(String name) {
+            this.name = name;
+        }
+
+        @Override
+        public String name() {
+            return this.name;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(this.name);
+        }
+
+        @Override
+        public boolean equals(final Object obj) {
+            final boolean match;
+            if (obj == this) {
+                match = true;
+            } else if (obj instanceof JdbdOutParameter) {
+                match = ((JdbdOutParameter) obj).name.equals(this.name);
+            } else {
+                match = false;
+            }
+            return match;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s[ name : %s , hash : %s]",
+                    getClass().getName(),
+                    this.name,
+                    System.identityHashCode(this)
+            );
+        }
+
+
+    }// JdbdOutParameter
 
     /**
      * <p>
@@ -34,7 +92,7 @@ abstract class JdbdParameters {
      *
      * @since 1.0
      */
-    private static final class JdbdOutParameter implements InOutParameter {
+    private static final class JdbdInOutParameter implements InOutParameter {
 
 
         private final String name;
@@ -45,7 +103,7 @@ abstract class JdbdParameters {
         /**
          * private constructor
          */
-        private JdbdOutParameter(String name, @Nullable Object value) {
+        private JdbdInOutParameter(String name, @Nullable Object value) {
             this.name = name;
             this.value = value;
         }
@@ -71,8 +129,8 @@ abstract class JdbdParameters {
             final boolean match;
             if (obj == this) {
                 match = true;
-            } else if (obj instanceof JdbdOutParameter) {
-                final JdbdOutParameter o = (JdbdOutParameter) obj;
+            } else if (obj instanceof JdbdInOutParameter) {
+                final JdbdInOutParameter o = (JdbdInOutParameter) obj;
                 match = o.name.equals(this.name) && Objects.equals(o.value, this.value);
             } else {
                 match = false;

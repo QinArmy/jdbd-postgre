@@ -13,6 +13,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
+@Deprecated
 public final class Interval implements TemporalAmount {
 
     public static final Interval ZERO = new Interval(0, 0, 0, 0L, 0);

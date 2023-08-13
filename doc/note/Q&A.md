@@ -41,7 +41,9 @@ How to clear channel?
 11. 为什么 io.jdbd.session.Option 一定要加上 javaType ?
     * 在运行时获取 type 信息
     * 由于 option 太多,在不断增加的过程中 name 可能重复,但 java type 可能不同,若不加 javaType 则可能造成 bug.
-    
 
+12. 为什么 不支持 JDBC escape call syntax {call storedobject(?)} ？
+    * 用中国人的话讲,那不是道.
+    * 用老外的话讲,stupid.
     
     

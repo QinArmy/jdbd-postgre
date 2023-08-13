@@ -32,9 +32,9 @@ abstract class PgParametrizedStatement<S extends ParametrizedStatement> extends 
 
     Set<String> unknownTypeSet;
 
-    private PgParametrizedStatement(PgDatabaseSession<?> session) {
-        super(session);
-    }
+     PgParametrizedStatement(PgDatabaseSession<?> session) {
+         super(session);
+     }
 
 
     @Nullable
@@ -165,9 +165,6 @@ abstract class PgParametrizedStatement<S extends ParametrizedStatement> extends 
             case PERIOD:
             case INTERVAL:
                 type = PgType.INTERVAL;
-                break;
-            case OUT:
-                type = PgType.VOID;
                 break;
 
             case TINYINT_UNSIGNED:

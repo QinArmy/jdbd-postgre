@@ -1,6 +1,6 @@
 package io.jdbd.type;
 
-import io.jdbd.statement.Parameter;
+import io.jdbd.statement.ValueParameter;
 
 /**
  * <p>
@@ -13,6 +13,6 @@ import io.jdbd.statement.Parameter;
  *
  * @since 1.0
  */
-public interface LongParameter extends Parameter {
+public interface LongParameter extends ValueParameter {
 
 }
