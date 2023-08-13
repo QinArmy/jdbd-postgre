@@ -367,7 +367,7 @@ final class PgBindStatement extends PgParametrizedStatement<BindStatement> imple
 
         final MultiResult multiResult;
         if (error != null) {
-            multiResult = MultiResults.error(error);
+            multiResult = MultiResults.multiError(error);
         } else if (unknownTypeSet != null
                 && unknownTypeSet.size() > 0
                 && this.session.protocol.isNeedQueryUnknownType(unknownTypeSet)) {

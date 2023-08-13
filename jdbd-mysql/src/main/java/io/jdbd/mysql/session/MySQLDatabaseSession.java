@@ -110,7 +110,7 @@ abstract class MySQLDatabaseSession<S extends DatabaseSession> extends MySQLSess
     @Override
     public final MultiResult executeBatchAsMulti(final List<String> sqlGroup) {
         if (MySQLCollections.isEmpty(sqlGroup)) {
-            return MultiResults.error(MySQLExceptions.sqlIsEmpty());
+            return MultiResults.multiError(MySQLExceptions.sqlIsEmpty());
         }
         return this.protocol.batchAsMulti(Stmts.batch(sqlGroup));
     }

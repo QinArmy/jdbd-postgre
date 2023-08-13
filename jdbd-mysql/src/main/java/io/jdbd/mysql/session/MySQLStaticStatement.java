@@ -93,7 +93,7 @@ final class MySQLStaticStatement extends MySQLStatement<StaticStatement> impleme
         this.endStmtOption();
 
         if (MySQLCollections.isEmpty(sqlGroup)) {
-            return MultiResults.error(MySQLExceptions.sqlIsEmpty());
+            return MultiResults.multiError(MySQLExceptions.sqlIsEmpty());
         }
         return this.session.protocol.batchAsMulti(Stmts.batch(sqlGroup, this));
     }

@@ -197,11 +197,11 @@ final class PgMultiStatement extends PgParametrizedStatement<MultiStatement> imp
         final MultiResult multiResult;
         final JdbdException error;
         if (this.paramGroup == EMPTY_PARAM_GROUP) {
-            multiResult = MultiResults.error(PgExceptions.cannotReuseStatement(MultiStatement.class));
+            multiResult = MultiResults.multiError(PgExceptions.cannotReuseStatement(MultiStatement.class));
         } else if ((error = endMultiStatement()) != null) { // end statement
-            multiResult = MultiResults.error(error);
+            multiResult = MultiResults.multiError(error);
         } else if (stmtGroup.size() == 0) {
-            multiResult = MultiResults.error(PgExceptions.multiStmtNoSql());
+            multiResult = MultiResults.multiError(PgExceptions.multiStmtNoSql());
         } else if (unknownTypeSet != null
                 && unknownTypeSet.size() > 0
                 && this.session.protocol.isNeedQueryUnknownType(unknownTypeSet)) {

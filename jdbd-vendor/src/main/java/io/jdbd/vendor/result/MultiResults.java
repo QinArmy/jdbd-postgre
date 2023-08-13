@@ -16,7 +16,7 @@ public abstract class MultiResults {
     }
 
 
-    public static MultiResult error(Throwable e) {
+    public static MultiResult multiError(Throwable e) {
         return new ErrorMultiResult(e);
     }
 

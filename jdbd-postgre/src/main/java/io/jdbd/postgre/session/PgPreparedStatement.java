@@ -367,7 +367,7 @@ final class PgPreparedStatement extends PgParametrizedStatement<PreparedStatemen
         final MultiResult multiResult;
         if (error != null) {
             this.stmtTask.closeOnBindError(error); // close prepare statement.
-            multiResult = MultiResults.error(PgExceptions.wrap(error));
+            multiResult = MultiResults.multiError(PgExceptions.wrap(error));
         } else if (unknownTypeSet != null
                 && unknownTypeSet.size() > 0
                 && this.session.protocol.isNeedQueryUnknownType(unknownTypeSet)) {

@@ -128,7 +128,7 @@ abstract class PgDatabaseSession<S extends DatabaseSession> extends PgDatabaseMe
     @Override
     public final MultiResult executeBatchAsMulti(final List<String> sqlGroup) {
         if (PgCollections.isEmpty(sqlGroup)) {
-            return MultiResults.error(PgExceptions.sqlHaveNoText());
+            return MultiResults.multiError(PgExceptions.sqlHaveNoText());
         }
         return this.protocol.batchAsMulti(Stmts.batch(sqlGroup));
     }

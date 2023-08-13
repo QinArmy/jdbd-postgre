@@ -30,16 +30,24 @@ final class PgStaticStatement extends PgStatement<StaticStatement> implements St
         return new PgStaticStatement(session);
     }
 
+    private boolean executed;
+
     private PgStaticStatement(PgDatabaseSession<?> session) {
         super(session);
     }
 
     @Override
     public Publisher<ResultStates> executeUpdate(final String sql) {
-        if (!PgStrings.hasText(sql)) {
-            return Mono.error(PgExceptions.sqlHaveNoText());
+        final Mono<ResultStates> mono;
+        if (this.executed) {
+            mono = Mono.error(PgExceptions.cannotReuseStatement(StaticStatement.class));
+        } else if (PgStrings.hasText(sql)) {
+            mono = this.session.protocol.update(Stmts.stmt(sql, this));
+        } else {
+            mono = Mono.error(PgExceptions.sqlHaveNoText());
         }
-        return this.session.protocol.update(Stmts.stmt(sql, this));
+        this.executed = true;
+        return mono;
     }
 
     @Override
@@ -56,7 +64,9 @@ final class PgStaticStatement extends PgStatement<StaticStatement> implements St
     public <R> Publisher<R> executeQuery(String sql, @Nullable Function<CurrentRow, R> function,
                                          @Nullable Consumer<ResultStates> consumer) {
         final Flux<R> flux;
-        if (!PgStrings.hasText(sql)) {
+        if (this.executed) {
+            flux = Flux.error(PgExceptions.cannotReuseStatement(StaticStatement.class));
+        } else if (!PgStrings.hasText(sql)) {
             flux = Flux.error(PgExceptions.sqlHaveNoText());
         } else if (function == null) {
             flux = Flux.error(PgExceptions.queryMapFuncIsNull());
@@ -65,58 +75,79 @@ final class PgStaticStatement extends PgStatement<StaticStatement> implements St
         } else {
             flux = this.session.protocol.query(Stmts.stmt(sql, consumer, this), function);
         }
+        this.executed = true;
         return flux;
-    }
-
-    /**
-     * @see <a href="https://www.postgresql.org/docs/current/sql-declare.html">define a cursor</a>
-     */
-    @Override
-    public Publisher<RefCursor> declareCursor(final String sql) {
-        if (!PgStrings.hasText(sql)) {
-            return Mono.error(PgExceptions.sqlHaveNoText());
-        }
-        return this.session.protocol.declareCursor(Stmts.stmt(sql, this));
     }
 
     @Override
     public Publisher<ResultStates> executeBatchUpdate(final List<String> sqlGroup) {
-        if (PgCollections.isEmpty(sqlGroup)) {
-            return Flux.error(PgExceptions.sqlHaveNoText());
+        final Flux<ResultStates> flux;
+        if (this.executed) {
+            flux = Flux.error(PgExceptions.cannotReuseStatement(StaticStatement.class));
+        } else if (PgCollections.isEmpty(sqlGroup)) {
+            flux = Flux.error(PgExceptions.sqlHaveNoText());
+        } else {
+            flux = this.session.protocol.batchUpdate(Stmts.batch(sqlGroup, this));
         }
-        return this.session.protocol.batchUpdate(Stmts.batch(sqlGroup, this));
+        this.executed = true;
+        return flux;
     }
 
     @Override
     public BatchQuery executeBatchQuery(final List<String> sqlGroup) {
-        if (PgCollections.isEmpty(sqlGroup)) {
-            return MultiResults.batchQueryError(PgExceptions.sqlHaveNoText());
+
+        final BatchQuery batchQuery;
+        if (this.executed) {
+            batchQuery = MultiResults.batchQueryError(PgExceptions.cannotReuseStatement(StaticStatement.class));
+        } else if (PgCollections.isEmpty(sqlGroup)) {
+            batchQuery = MultiResults.batchQueryError(PgExceptions.sqlHaveNoText());
+        } else {
+            batchQuery = this.session.protocol.batchQuery(Stmts.batch(sqlGroup, this));
         }
-        return this.session.protocol.batchQuery(Stmts.batch(sqlGroup, this));
+        this.executed = true;
+        return batchQuery;
     }
 
     @Override
     public MultiResult executeBatchAsMulti(final List<String> sqlGroup) {
-        if (PgCollections.isEmpty(sqlGroup)) {
-            return MultiResults.error(PgExceptions.sqlHaveNoText());
+        final MultiResult multiResult;
+        if (this.executed) {
+            multiResult = MultiResults.multiError(PgExceptions.cannotReuseStatement(StaticStatement.class));
+        } else if (PgCollections.isEmpty(sqlGroup)) {
+            multiResult = MultiResults.multiError(PgExceptions.sqlHaveNoText());
+        } else {
+            multiResult = this.session.protocol.batchAsMulti(Stmts.batch(sqlGroup, this));
         }
-        return this.session.protocol.batchAsMulti(Stmts.batch(sqlGroup, this));
+        this.executed = true;
+        return multiResult;
     }
 
     @Override
-    public OrderedFlux executeBatchAsFlux(List<String> sqlGroup) {
-        if (PgCollections.isEmpty(sqlGroup)) {
-            return MultiResults.fluxError(PgExceptions.sqlHaveNoText());
+    public OrderedFlux executeBatchAsFlux(final List<String> sqlGroup) {
+        final OrderedFlux flux;
+        if (this.executed) {
+            flux = MultiResults.fluxError(PgExceptions.cannotReuseStatement(StaticStatement.class));
+        } else if (PgCollections.isEmpty(sqlGroup)) {
+            flux = MultiResults.fluxError(PgExceptions.sqlHaveNoText());
+        } else {
+            flux = this.session.protocol.batchAsFlux(Stmts.batch(sqlGroup, this));
         }
-        return this.session.protocol.batchAsFlux(Stmts.batch(sqlGroup, this));
+        this.executed = true;
+        return flux;
     }
 
     @Override
     public OrderedFlux executeAsFlux(final String multiStmt) {
-        if (!PgStrings.hasText(multiStmt)) {
-            return MultiResults.fluxError(PgExceptions.sqlHaveNoText());
+        final OrderedFlux flux;
+        if (this.executed) {
+            flux = MultiResults.fluxError(PgExceptions.cannotReuseStatement(StaticStatement.class));
+        } else if (PgStrings.hasText(multiStmt)) {
+            flux = this.session.protocol.executeAsFlux(Stmts.multiStmt(multiStmt, this));
+        } else {
+            flux = MultiResults.fluxError(PgExceptions.sqlHaveNoText());
         }
-        return this.session.protocol.executeAsFlux(Stmts.multiStmt(multiStmt, this));
+        this.executed = true;
+        return flux;
     }
 
 

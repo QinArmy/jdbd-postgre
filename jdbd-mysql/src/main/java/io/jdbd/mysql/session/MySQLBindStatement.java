@@ -310,7 +310,7 @@ final class MySQLBindStatement extends MySQLStatement<BindStatement> implements 
             stmt = Stmts.paramBatch(this.sql, paramGroupList, this);
             multiResult = this.session.protocol.paramBatchAsMulti(stmt, isUsePrepare());
         } else {
-            multiResult = MultiResults.error(MySQLExceptions.wrap(error));
+            multiResult = MultiResults.multiError(MySQLExceptions.wrap(error));
         }
         clearStatementToAvoidReuse();
         return multiResult;

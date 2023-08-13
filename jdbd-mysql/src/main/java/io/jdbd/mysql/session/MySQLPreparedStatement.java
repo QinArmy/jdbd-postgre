@@ -339,7 +339,7 @@ final class MySQLPreparedStatement extends MySQLStatement<PreparedStatement> imp
             multiResult = this.stmtTask.executeBatchAsMulti(Stmts.paramBatch(this.sql, paramGroupList, this));
         } else {
             this.stmtTask.closeOnBindError(error); // close prepare statement.
-            multiResult = MultiResults.error(MySQLExceptions.wrap(error));
+            multiResult = MultiResults.multiError(MySQLExceptions.wrap(error));
         }
         clearStatementToAvoidReuse();
         return multiResult;

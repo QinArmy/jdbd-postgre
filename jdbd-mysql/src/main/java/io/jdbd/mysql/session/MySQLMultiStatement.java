@@ -171,7 +171,7 @@ final class MySQLMultiStatement extends MySQLStatement<MultiStatement> implement
     @Override
     public MultiResult executeBatchAsMulti() {
         if (this.paramGroup == EMPTY_PARAM_GROUP) {
-            return MultiResults.error(MySQLExceptions.cannotReuseStatement(MultiStatement.class));
+            return MultiResults.multiError(MySQLExceptions.cannotReuseStatement(MultiStatement.class));
         }
 
         this.endMultiStatement();
@@ -179,7 +179,7 @@ final class MySQLMultiStatement extends MySQLStatement<MultiStatement> implement
         final List<ParamStmt> stmtGroup = this.stmtGroup;
         final MultiResult multiResult;
         if (stmtGroup.size() == 0) {
-            multiResult = MultiResults.error(MySQLExceptions.multiStmtNoSql());
+            multiResult = MultiResults.multiError(MySQLExceptions.multiStmtNoSql());
         } else {
             multiResult = this.session.protocol.multiStmtAsMulti(Stmts.paramMultiStmt(stmtGroup, this));
         }
