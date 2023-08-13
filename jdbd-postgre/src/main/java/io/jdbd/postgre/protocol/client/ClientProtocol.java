@@ -2,6 +2,9 @@ package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
+import io.jdbd.postgre.PgConstant;
+import io.jdbd.postgre.util.PgCollections;
+import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.result.*;
 import io.jdbd.session.*;
@@ -31,6 +34,10 @@ final class ClientProtocol implements PgProtocol {
             // ok
         }
     }
+
+    private static final String COMMIT = "COMMIT";
+
+    private static final String ROLLBACK = "ROLLBACK";
 
     private final ProtocolManager protocolManager;
     private final TaskAdjutant adjutant;
@@ -165,8 +172,6 @@ final class ClientProtocol implements PgProtocol {
     /**
      * @see <a href="https://www.postgresql.org/docs/current/sql-declare.html">define a cursor</a>
      */
-
-
     @Override
     public RefCursor refCursor(final String name, final @Nullable Map<Option<?>, ?> optionMap,
                                final DatabaseSession session) {
@@ -195,20 +200,68 @@ final class ClientProtocol implements PgProtocol {
         return PgRefCursor.create(name, PgCursorTask.create(name, optionMap, this.adjutant), session);
     }
 
+    /**
+     * @see <a href="https://www.postgresql.org/docs/current/sql-start-transaction.html">START TRANSACTION</a>
+     */
     @Override
-    public Mono<ResultStates> startTransaction(TransactionOption option, HandleMode mode) {
-        return null;
+    public Mono<ResultStates> startTransaction(final @Nullable TransactionOption option, final @Nullable HandleMode mode) {
+
+        final StringBuilder builder = new StringBuilder(50);
+        final JdbdException error;
+
+        final Mono<ResultStates> mono;
+        if (option == null) {
+            mono = Mono.error(new NullPointerException("option must non-null"));
+        } else if (mode == null) {
+            mono = Mono.error(new NullPointerException("mode must non-null"));
+        } else if (this.inTransaction() && (error = handleInTransaction(mode, builder)) != null) {
+            mono = Mono.error(error);
+        } else {
+            builder.append("START TRANSACTION ");
+            mono = executeTransactionOption(builder, option);
+        }
+        return mono;
     }
 
+    /**
+     * @see <a href="https://www.postgresql.org/docs/current/sql-set-transaction.html">SET TRANSACTION</a>
+     */
     @Override
-    public Mono<ResultStates> setTransactionCharacteristics(TransactionOption option) {
-        return null;
+    public Mono<ResultStates> setTransactionCharacteristics(final @Nullable TransactionOption option) {
+        if (option == null) {
+            return Mono.error(new NullPointerException("option must non-null"));
+        }
+        final StringBuilder builder = new StringBuilder(50);
+        builder.append("SET SESSION CHARACTERISTICS AS TRANSACTION ");
+        return executeTransactionOption(builder, option);
     }
 
+    /**
+     * @see <a href="https://www.postgresql.org/docs/current/sql-set-transaction.html">SET TRANSACTION</a>
+     * @see <a href="https://www.postgresql.org/docs/current/runtime-config-client.html#GUC-TRANSACTION-ISOLATION">transaction_isolation</a>
+     * @see <a href="https://www.postgresql.org/docs/current/runtime-config-client.html#GUC-TRANSACTION-READ-ONLY">transaction_read_only</a>
+     * @see <a href="https://www.postgresql.org/docs/current/runtime-config-client.html#GUC-TRANSACTION-DEFERRABLE">transaction_deferrable</a>
+     */
     @Override
     public Mono<TransactionStatus> transactionStatus() {
+        final String sql = "SHOW transaction_isolation ; SHOW transaction_read_only ; SHOW transaction_deferrable ";
+        return Flux.from(SimpleQueryTask.executeAsFlux(Stmts.multiStmt(sql), this.adjutant))
+                .collectMap(this::transactionStatusKey, this::transactionStatusValue, PgCollections::hashMap)
+                .map(this::createTransactionStatus);
+    }
+
+    private TransactionStatus createTransactionStatus(Map<?, ?> map) {
         return null;
     }
+
+    private Option<?> transactionStatusKey(final ResultItem item) {
+        return null;
+    }
+
+    private Object transactionStatusValue(ResultItem item) {
+        return null;
+    }
+
 
     @Override
     public Mono<Void> ping(int timeSeconds) {
@@ -284,8 +337,84 @@ final class ClientProtocol implements PgProtocol {
     }
 
 
-    private Mono<RefCursor> createCursor(ResultStates states, SingleStmt stmt) {
-        throw new UnsupportedOperationException();
+    /**
+     * @see #startTransaction(TransactionOption, HandleMode)
+     * @see #setTransactionCharacteristics(TransactionOption)
+     */
+    private Mono<ResultStates> executeTransactionOption(final StringBuilder builder, final TransactionOption option) {
+        final Isolation isolation = option.isolation();
+        if (isolation != null) {
+            builder.append("ISOLATION LEVEL ");
+            if (appendIsolation(isolation, builder)) {
+                return Mono.error(PgExceptions.unknownIsolation(isolation));
+            }
+            builder.append(PgConstant.SPACE_COMMA_SPACE);
+        }
+
+        if (option.isReadOnly()) {
+            builder.append("READ ONLY");
+        } else {
+            builder.append("READ WRITE");
+        }
+        final Boolean deferrable = option.valueOf(Option.DEFERRABLE);
+        if (deferrable != null) {
+            builder.append(PgConstant.SPACE_COMMA_SPACE);
+            if (!deferrable) {
+                builder.append("NOT ");
+            }
+            builder.append("DEFERRABLE");
+        }
+        return Flux.from(SimpleQueryTask.executeAsFlux(Stmts.multiStmt(builder.toString()), this.adjutant))
+                .last()
+                .map(ResultStates.class::cast);
+    }
+
+    /**
+     * @see #startTransaction(TransactionOption, HandleMode)
+     */
+    @Nullable
+    private JdbdException handleInTransaction(final HandleMode mode, final StringBuilder builder) {
+        JdbdException error = null;
+        switch (mode) {
+            case ERROR_IF_EXISTS:
+                error = PgExceptions.transactionExistsRejectStart(this.sessionIdentifier());
+                break;
+            case COMMIT_IF_EXISTS:
+                builder.append(COMMIT)
+                        .append(PgConstant.SPACE_SEMICOLON_SPACE);
+                break;
+            case ROLLBACK_IF_EXISTS:
+                builder.append(ROLLBACK)
+                        .append(PgConstant.SPACE_SEMICOLON_SPACE);
+                break;
+            default:
+                error = PgExceptions.unexpectedEnum(mode);
+
+        }
+        return error;
+    }
+
+    /**
+     * @return true : isolation error
+     * @see <a href="https://www.postgresql.org/docs/current/sql-start-transaction.html">START TRANSACTION</a>
+     * @see <a href="https://www.postgresql.org/docs/current/sql-set-transaction.html">SET TRANSACTION</a>
+     * @see <a href="https://www.postgresql.org/docs/current/sql-begin.html">BEGIN TRANSACTION</a>
+     */
+    private static boolean appendIsolation(final Isolation isolation, final StringBuilder builder) {
+
+        boolean error = false;
+        if (isolation == Isolation.READ_COMMITTED) {
+            builder.append("READ COMMITTED");
+        } else if (isolation == Isolation.REPEATABLE_READ) {
+            builder.append("REPEATABLE READ");
+        } else if (isolation == Isolation.SERIALIZABLE) {
+            builder.append("SERIALIZABLE");
+        } else if (isolation == Isolation.READ_UNCOMMITTED) {
+            builder.append("READ UNCOMMITTED");
+        } else {
+            error = true;
+        }
+        return error;
     }
 
 

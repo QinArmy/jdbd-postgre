@@ -50,6 +50,13 @@ class PgLocalDatabaseSession extends PgDatabaseSession<LocalDatabaseSession> imp
     }
 
     /**
+     * <p>
+     * PostgreSQL support following option :
+     *     <ul>
+     *         <li>{@link Option#DEFERRABLE}</li>
+     *     </ul>
+     * </p>
+     *
      * @see <a href="https://www.postgresql.org/docs/current/sql-start-transaction.html">START TRANSACTION</a>
      */
     @Override

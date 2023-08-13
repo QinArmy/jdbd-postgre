@@ -200,6 +200,16 @@ abstract class PgDatabaseSession<S extends DatabaseSession> extends PgDatabaseMe
         return this.protocol.refCursor(name, optionMap, this);
     }
 
+    /**
+     * <p>
+     * PostgreSQL support following option :
+     *     <ul>
+     *         <li>{@link Option#DEFERRABLE}</li>
+     *     </ul>
+     * </p>
+     *
+     * @see <a href="https://www.postgresql.org/docs/current/sql-set-transaction.html">SET TRANSACTION</a>
+     */
     @SuppressWarnings("unchecked")
     @Override
     public final Publisher<S> setTransactionCharacteristics(TransactionOption option) {

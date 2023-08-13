@@ -196,6 +196,11 @@ public interface DatabaseSession extends StaticStatementSpec, DatabaseMetaSpec, 
      * Just set the characteristics of session transaction, don't start transaction.
      * </p>
      * <p>
+     * Sets the default transaction characteristics for subsequent transactions of this session.<br/>
+     * These defaults can be overridden by {@link LocalDatabaseSession#startTransaction(TransactionOption, HandleMode)}
+     * for an individual transaction.
+     * </p>
+     * <p>
      * The transaction options (eg: {@link Isolation}) can apply all transaction of session.
      * </p>
      * <p>
@@ -217,6 +222,7 @@ public interface DatabaseSession extends StaticStatementSpec, DatabaseMetaSpec, 
      *                           <li>server response error message, see {@link io.jdbd.result.ServerException}</li>
      *                       </ul>
      * @see LocalDatabaseSession#startTransaction(TransactionOption, HandleMode)
+     * @see #transactionStatus()
      */
     Publisher<? extends DatabaseSession> setTransactionCharacteristics(TransactionOption option);
 
