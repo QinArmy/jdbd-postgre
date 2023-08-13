@@ -5,6 +5,7 @@ import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
 import io.jdbd.result.ResultStates;
 import io.jdbd.session.ChunkOption;
+import io.jdbd.session.DatabaseSession;
 import io.jdbd.vendor.util.JdbdCollections;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
@@ -27,33 +28,33 @@ public abstract class Stmts {
 
 
     public static StaticStmt stmt(final String sql) {
-        return new MinStaticStmt(sql);
+        return new MinNonSessionStaticStmt(sql);
     }
 
     public static StaticStmt stmt(final String sql, Consumer<ResultStates> statusConsumer) {
         if (statusConsumer == IGNORE_RESULT_STATES) {
-            return new MinStaticStmt(sql);
+            return new MinNonSessionStaticStmt(sql);
         }
-        return new MinQueryStaticStmt(sql, statusConsumer);
+        return new MinNonSessionQueryStaticStmt(sql, statusConsumer);
     }
 
     public static StaticBatchStmt batch(List<String> sqlGroup) {
-        return new MinStaticBatchStmt(sqlGroup);
+        return new MinNonSessionStaticBatchStmt(sqlGroup);
     }
 
     public static StaticStmt stmt(String sql, StmtOption option) {
-        return new MinOptionStaticStmt(sql, option);
+        return new SessionStaticUpdateStmt(sql, option);
     }
 
     public static StaticStmt stmt(String sql, Consumer<ResultStates> statesConsumer, StmtOption option) {
         if (statesConsumer == IGNORE_RESULT_STATES) {
-            return new MinOptionStaticStmt(sql, option);
+            return new SessionStaticUpdateStmt(sql, option);
         }
-        return new OptionQueryStaticStmt(sql, statesConsumer, option);
+        return new SessionStaticQueryStmt(sql, statesConsumer, option);
     }
 
     public static StaticBatchStmt batch(List<String> sqlGroup, StmtOption option) {
-        return new OptionStaticBatchStmt(sqlGroup, option);
+        return new SessionStaticBatchStmt(sqlGroup, option);
     }
 
 
@@ -62,7 +63,7 @@ public abstract class Stmts {
     }
 
     public static ParamStmt single(String sql, ParamValue paramValue) {
-        return new MinParamStmt(sql, Collections.singletonList(paramValue));
+        return new ParamUpdateStmt(sql, Collections.singletonList(paramValue));
     }
 
     public static ParamStmt paramStmt(final String sql, @Nullable List<ParamValue> paramGroup) {
@@ -71,7 +72,7 @@ public abstract class Stmts {
         } else {
             paramGroup = JdbdCollections.unmodifiableList(paramGroup);
         }
-        return new MinParamStmt(sql, paramGroup);
+        return new ParamUpdateStmt(sql, paramGroup);
     }
 
     public static ParamStmt paramStmt(String sql, @Nullable List<ParamValue> paramGroup,
@@ -82,9 +83,9 @@ public abstract class Stmts {
             paramGroup = JdbdCollections.unmodifiableList(paramGroup);
         }
         if (statesConsumer == IGNORE_RESULT_STATES) {
-            return new MinParamStmt(sql, paramGroup);
+            return new ParamUpdateStmt(sql, paramGroup);
         }
-        return new QueryParamStmt(sql, paramGroup, statesConsumer);
+        return new ParamQueryStmt(sql, paramGroup, statesConsumer);
     }
 
     public static ParamStmt paramStmt(final String sql, @Nullable List<ParamValue> paramGroup, StmtOption option) {
@@ -93,7 +94,7 @@ public abstract class Stmts {
         } else {
             paramGroup = JdbdCollections.unmodifiableList(paramGroup);
         }
-        return new SimpleOptionParamStmt(sql, paramGroup, option);
+        return new SessionParamUpdateStmt(sql, paramGroup, option);
     }
 
 
@@ -105,9 +106,9 @@ public abstract class Stmts {
             paramGroup = JdbdCollections.unmodifiableList(paramGroup);
         }
         if (statesConsumer == IGNORE_RESULT_STATES) {
-            return new SimpleOptionParamStmt(sql, paramGroup, option);
+            return new SessionParamUpdateStmt(sql, paramGroup, option);
         }
-        return new QueryOptionParamStmt(sql, paramGroup, statesConsumer, option);
+        return new SessionParamQueryStmt(sql, paramGroup, statesConsumer, option);
     }
 
     public static ParamStmt paramFetchStmt(String sql, List<ParamValue> paramList, Consumer<ResultStates> consumer,
@@ -116,7 +117,7 @@ public abstract class Stmts {
     }
 
     public static ParamBatchStmt paramBatch(String sql, List<List<ParamValue>> groupList) {
-        return new MinParamBatchStmt(sql, groupList);
+        return new MinParamBatchStmt(sql, groupList, null);
     }
 
 
@@ -165,7 +166,22 @@ public abstract class Stmts {
             return null;
         }
 
+
     }//StmtWithoutOption
+
+    private static abstract class NonSessionStmt extends StmtWithoutOption {
+
+        @Override
+        public final boolean isSessionCreated() {
+            return false;
+        }
+
+        @Override
+        public final DatabaseSession databaseSession() {
+            throw new UnsupportedOperationException();
+        }
+
+    }// NonSessionStmt
 
 
     private static abstract class SingleStmtWithoutOption extends StmtWithoutOption implements SingleStmt {
@@ -184,9 +200,29 @@ public abstract class Stmts {
 
     }// SingleStmtWithoutOption
 
-    private static final class MinStaticStmt extends SingleStmtWithoutOption implements StaticStmt {
 
-        private MinStaticStmt(String sql) {
+    private static abstract class NonSessionSingleStmt extends SingleStmtWithoutOption {
+
+        private NonSessionSingleStmt(String sql) {
+            super(sql);
+        }
+
+        @Override
+        public final boolean isSessionCreated() {
+            return false;
+        }
+
+        @Override
+        public final DatabaseSession databaseSession() {
+            throw new UnsupportedOperationException();
+        }
+
+    } // NonSessionSingleStmt
+
+
+    private static final class MinNonSessionStaticStmt extends NonSessionSingleStmt implements StaticStmt {
+
+        private MinNonSessionStaticStmt(String sql) {
             super(sql);
         }
 
@@ -195,13 +231,14 @@ public abstract class Stmts {
             return IGNORE_RESULT_STATES;
         }
 
+
     }//MinStaticStmt
 
-    private static final class MinQueryStaticStmt extends SingleStmtWithoutOption implements StaticStmt {
+    private static final class MinNonSessionQueryStaticStmt extends NonSessionSingleStmt implements StaticStmt {
 
         private final Consumer<ResultStates> statesConsumer;
 
-        private MinQueryStaticStmt(String sql, Consumer<ResultStates> statesConsumer) {
+        private MinNonSessionQueryStaticStmt(String sql, Consumer<ResultStates> statesConsumer) {
             super(sql);
             this.statesConsumer = statesConsumer;
         }
@@ -215,11 +252,11 @@ public abstract class Stmts {
     }//MinQueryStaticStmt
 
 
-    private static final class MinStaticBatchStmt extends StmtWithoutOption implements StaticBatchStmt {
+    private static final class MinNonSessionStaticBatchStmt extends StmtWithoutOption implements StaticBatchStmt {
 
         private final List<String> sqlGroup;
 
-        private MinStaticBatchStmt(final List<String> sqlGroup) {
+        private MinNonSessionStaticBatchStmt(final List<String> sqlGroup) {
             this.sqlGroup = Collections.unmodifiableList(sqlGroup);
         }
 
@@ -228,10 +265,20 @@ public abstract class Stmts {
             return this.sqlGroup;
         }
 
+        @Override
+        public boolean isSessionCreated() {
+            return false;
+        }
+
+        @Override
+        public DatabaseSession databaseSession() {
+            throw new UnsupportedOperationException();
+        }
+
     }//SimpleStaticBatchStmt
 
 
-    private static abstract class StmtWithOption implements Stmt {
+    private static abstract class SessionStmt implements Stmt {
 
         private final int timeout;
 
@@ -243,12 +290,16 @@ public abstract class Stmts {
 
         private final Function<ChunkOption, Subscriber<byte[]>> exportFunc;
 
-        private StmtWithOption(StmtOption option) {
+        private final DatabaseSession session;
+
+        private SessionStmt(StmtOption option) {
             this.timeout = option.getTimeout();
             this.fetchSize = option.getFetchSize();
             this.stmtVarList = option.getStmtVarList();
             this.importFunc = option.getImportFunction();
+
             this.exportFunc = option.getExportFunction();
+            this.session = option.databaseSession();
         }
 
         @Override
@@ -276,15 +327,24 @@ public abstract class Stmts {
             return this.exportFunc;
         }
 
+        @Override
+        public final boolean isSessionCreated() {
+            return true;
+        }
 
-    }//StmtWithOption
+        @Override
+        public final DatabaseSession databaseSession() {
+            return this.session;
+        }
+
+    }//SessionStmt
 
 
-    private static abstract class SingleStmtWithOption extends StmtWithOption implements SingleStmt {
+    private static abstract class SessionSingleStmt extends SessionStmt implements SingleStmt {
 
         private final String sql;
 
-        private SingleStmtWithOption(String sql, StmtOption option) {
+        private SessionSingleStmt(String sql, StmtOption option) {
             super(option);
             this.sql = sql;
         }
@@ -295,12 +355,12 @@ public abstract class Stmts {
         }
 
 
-    }//SingleStmtWithOption
+    }//SessionSingleStmt
 
 
-    private static final class MinOptionStaticStmt extends SingleStmtWithOption implements StaticStmt {
+    private static final class SessionStaticUpdateStmt extends SessionSingleStmt implements StaticStmt {
 
-        private MinOptionStaticStmt(String sql, StmtOption option) {
+        private SessionStaticUpdateStmt(String sql, StmtOption option) {
             super(sql, option);
         }
 
@@ -309,13 +369,13 @@ public abstract class Stmts {
             return IGNORE_RESULT_STATES;
         }
 
-    }//MinOptionStaticStmt
+    }//SessionStaticUpdateStmt
 
-    private static final class OptionQueryStaticStmt extends SingleStmtWithOption implements StaticStmt {
+    private static final class SessionStaticQueryStmt extends SessionSingleStmt implements StaticStmt {
 
         private final Consumer<ResultStates> statesConsumer;
 
-        private OptionQueryStaticStmt(String sql, Consumer<ResultStates> statesConsumer, StmtOption option) {
+        private SessionStaticQueryStmt(String sql, Consumer<ResultStates> statesConsumer, StmtOption option) {
             super(sql, option);
             this.statesConsumer = statesConsumer;
         }
@@ -325,15 +385,15 @@ public abstract class Stmts {
             return this.statesConsumer;
         }
 
-    }//OptionQueryStaticStmt
+    }//SessionStaticQueryStmt
 
 
-    protected static final class OptionStaticBatchStmt extends StmtWithOption implements StaticBatchStmt {
+    protected static final class SessionStaticBatchStmt extends SessionStmt implements StaticBatchStmt {
 
         private final List<String> sqlGroup;
 
 
-        private OptionStaticBatchStmt(List<String> sqlGroup, StmtOption option) {
+        private SessionStaticBatchStmt(List<String> sqlGroup, StmtOption option) {
             super(option);
             this.sqlGroup = JdbdCollections.unmodifiableList(sqlGroup);
         }
@@ -343,16 +403,16 @@ public abstract class Stmts {
             return this.sqlGroup;
         }
 
-    }//OptionStaticBatchStmt
+    }//SessionStaticBatchStmt
 
 
-    private static abstract class ParamStmtWithoutOption extends StmtWithoutOption implements ParamStmt {
+    private static abstract class NonSessionParamStmt extends NonSessionStmt implements ParamStmt {
 
         private final String sql;
 
         private final List<ParamValue> bindGroup;
 
-        private ParamStmtWithoutOption(String sql, List<ParamValue> bindGroup) {
+        private NonSessionParamStmt(String sql, List<ParamValue> bindGroup) {
             this.sql = sql;
             this.bindGroup = JdbdCollections.unmodifiableList(bindGroup);
         }
@@ -368,12 +428,12 @@ public abstract class Stmts {
             return this.sql;
         }
 
-    }//ParamStmtWithoutOption
+    }//NonSessionParamStmt
 
 
-    private static final class MinParamStmt extends ParamStmtWithoutOption {
+    private static final class ParamUpdateStmt extends NonSessionParamStmt {
 
-        private MinParamStmt(String sql, List<ParamValue> bindGroup) {
+        private ParamUpdateStmt(String sql, List<ParamValue> bindGroup) {
             super(sql, bindGroup);
         }
 
@@ -382,14 +442,14 @@ public abstract class Stmts {
             return IGNORE_RESULT_STATES;
         }
 
-    }//MinParamStmt
+    }//ParamUpdateStmt
 
 
-    private static final class QueryParamStmt extends ParamStmtWithoutOption {
+    private static final class ParamQueryStmt extends NonSessionParamStmt {
 
         private final Consumer<ResultStates> statesConsumer;
 
-        private QueryParamStmt(String sql, List<ParamValue> bindGroup, Consumer<ResultStates> statesConsumer) {
+        private ParamQueryStmt(String sql, List<ParamValue> bindGroup, Consumer<ResultStates> statesConsumer) {
             super(sql, bindGroup);
             this.statesConsumer = statesConsumer;
         }
@@ -399,16 +459,16 @@ public abstract class Stmts {
             return this.statesConsumer;
         }
 
-    }//QueryParamStmt
+    }//ParamQueryStmt
 
 
-    private static abstract class ParamStmtWithOption extends StmtWithOption implements ParamStmt {
+    private static abstract class SessionParamStmt extends SessionStmt implements ParamStmt {
 
         private final String sql;
 
         private final List<ParamValue> bindGroup;
 
-        private ParamStmtWithOption(String sql, List<ParamValue> bindGroup, StmtOption option) {
+        private SessionParamStmt(String sql, List<ParamValue> bindGroup, StmtOption option) {
             super(option);
             this.sql = sql;
             this.bindGroup = JdbdCollections.unmodifiableList(bindGroup);
@@ -425,12 +485,12 @@ public abstract class Stmts {
             return this.sql;
         }
 
-    }//ParamStmtWithoutOption
+    }//SessionParamStmt
 
 
-    private static final class SimpleOptionParamStmt extends ParamStmtWithOption {
+    private static final class SessionParamUpdateStmt extends SessionParamStmt {
 
-        private SimpleOptionParamStmt(String sql, List<ParamValue> bindGroup, StmtOption option) {
+        private SessionParamUpdateStmt(String sql, List<ParamValue> bindGroup, StmtOption option) {
             super(sql, bindGroup, option);
         }
 
@@ -439,15 +499,15 @@ public abstract class Stmts {
             return IGNORE_RESULT_STATES;
         }
 
-    }//SimpleOptionParamStmt
+    }//SessionParamUpdateStmt
 
 
-    private static final class QueryOptionParamStmt extends ParamStmtWithOption {
+    private static final class SessionParamQueryStmt extends SessionParamStmt {
 
         private final Consumer<ResultStates> statesConsumer;
 
-        private QueryOptionParamStmt(String sql, List<ParamValue> bindGroup, Consumer<ResultStates> statesConsumer,
-                                     StmtOption option) {
+        private SessionParamQueryStmt(String sql, List<ParamValue> bindGroup, Consumer<ResultStates> statesConsumer,
+                                      StmtOption option) {
             super(sql, bindGroup, option);
             this.statesConsumer = statesConsumer;
         }
@@ -457,7 +517,7 @@ public abstract class Stmts {
             return this.statesConsumer;
         }
 
-    }//QueryOptionParamStmt
+    }//SessionParamQueryStmt
 
 
     private static final class QueryFetchParamStmt implements ParamStmt {
@@ -517,6 +577,19 @@ public abstract class Stmts {
             return null;
         }
 
+
+        @Override
+        public boolean isSessionCreated() {
+            //TODO correct ?
+            return false;
+        }
+
+        @Override
+        public DatabaseSession databaseSession() {
+            //TODO correct ?
+            throw new UnsupportedOperationException();
+        }
+
     }//QueryFetchParamStmt
 
 
@@ -526,9 +599,12 @@ public abstract class Stmts {
 
         private final List<List<ParamValue>> groupList;
 
-        private MinParamBatchStmt(String sql, List<List<ParamValue>> groupList) {
+        private final DatabaseSession session;
+
+        private MinParamBatchStmt(String sql, List<List<ParamValue>> groupList, @Nullable DatabaseSession session) {
             this.sql = sql;
             this.groupList = JdbdCollections.unmodifiableList(groupList);
+            this.session = session;
         }
 
         @Override
@@ -541,10 +617,23 @@ public abstract class Stmts {
             return this.groupList;
         }
 
+        @Override
+        public boolean isSessionCreated() {
+            return this.session != null;
+        }
+
+        @Override
+        public DatabaseSession databaseSession() {
+            final DatabaseSession s = this.session;
+            if (s == null) {
+                throw new UnsupportedOperationException();
+            }
+            return s;
+        }
 
     }//MinParamBatchStmt
 
-    private static final class OptionParamBatchStmt extends StmtWithOption implements ParamBatchStmt {
+    private static final class OptionParamBatchStmt extends SessionStmt implements ParamBatchStmt {
 
         private final String sql;
 
@@ -569,7 +658,7 @@ public abstract class Stmts {
     }//OptionParamBatchStmt
 
 
-    private static final class MinStaticMultiStmt extends StmtWithoutOption implements StaticMultiStmt {
+    private static final class MinStaticMultiStmt extends NonSessionStmt implements StaticMultiStmt {
 
         private final String multiStmt;
 
@@ -585,7 +674,7 @@ public abstract class Stmts {
 
     }//MinStaticMultiStmt
 
-    private static final class OptionStaticMultiStmt extends StmtWithOption implements StaticMultiStmt {
+    private static final class OptionStaticMultiStmt extends SessionStmt implements StaticMultiStmt {
 
         private final String multiStmt;
 
@@ -603,7 +692,7 @@ public abstract class Stmts {
     }//OptionStaticMultiStmt
 
 
-    private static final class OptionMultiStmt extends StmtWithOption implements ParamMultiStmt {
+    private static final class OptionMultiStmt extends SessionStmt implements ParamMultiStmt {
 
         private final List<ParamStmt> stmtList;
 

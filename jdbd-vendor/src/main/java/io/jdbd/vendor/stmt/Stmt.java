@@ -1,13 +1,5 @@
 package io.jdbd.vendor.stmt;
 
-import io.jdbd.lang.Nullable;
-import io.jdbd.session.ChunkOption;
-import org.reactivestreams.Publisher;
-import org.reactivestreams.Subscriber;
-
-import java.util.List;
-import java.util.function.Function;
-
 /**
  * <p>
  * This interface representing object that wrap sql and parameter and option(eg: timeout).
@@ -25,19 +17,12 @@ import java.util.function.Function;
  * </p>
  * </p>
  */
-public interface Stmt {
+public interface Stmt extends StmtOption {
 
-    int getTimeout();
 
-    int getFetchSize();
-
-    List<NamedValue> getStmtVarList();
-
-    @Nullable
-    Function<ChunkOption, Publisher<byte[]>> getImportFunction();
-
-    @Nullable
-    Function<ChunkOption, Subscriber<byte[]>> getExportFunction();
-
+    /**
+     * @return false : {@link #databaseSession()} always throw {@link UnsupportedOperationException}
+     */
+    boolean isSessionCreated();
 
 }

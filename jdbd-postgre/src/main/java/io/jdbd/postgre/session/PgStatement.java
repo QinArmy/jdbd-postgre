@@ -194,6 +194,11 @@ abstract class PgStatement<S extends Statement> implements Statement, StmtOption
         return this.exportPublisher;
     }
 
+    @Override
+    public final DatabaseSession databaseSession() {
+        return this.session;
+    }
+
     /**
      * just for {@link PgMultiStatement}
      */

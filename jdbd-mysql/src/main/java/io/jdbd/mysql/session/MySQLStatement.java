@@ -236,6 +236,11 @@ abstract class MySQLStatement<S extends Statement> implements Statement, StmtOpt
     }
 
     @Override
+    public final DatabaseSession databaseSession() {
+        return this.session;
+    }
+
+    @Override
     public final int hashCode() {
         return super.hashCode();
     }

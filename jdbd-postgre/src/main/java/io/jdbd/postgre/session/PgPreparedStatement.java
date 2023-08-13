@@ -146,13 +146,6 @@ final class PgPreparedStatement extends PgParametrizedStatement<PreparedStatemen
     }
 
 
-    /**
-     * @see <a href="https://www.postgresql.org/docs/current/sql-declare.html">define a cursor</a>
-     */
-    @Override
-    public Publisher<RefCursor> declareCursor() {
-        return null;
-    }
 
     @Override
     public Publisher<ResultStates> executeBatchUpdate() {
