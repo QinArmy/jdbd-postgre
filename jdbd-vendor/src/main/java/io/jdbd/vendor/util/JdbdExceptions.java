@@ -396,6 +396,10 @@ public abstract class JdbdExceptions {
         return new JdbdException("Not invoke addBatch()", SQLStates.INVALID_PARAMETER_VALUE, 0);
     }
 
+    public static JdbdException noInvokeAndAddStatement() {
+        return new JdbdException("Not invoke addStatement() method.");
+    }
+
     public static JdbdException unknownSavePoint(SavePoint savePoint) {
         return new JdbdException(String.format("unknown %s %s", SavePoint.class.getName(), savePoint));
     }

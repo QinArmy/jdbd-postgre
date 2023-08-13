@@ -55,8 +55,6 @@ final class PgBindStatement extends PgParametrizedStatement<BindStatement> imple
 
     private List<ParamValue> paramGroup;
 
-    private int firstGroupSize = -1;
-
     private int firstParamSize = -1;
 
     private boolean usePrepare;
@@ -85,7 +83,7 @@ final class PgBindStatement extends PgParametrizedStatement<BindStatement> imple
             throw PgExceptions.cannotReuseStatement(BindStatement.class);
         }
 
-        final int firstGroupSize = this.firstGroupSize;
+        final int firstGroupSize = this.firstParamSize;
 
         final RuntimeException error;
         final DataType type;

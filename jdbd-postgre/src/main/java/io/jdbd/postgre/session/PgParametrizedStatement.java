@@ -7,10 +7,9 @@ import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.util.PgBinds;
 import io.jdbd.postgre.util.PgCollections;
 import io.jdbd.statement.ParametrizedStatement;
+import io.jdbd.vendor.stmt.ParamValue;
 
-import java.util.Locale;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 
 /**
@@ -27,14 +26,16 @@ import java.util.Set;
  */
 abstract class PgParametrizedStatement<S extends ParametrizedStatement> extends PgStatement<S> {
 
+    static final List<ParamValue> EMPTY_PARAM_GROUP = Collections.emptyList();
+
     private static final Map<String, PgType> BUILD_IN_TYPE_MAP = PgBinds.createPgTypeMap();
 
 
     Set<String> unknownTypeSet;
 
-     PgParametrizedStatement(PgDatabaseSession<?> session) {
-         super(session);
-     }
+    PgParametrizedStatement(PgDatabaseSession<?> session) {
+        super(session);
+    }
 
 
     @Nullable
