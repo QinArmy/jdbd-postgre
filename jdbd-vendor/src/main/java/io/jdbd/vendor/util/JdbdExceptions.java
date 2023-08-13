@@ -8,7 +8,7 @@ import io.jdbd.result.CurrentRow;
 import io.jdbd.result.CursorDirection;
 import io.jdbd.result.ResultStates;
 import io.jdbd.session.*;
-import io.jdbd.statement.OutParameter;
+import io.jdbd.statement.InOutParameter;
 import io.jdbd.statement.PreparedStatement;
 import io.jdbd.statement.Statement;
 import io.jdbd.type.PathParameter;
@@ -203,7 +203,7 @@ public abstract class JdbdExceptions {
     public static JdbdException dontSupportOutParameter(Object indexOrName, Class<? extends Statement> stmtClass,
                                                         String database) {
         String m = String.format("%s %s don't support %s at index/name %s.", database, stmtClass.getName(),
-                OutParameter.class.getName(), indexOrName);
+                InOutParameter.class.getName(), indexOrName);
         return new JdbdException(m);
     }
 

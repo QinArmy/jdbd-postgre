@@ -26,7 +26,7 @@ import java.util.function.IntFunction;
  *
  * @since 1.0
  */
-public interface DataRow extends ResultItem {
+public interface DataRow extends ResultItem, ResultItem.ResultAccessSpec {
 
 
     ResultRowMeta getRowMeta();

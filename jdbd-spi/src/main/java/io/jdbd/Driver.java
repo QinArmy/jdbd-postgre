@@ -26,6 +26,8 @@ public interface Driver {
      * <p>
      * Required , jdbd always support
      * </p>
+     *
+     * @see io.jdbd.session.Option#USER
      */
     String USER = "user";
 

@@ -605,6 +605,7 @@ final class PgResultSetReader implements ResultSetReader {
             return this.rowMeta;
         }
 
+
         @Override
         public final int getResultNo() {
             return this.rowMeta.resultNo;

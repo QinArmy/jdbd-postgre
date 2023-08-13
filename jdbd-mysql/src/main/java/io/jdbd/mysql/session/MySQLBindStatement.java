@@ -12,7 +12,7 @@ import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.mysql.util.MySQLStrings;
 import io.jdbd.result.*;
 import io.jdbd.statement.BindStatement;
-import io.jdbd.statement.OutParameter;
+import io.jdbd.statement.InOutParameter;
 import io.jdbd.vendor.ResultType;
 import io.jdbd.vendor.SubscribeException;
 import io.jdbd.vendor.result.MultiResults;
@@ -99,7 +99,7 @@ final class MySQLBindStatement extends MySQLStatement<BindStatement> implements 
             if (paramGroup == null) {
                 this.paramGroup = paramGroup = MySQLCollections.arrayList(firstGroupSize < 0 ? 0 : firstGroupSize);
             }
-            if (value instanceof OutParameter
+            if (value instanceof InOutParameter
                     || value instanceof Publisher
                     || value instanceof Path) { // TODO long string or binary
                 this.usePrepare = true;

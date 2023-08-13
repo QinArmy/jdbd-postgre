@@ -17,7 +17,7 @@ abstract class JdbdParameters {
         throw new UnsupportedOperationException();
     }
 
-    static OutParameter outParam(@Nullable String name, @Nullable Object value) {
+    static InOutParameter outParam(@Nullable String name, @Nullable Object value) {
         if (name == null) {
             throw new NullPointerException("out parameter name must non-null");
         }
@@ -26,12 +26,12 @@ abstract class JdbdParameters {
 
     /**
      * <p>
-     * This class is standard implementation of {@link OutParameter}.
+     * This class is standard implementation of {@link InOutParameter}.
      * </p>
      *
      * @since 1.0
      */
-    private static final class JdbdOutParameter implements OutParameter {
+    private static final class JdbdOutParameter implements InOutParameter {
 
 
         private final String name;

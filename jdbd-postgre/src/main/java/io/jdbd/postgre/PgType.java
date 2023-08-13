@@ -27,6 +27,8 @@ public enum PgType implements SQLType {
 
     UNSPECIFIED(PgConstant.TYPE_UNSPECIFIED, JdbdType.UNKNOWN, Object.class),
 
+    VOID(PgConstant.TYPE_VOID, JdbdType.DIALECT_TYPE, Object.class),
+
     BOOLEAN(PgConstant.TYPE_BOOLEAN, JdbdType.BOOLEAN, Boolean.class),
 
     SMALLINT(PgConstant.TYPE_INT2, JdbdType.SMALLINT, Short.class),

@@ -31,6 +31,47 @@ public enum JdbdType implements DataType {
     NULL,
 
     /**
+     * <p>
+     * Identifies the out (not INOUT) parameter of ,now the value of output parameter must be null.
+     * For example :
+     * <pre>
+     *     <code><br/>
+     *       // PostgreSQL
+     *       CREATE  PROCEDURE my_test_procedure( IN my_input INT, OUT my_out INT, INOUT INT my_inout)
+     *           LANGUAGE plpgsql
+     *       AS $$
+     *
+     *       BEGIN
+     *           my_out = my_input + 1;
+     *           my_inout = my_inout + 8888;
+     *       END;
+     *       $$;
+     *        <br/>
+     *        LocalDatabaseSession session;
+     *        BindStatement stmt = session.bindStatement("CALL my_test_procedure( ? , ? , ?)");
+     *        stmt.bind(0,JdbdType.INTEGER,1);
+     *        stmt.bind(1,JdbdType.OUT,null); // the value of JdbdType.OUT must null.
+     *        stmt.bind(2,JdbdType.INTEGER,InOutParameter.from("my_inout",6666)); //
+     *        Flux.from(stmt.executeQuery())
+     *              //.filter(ResultItem::isOutResultItem) // actually , here don't need filter,  because the sql produce just one result.
+     *              .map(this::handleOutParameter)
+     *
+     *       private Map&lt;String, Integer> handleOutParameter(final ResultRow row) {
+     *           Map&lt;String, Integer> map = new HashMap&lt;>(4);
+     *           map.put(row.getColumnLabel(0), row.get(0, Integer.class));
+     *           map.put(row.getColumnLabel(1), row.get(1, Integer.class));
+     *           return map;
+     *       }
+     *     </code>
+     * </pre>
+     * </p>
+     * <p>
+     * If you want to bind INOUT parameter,you can use appropriate {@link DataType} and {@link io.jdbd.statement.InOutParameter}.
+     * </p>
+     */
+    OUT,
+
+    /**
      * Identifies the generic SQL type {@code BOOLEAN}.
      */
     BOOLEAN,
@@ -232,6 +273,7 @@ public enum JdbdType implements DataType {
      * @see <a href="https://www.ogc.org/standards/sfa">Simple Feature Access - Part 1: Common Architecture PDF</a>
      */
     GEOMETRY,
+
 
     /*-------------------below isn't supported by io.jdbd.statement.ParametrizedStatement.bind() and io.jdbd.statement.Statement.bindStmtVar()-------------------*/
 

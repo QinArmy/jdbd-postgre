@@ -74,6 +74,16 @@ public final class Option<T> {
      */
     public static final Option<Duration> LOCK_TIMEOUT = Option.from("LOCK TIMEOUT", Duration.class);
 
+    /**
+     * <p>
+     * This option representing transaction isolation level.
+     * </p>
+     * <p>
+     * This option always is supported by {@link TransactionOption#valueOf(Option)}.
+     * </p>
+     *
+     * @see #READ_ONLY
+     */
     public static final Option<Isolation> ISOLATION = Option.from("ISOLATION", Isolation.class);
 
     /**
@@ -81,17 +91,17 @@ public final class Option<T> {
      * This option representing read-only transaction.
      * </p>
      * <p>
-     * This option always is supported by {@link TransactionOption}.
+     * This option always is supported by {@link TransactionOption#valueOf(Option)}.
      * </p>
      * <p>
-     * When this option is supported by {@link DatabaseSession} , this option representing the session in read-only transaction block<br/>
+     * When this option is supported by {@link DatabaseSession#valueOf(Option)} , this option representing the session in read-only transaction block<br/>
      * after last statement executing , now the {@link #IN_TRANSACTION} always true.
      * </p>
      * <p>
-     * When this option is supported by {@link io.jdbd.result.ResultStates} , this option representing the session in read-only transaction block
+     * When this option is supported by {@link io.jdbd.result.ResultStates#valueOf(Option)} , this option representing the session in read-only transaction block
      * after current statement executing, now the {@link #IN_TRANSACTION} always true. <br/>
      * <strong>NOTE</strong> : the 'current' statement perhaps is a part of multi-statement or is CALL command that execute procedures,<br/>
-     * that means the read-only transaction block perhaps have ended by next statement.
+     * that means the read-only transaction maybe have ended by next statement.
      * </p>
      *
      * @see #IN_TRANSACTION
@@ -104,33 +114,34 @@ public final class Option<T> {
      * This option representing {@link DatabaseSession} in transaction block.
      * </p>
      * <p>
-     * This option always is supported by {@link TransactionOption}.
+     * This option always is supported by {@link TransactionStatus#valueOf(Option)}.
      * </p>
      * <p>
-     * When this option is supported by {@link DatabaseSession} , this option representing the session in transaction block<br/>
-     * after last statement executing.
+     * When this option is supported by {@link DatabaseSession#valueOf(Option)} , this option representing the session in transaction block<br/>
+     * after last statement executing. Now this option is equivalent to {@link DatabaseSession#inTransaction()}.
      * </p>
      * <p>
-     * When this option is supported by {@link io.jdbd.result.ResultStates} , this option representing the session in transaction block
+     * When this option is supported by {@link io.jdbd.result.ResultStates#valueOf(Option)} , this option representing the session in transaction block
      * after current statement executing.<br/>
      * <strong>NOTE</strong> : the 'current' statement perhaps is a part of multi-statement or is CALL command that execute procedures<br/>
-     * that means the transaction block perhaps have ended by next statement.
+     * that means the transaction block maybe have ended by next statement.
      * </p>
      *
      * @see #READ_ONLY
+     * @see DatabaseSession#inTransaction()
      */
     public static final Option<Boolean> IN_TRANSACTION = Option.from("IN TRANSACTION", Boolean.class);
 
     /**
      * <p>
-     * When this option is supported by {@link DatabaseSession} , this option representing the session is auto commit<br/>
+     * When this option is supported by {@link DatabaseSession#valueOf(Option)} , this option representing the session is auto commit<br/>
      * after last statement executing.
      * </p>
      * <p>
-     * When this option is supported by {@link io.jdbd.result.ResultStates} , this option representing the session is auto commit
+     * When this option is supported by {@link io.jdbd.result.ResultStates#valueOf(Option)} , this option representing the session is auto commit
      * after current statement executing.<br/>
      * <strong>NOTE</strong> : the 'current' statement perhaps is a part of multi-statement or is CALL command that execute procedures<br/>
-     * that means the auto commit status perhaps have modified by next statement.
+     * that means the auto commit status maybe have modified by next statement.
      * </p>
      *
      * @see #READ_ONLY
@@ -228,8 +239,13 @@ public final class Option<T> {
 
     /**
      * @see io.jdbd.result.ServerException#valueOf(Option)
+     * @see io.jdbd.result.Warning#valueOf(Option)
      */
     public static final Option<String> SQL_STATE = Option.from("SQL STATE", String.class);
+
+    /**
+     * @see io.jdbd.result.ServerException#valueOf(Option)
+     */
     public static final Option<String> MESSAGE = Option.from("MESSAGE", String.class);
 
     /**
@@ -237,11 +253,12 @@ public final class Option<T> {
      */
     public static final Option<Integer> VENDOR_CODE = Option.from("VENDOR CODE", Integer.class);
 
-    /**
-     * @see Option#WARNING_COUNT
-     */
+
     public static final Option<Integer> WARNING_COUNT = Option.from("WARNING COUNT", Integer.class);
 
+    /**
+     * @see Driver#USER
+     */
     public static final Option<String> USER = Option.from(Driver.USER, String.class);
 
 

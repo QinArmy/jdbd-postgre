@@ -15,6 +15,7 @@ import io.jdbd.vendor.stmt.JdbdValues;
 import io.jdbd.vendor.stmt.ParamValue;
 import io.jdbd.vendor.stmt.Stmts;
 import io.jdbd.vendor.task.PrepareTask;
+import io.jdbd.vendor.util.JdbdBinds;
 import org.reactivestreams.Publisher;
 
 import java.util.List;
@@ -100,7 +101,7 @@ final class PgPreparedStatement extends PgParametrizedStatement<PreparedStatemen
             error = PgExceptions.invalidParameterValue(groupSize, indexBasedZero);
         } else if (dataType == null) {
             error = PgExceptions.dataTypeIsNull();
-        } else if (value != null && dataType == JdbdType.NULL) {
+        } else if (value != null && (dataType == JdbdType.NULL || dataType == JdbdType.OUT)) {
             error = PgExceptions.nonNullBindValueOf(dataType);
         } else if ((type = mapDataType(dataType)) == null) {
             error = PgExceptions.dontSupportDataType(dataType, PgDriver.POSTGRE_SQL);
@@ -122,7 +123,41 @@ final class PgPreparedStatement extends PgParametrizedStatement<PreparedStatemen
 
     @Override
     public PreparedStatement addBatch() throws JdbdException {
-        return null;
+        final int paramCount = this.paramCount;
+        final List<ParamValue> paramGroup = this.paramGroup;
+        final int paramSize = paramGroup == null ? 0 : paramGroup.size();
+
+        List<List<ParamValue>> paramGroupList = this.paramGroupList;
+        final int groupSize = paramGroupList == null ? 0 : paramGroupList.size();
+
+
+        // add bind group
+        final JdbdException error;
+        if (paramGroup == EMPTY_PARAM_GROUP) {
+            error = PgExceptions.cannotReuseStatement(PreparedStatement.class);
+        } else if (paramSize != paramCount) {
+            error = PgExceptions.parameterCountMatch(groupSize, paramCount, paramSize);
+        } else {
+            if (paramGroupList == null) {
+                this.paramGroupList = paramGroupList = PgCollections.arrayList();
+            }
+            if (paramGroup == null) {
+                error = null;
+                paramGroupList.add(EMPTY_PARAM_GROUP);
+            } else {
+                error = JdbdBinds.sortAndCheckParamGroup(groupSize, paramGroup);
+                paramGroupList.add(PgCollections.unmodifiableList(paramGroup));
+            }
+        }
+
+        if (error != null) {
+            this.stmtTask.closeOnBindError(error); // close prepare statement.
+            clearStatementToAvoidReuse();
+            throw PgExceptions.wrap(error);
+        }
+
+        this.paramGroup = null; // clear for next batch item
+        return this;
     }
 
     @Override
@@ -144,8 +179,6 @@ final class PgPreparedStatement extends PgParametrizedStatement<PreparedStatemen
     public <R> Publisher<R> executeQuery(Function<CurrentRow, R> function, Consumer<ResultStates> statesConsumer) {
         return null;
     }
-
-
 
     @Override
     public Publisher<ResultStates> executeBatchUpdate() {

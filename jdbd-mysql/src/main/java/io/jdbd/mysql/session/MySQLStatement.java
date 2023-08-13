@@ -11,7 +11,7 @@ import io.jdbd.mysql.util.MySQLExceptions;
 import io.jdbd.session.ChunkOption;
 import io.jdbd.session.DatabaseSession;
 import io.jdbd.session.Option;
-import io.jdbd.statement.OutParameter;
+import io.jdbd.statement.InOutParameter;
 import io.jdbd.statement.Statement;
 import io.jdbd.vendor.stmt.JdbdValues;
 import io.jdbd.vendor.stmt.NamedValue;
@@ -77,7 +77,7 @@ abstract class MySQLStatement<S extends Statement> implements Statement, StmtOpt
             error = MySQLExceptions.stmtVarNameHaveNoText(name);
         } else if (dataType == null) {
             error = MySQLExceptions.dataTypeIsNull();
-        } else if (value instanceof Publisher || value instanceof OutParameter) {
+        } else if (value instanceof Publisher || value instanceof InOutParameter) {
             error = MySQLExceptions.dontSupportJavaType(name, value, MY_SQL);
         } else if (value != null && (dataType == JdbdType.NULL || dataType == MySQLType.NULL)) {
             error = MySQLExceptions.nonNullBindValueOf(dataType);

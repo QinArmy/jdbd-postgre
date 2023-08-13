@@ -71,7 +71,7 @@ public interface ResultStates extends ResultItem, OptionSpec {
 
     /**
      * <p>
-     * This the implementation <strong>perhaps</strong> support following :
+     * This the implementation <strong>perhaps</strong> support some of  following :
      *     <ul>
      *         <li>{@link Option#IN_TRANSACTION}</li>
      *         <li>{@link Option#READ_ONLY} </li>

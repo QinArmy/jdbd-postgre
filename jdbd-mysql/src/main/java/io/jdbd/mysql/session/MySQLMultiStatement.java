@@ -13,8 +13,8 @@ import io.jdbd.result.BatchQuery;
 import io.jdbd.result.MultiResult;
 import io.jdbd.result.OrderedFlux;
 import io.jdbd.result.ResultStates;
+import io.jdbd.statement.InOutParameter;
 import io.jdbd.statement.MultiStatement;
-import io.jdbd.statement.OutParameter;
 import io.jdbd.vendor.result.MultiResults;
 import io.jdbd.vendor.stmt.JdbdValues;
 import io.jdbd.vendor.stmt.ParamStmt;
@@ -103,7 +103,7 @@ final class MySQLMultiStatement extends MySQLStatement<MultiStatement> implement
             error = MySQLExceptions.cannotReuseStatement(MultiStatement.class);
         } else if (indexBasedZero < 0) {
             error = MySQLExceptions.invalidParameterValue(this.stmtGroup.size(), indexBasedZero);
-        } else if (value instanceof OutParameter) {
+        } else if (value instanceof InOutParameter) {
             error = MySQLExceptions.dontSupportOutParameter(indexBasedZero, MultiStatement.class, MY_SQL);
         } else if (value instanceof Publisher || value instanceof Path) {
             error = MySQLExceptions.dontSupportJavaType(indexBasedZero, value, MY_SQL);

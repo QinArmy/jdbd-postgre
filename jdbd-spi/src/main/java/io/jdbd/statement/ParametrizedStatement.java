@@ -3,7 +3,7 @@ package io.jdbd.statement;
 import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
-import io.jdbd.result.OutResult;
+import io.jdbd.result.OutResultItem;
 import io.jdbd.session.ChunkOption;
 import io.jdbd.session.Option;
 import io.jdbd.type.*;
@@ -45,7 +45,7 @@ public interface ParametrizedStatement extends Statement {
      *
      * @param indexBasedZero parameter placeholder index based zero, the first value is 0 .
      * @param dataType       parameter type is following type : <ul>
-     *                       <li>{@link io.jdbd.meta.JdbdType} generic sql type,this method convert {@link io.jdbd.meta.JdbdType} to appropriate {@link io.jdbd.meta.SQLType},if fail throw {@link  JdbdException}</li>
+     *                       <li>{@link io.jdbd.meta.JdbdType} generic sql type,this method convert {@link io.jdbd.meta.JdbdType} to appropriate {@link io.jdbd.meta.SQLType},if fail throw {@link  JdbdException},<strong>NOTE</strong>:{@link io.jdbd.meta.JdbdType#OUT} representing OUT(not INOUT) parameter.</li>
      *                       <li>{@link io.jdbd.meta.SQLType} driver have known database build-in data type. It is defined by driver developer.</li>
      *                       <li>the {@link DataType} that application developer define type and it's {@link DataType#typeName()} is supported by database.
      *                             <ul>
@@ -62,7 +62,7 @@ public interface ParametrizedStatement extends Statement {
      *                          <li>{@link Interval} the composite of {@link java.time.Period} and {@link java.time.Duration}</li>
      *                          <li>{@link Parameter} :
      *                              <ol>
-     *                                  <li>{@link OutParameter} that representing out parameter of stored procedure,see {@link  OutResult}</li>
+     *                                  <li>{@link InOutParameter} that representing out parameter of stored procedure,see {@link  OutResultItem}</li>
      *                                  <li>{@link Blob} long binary</li>
      *                                  <li>{@link Clob} long string</li>
      *                                  <li>{@link Text} long text</li>
@@ -83,7 +83,7 @@ public interface ParametrizedStatement extends Statement {
      *                                     </ol>
      *                                     ,so you don't need to reuse statement instance.
      *                              </li>
-     *                              <li>value is {@link OutParameter} type and {@link #isSupportOutParameter()} return false.</li>
+     *                              <li>value is {@link InOutParameter} type and {@link #isSupportOutParameter()} return false.</li>
      *                              <li>indexBasedZero error</li>
      *                              <li>dataType is one of following :
      *                                     <ul>
@@ -98,16 +98,8 @@ public interface ParametrizedStatement extends Statement {
      *                              </li>
      *                              <li>dataType isn't supported by database.</li>
      *                              <li>dataType is {@link io.jdbd.meta.JdbdType#NULL} and value isn't null</li>
+     *                              <li>dataType is {@link io.jdbd.meta.JdbdType#OUT} and value isn't null</li>
      *                              </ul>
-     * @see io.jdbd.meta.JdbdType
-     * @see io.jdbd.meta.SQLType
-     * @see Point
-     * @see OutParameter
-     * @see Blob
-     * @see Clob
-     * @see Text
-     * @see BlobPath
-     * @see TextPath
      */
     ParametrizedStatement bind(int indexBasedZero, DataType dataType, @Nullable Object value) throws JdbdException;
 

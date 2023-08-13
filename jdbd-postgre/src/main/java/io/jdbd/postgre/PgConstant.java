@@ -41,6 +41,9 @@ public interface PgConstant {
     char BACK_SLASH = '\\';
 
     byte TYPE_UNSPECIFIED = 0;
+
+    short TYPE_VOID = 2278;
+
     byte TYPE_INT2 = 21;
     short TYPE_INT2_ARRAY = 1005;
     byte TYPE_INT4 = 23;

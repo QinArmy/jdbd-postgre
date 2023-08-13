@@ -31,8 +31,13 @@ public abstract class VendorDataRow implements DataRow {
 
 
     @Override
-    public final boolean isBigColumn(String columnLabel) {
-        return this.isBigColumn(getRowMeta().getColumnIndex(columnLabel));
+    public final int getColumnCount() {
+        return this.getRowMeta().getColumnCount();
+    }
+
+    @Override
+    public final String getColumnLabel(int indexBasedZero) throws JdbdException {
+        return this.getRowMeta().getColumnLabel(indexBasedZero);
     }
 
     @Override
@@ -74,6 +79,16 @@ public abstract class VendorDataRow implements DataRow {
 
 
     /*-------------------below columnLabel method-------------------*/
+
+    @Override
+    public final boolean isBigColumn(String columnLabel) {
+        return this.isBigColumn(getRowMeta().getColumnIndex(columnLabel));
+    }
+
+    @Override
+    public final int getColumnIndex(String columnLabel) throws JdbdException {
+        return this.getRowMeta().getColumnIndex(columnLabel);
+    }
 
     @Override
     public final Object get(String columnLabel) throws JdbdException {

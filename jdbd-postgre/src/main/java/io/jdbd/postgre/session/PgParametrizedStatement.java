@@ -166,6 +166,9 @@ abstract class PgParametrizedStatement<S extends ParametrizedStatement> extends 
             case INTERVAL:
                 type = PgType.INTERVAL;
                 break;
+            case OUT:
+                type = PgType.VOID;
+                break;
 
             case TINYINT_UNSIGNED:
             case SMALLINT_UNSIGNED:

@@ -19,15 +19,7 @@ import java.util.List;
  * @see ResultStates
  * @since 1.0
  */
-public interface ResultRowMeta extends ResultItem {
-
-
-    /**
-     * Returns the number of columns
-     *
-     * @return the number of columns
-     */
-    int getColumnCount();
+public interface ResultRowMeta extends ResultItem, ResultItem.ResultAccessSpec {
 
 
     /**
@@ -273,30 +265,6 @@ public interface ResultRowMeta extends ResultItem {
     List<String> getColumnLabelList();
 
 
-    /**
-     * Gets the designated column's suggested title for use in printouts and
-     * displays. The suggested title is usually specified by the SQL <code>AS</code>
-     * clause.  If a SQL <code>AS</code> is not specified, the value returned from
-     * <code>getColumnLabel</code> will be the same as the value returned by the
-     * <code>getColumnName</code> method.
-     *
-     * @param indexBasedZero base 0,the first column is 0, the second is 1, ..
-     * @return the suggested column title              .
-     * @throws JdbdException if a database access error occurs
-     */
-    String getColumnLabel(int indexBasedZero) throws JdbdException;
-
-
-    /**
-     * <p>
-     * Get column index , if columnLabel duplication ,then return last index that have same columnLabel.
-     * </p>
-     *
-     * @param columnLabel column alias
-     * @return index based 0,the first column is 0, the second is 1, ..
-     * @throws JdbdException if a database access error occurs
-     */
-    int getColumnIndex(String columnLabel) throws JdbdException;
 
     /**
      * <p>

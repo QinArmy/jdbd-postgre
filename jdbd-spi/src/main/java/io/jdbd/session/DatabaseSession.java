@@ -54,10 +54,10 @@ public interface DatabaseSession extends StaticStatementSpec, DatabaseMetaSpec, 
 
     /**
      * <p>
-     * Session identifier,probably is following :
+     * Session identifier(non-unique, for example : database server cluster),probably is following :
      *     <ul>
-     *         <li>process id</li>
-     *         <li>thread id</li>
+     *         <li>server process id</li>
+     *         <li>server thread id</li>
      *         <li>other identifier</li>
      *     </ul>
      *     <strong>NOTE</strong>: identifier will probably be updated if reconnect.
@@ -110,10 +110,11 @@ public interface DatabaseSession extends StaticStatementSpec, DatabaseMetaSpec, 
      *                       <ul>
      *                           <li>sql error</li>
      *                           <li>session have closed</li>
+     *                           <li>network error</li>
      *                           <li>database server response error message , see {@link io.jdbd.result.ServerException}</li>
      *                       </ul>
      */
-    Publisher<PreparedStatement> prepareStatement(String sql) throws JdbdException;
+    Publisher<PreparedStatement> prepareStatement(String sql);
 
     /**
      * <p>
@@ -139,7 +140,7 @@ public interface DatabaseSession extends StaticStatementSpec, DatabaseMetaSpec, 
      * </p>
      *
      * @param sql                 have text sql.
-     * @param forceServerPrepared true : must use server-prepared statement.
+     * @param forceServerPrepared true : must use server-prepared.
      * @throws IllegalArgumentException throw when only sql have no text.
      * @see BindStatement#isForcePrepare()
      */
@@ -149,12 +150,11 @@ public interface DatabaseSession extends StaticStatementSpec, DatabaseMetaSpec, 
      * <p>
      * Create one multi statement.
      * </p>
+     * <p>
+     * This method don't check session whether open or not.
+     * </p>
      *
-     * @throws JdbdException throw when :
-     *                       <ul>
-     *                           <li>session have closed</li>
-     *                           <li>{@link #isSupportMultiStatement()} return false</li>
-     *                       </ul>
+     * @throws JdbdException throw when : {@link #isSupportMultiStatement()} return false.
      */
     MultiStatement multiStatement() throws JdbdException;
 
@@ -233,12 +233,13 @@ public interface DatabaseSession extends StaticStatementSpec, DatabaseMetaSpec, 
      *
      * @return true : when
      * <ul>
-     *     <li>{@link LocalDatabaseSession}  in local transaction block.</li>
+     *     <li>{@link LocalDatabaseSession}  in local transaction block after last statement executing.</li>
      *     <li>{@link RmDatabaseSession}'s {@link XaStates} is one of
      *          <ul>
      *              <li>{@link XaStates#ACTIVE}</li>
      *              <li>{@link XaStates#IDLE}</li>
      *          </ul>
+     *           after last statement executing.
      *     </li>
      * </ul>
      * @throws JdbdException throw when session have closed.
