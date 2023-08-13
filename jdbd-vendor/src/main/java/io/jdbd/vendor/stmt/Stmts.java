@@ -28,18 +28,33 @@ public abstract class Stmts {
 
 
     public static StaticStmt stmt(final String sql) {
-        return new MinNonSessionStaticStmt(sql);
+        return new JustSessionStaticUpdateStmt(sql, null);
+    }
+
+    public static StaticStmt stmtWithSession(final String sql, DatabaseSession session) {
+        return new JustSessionStaticUpdateStmt(sql, session);
     }
 
     public static StaticStmt stmt(final String sql, Consumer<ResultStates> statusConsumer) {
         if (statusConsumer == IGNORE_RESULT_STATES) {
-            return new MinNonSessionStaticStmt(sql);
+            return new JustSessionStaticUpdateStmt(sql, null);
         }
-        return new MinNonSessionQueryStaticStmt(sql, statusConsumer);
+        return new JustSessionStaticQueryStmt(sql, statusConsumer, null);
+    }
+
+    public static StaticStmt stmtWithSession(final String sql, Consumer<ResultStates> statusConsumer, DatabaseSession session) {
+        if (statusConsumer == IGNORE_RESULT_STATES) {
+            return new JustSessionStaticUpdateStmt(sql, session);
+        }
+        return new JustSessionStaticQueryStmt(sql, statusConsumer, session);
     }
 
     public static StaticBatchStmt batch(List<String> sqlGroup) {
-        return new MinNonSessionStaticBatchStmt(sqlGroup);
+        return new JustSessionStaticBatchStmt(sqlGroup, null);
+    }
+
+    public static StaticBatchStmt batchWithSession(List<String> sqlGroup, DatabaseSession session) {
+        return new JustSessionStaticBatchStmt(sqlGroup, session);
     }
 
     public static StaticStmt stmt(String sql, StmtOption option) {
@@ -126,11 +141,15 @@ public abstract class Stmts {
     }
 
     public static StaticMultiStmt multiStmt(String multiStmt) {
-        return new MinStaticMultiStmt(multiStmt);
+        return new JustStaticMultiStmt(multiStmt, null);
+    }
+
+    public static StaticMultiStmt multiStmtWithSession(String multiStmt, DatabaseSession session) {
+        return new JustStaticMultiStmt(multiStmt, session);
     }
 
     public static StaticMultiStmt multiStmt(String multiStmt, StmtOption option) {
-        return new OptionStaticMultiStmt(multiStmt, option);
+        return new SessionStaticMultiStmt(multiStmt, option);
     }
 
 
@@ -201,29 +220,37 @@ public abstract class Stmts {
     }// SingleStmtWithoutOption
 
 
-    private static abstract class NonSessionSingleStmt extends SingleStmtWithoutOption {
+    private static abstract class JustSessionSingleStmt extends SingleStmtWithoutOption {
 
-        private NonSessionSingleStmt(String sql) {
+        private final DatabaseSession session;
+
+        private JustSessionSingleStmt(String sql, @Nullable DatabaseSession session) {
             super(sql);
+            this.session = session;
         }
 
         @Override
         public final boolean isSessionCreated() {
-            return false;
+            return this.session != null;
         }
 
         @Override
         public final DatabaseSession databaseSession() {
-            throw new UnsupportedOperationException();
+            final DatabaseSession session = this.session;
+            if (session == null) {
+                throw new UnsupportedOperationException();
+            }
+            return session;
         }
 
     } // NonSessionSingleStmt
 
 
-    private static final class MinNonSessionStaticStmt extends NonSessionSingleStmt implements StaticStmt {
+    private static final class JustSessionStaticUpdateStmt extends JustSessionSingleStmt implements StaticStmt {
 
-        private MinNonSessionStaticStmt(String sql) {
-            super(sql);
+
+        private JustSessionStaticUpdateStmt(String sql, @Nullable DatabaseSession session) {
+            super(sql, session);
         }
 
         @Override
@@ -232,14 +259,15 @@ public abstract class Stmts {
         }
 
 
-    }//MinStaticStmt
+    }//JustSessionStaticUpdateStmt
 
-    private static final class MinNonSessionQueryStaticStmt extends NonSessionSingleStmt implements StaticStmt {
+    private static final class JustSessionStaticQueryStmt extends JustSessionSingleStmt implements StaticStmt {
 
         private final Consumer<ResultStates> statesConsumer;
 
-        private MinNonSessionQueryStaticStmt(String sql, Consumer<ResultStates> statesConsumer) {
-            super(sql);
+        private JustSessionStaticQueryStmt(String sql, Consumer<ResultStates> statesConsumer,
+                                           @Nullable DatabaseSession session) {
+            super(sql, session);
             this.statesConsumer = statesConsumer;
         }
 
@@ -252,12 +280,16 @@ public abstract class Stmts {
     }//MinQueryStaticStmt
 
 
-    private static final class MinNonSessionStaticBatchStmt extends StmtWithoutOption implements StaticBatchStmt {
+    private static final class JustSessionStaticBatchStmt extends StmtWithoutOption implements StaticBatchStmt {
 
         private final List<String> sqlGroup;
 
-        private MinNonSessionStaticBatchStmt(final List<String> sqlGroup) {
-            this.sqlGroup = Collections.unmodifiableList(sqlGroup);
+        private final DatabaseSession session;
+
+
+        private JustSessionStaticBatchStmt(final List<String> sqlGroup, @Nullable DatabaseSession session) {
+            this.sqlGroup = JdbdCollections.asUnmodifiableList(sqlGroup); // must create new ArrayList
+            this.session = session;
         }
 
         @Override
@@ -267,15 +299,19 @@ public abstract class Stmts {
 
         @Override
         public boolean isSessionCreated() {
-            return false;
+            return this.session != null;
         }
 
         @Override
         public DatabaseSession databaseSession() {
-            throw new UnsupportedOperationException();
+            final DatabaseSession session = this.session;
+            if (session == null) {
+                throw new UnsupportedOperationException();
+            }
+            return session;
         }
 
-    }//SimpleStaticBatchStmt
+    }//JustSessionStaticBatchStmt
 
 
     private static abstract class SessionStmt implements Stmt {
@@ -655,15 +691,19 @@ public abstract class Stmts {
             return this.groupList;
         }
 
+
     }//OptionParamBatchStmt
 
 
-    private static final class MinStaticMultiStmt extends NonSessionStmt implements StaticMultiStmt {
+    private static final class JustStaticMultiStmt extends StmtWithoutOption implements StaticMultiStmt {
 
         private final String multiStmt;
 
-        private MinStaticMultiStmt(String multiStmt) {
+        private final DatabaseSession session;
+
+        private JustStaticMultiStmt(String multiStmt, @Nullable DatabaseSession session) {
             this.multiStmt = multiStmt;
+            this.session = session;
         }
 
         @Override
@@ -671,14 +711,28 @@ public abstract class Stmts {
             return this.multiStmt;
         }
 
+        @Override
+        public boolean isSessionCreated() {
+            return this.session != null;
+        }
+
+        @Override
+        public DatabaseSession databaseSession() {
+            final DatabaseSession s = this.session;
+            if (s == null) {
+                throw new UnsupportedOperationException();
+            }
+            return s;
+        }
+
 
     }//MinStaticMultiStmt
 
-    private static final class OptionStaticMultiStmt extends SessionStmt implements StaticMultiStmt {
+    private static final class SessionStaticMultiStmt extends SessionStmt implements StaticMultiStmt {
 
         private final String multiStmt;
 
-        private OptionStaticMultiStmt(String multiStmt, StmtOption option) {
+        private SessionStaticMultiStmt(String multiStmt, StmtOption option) {
             super(option);
             this.multiStmt = multiStmt;
         }

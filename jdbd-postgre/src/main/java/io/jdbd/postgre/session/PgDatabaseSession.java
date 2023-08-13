@@ -80,7 +80,7 @@ abstract class PgDatabaseSession<S extends DatabaseSession> extends PgDatabaseMe
         if (!PgStrings.hasText(sql)) {
             return Mono.error(PgExceptions.sqlHaveNoText());
         }
-        return this.protocol.update(Stmts.stmt(sql));
+        return this.protocol.update(Stmts.stmtWithSession(sql, this));
     }
 
     @Override
@@ -104,7 +104,7 @@ abstract class PgDatabaseSession<S extends DatabaseSession> extends PgDatabaseMe
         } else if (consumer == null) {
             flux = Flux.error(PgExceptions.statesConsumerIsNull());
         } else {
-            flux = this.protocol.query(Stmts.stmt(sql, consumer), function);
+            flux = this.protocol.query(Stmts.stmtWithSession(sql, consumer, this), function);
         }
         return flux;
     }
@@ -114,7 +114,7 @@ abstract class PgDatabaseSession<S extends DatabaseSession> extends PgDatabaseMe
         if (PgCollections.isEmpty(sqlGroup)) {
             return Flux.error(PgExceptions.sqlHaveNoText());
         }
-        return this.protocol.batchUpdate(Stmts.batch(sqlGroup));
+        return this.protocol.batchUpdate(Stmts.batchWithSession(sqlGroup, this));
     }
 
     @Override
@@ -122,7 +122,7 @@ abstract class PgDatabaseSession<S extends DatabaseSession> extends PgDatabaseMe
         if (PgCollections.isEmpty(sqlGroup)) {
             return MultiResults.batchQueryError(PgExceptions.sqlHaveNoText());
         }
-        return this.protocol.batchQuery(Stmts.batch(sqlGroup));
+        return this.protocol.batchQuery(Stmts.batchWithSession(sqlGroup, this));
     }
 
     @Override
@@ -130,15 +130,15 @@ abstract class PgDatabaseSession<S extends DatabaseSession> extends PgDatabaseMe
         if (PgCollections.isEmpty(sqlGroup)) {
             return MultiResults.multiError(PgExceptions.sqlHaveNoText());
         }
-        return this.protocol.batchAsMulti(Stmts.batch(sqlGroup));
+        return this.protocol.batchAsMulti(Stmts.batchWithSession(sqlGroup, this));
     }
 
     @Override
-    public final OrderedFlux executeBatchAsFlux(List<String> sqlGroup) {
+    public final OrderedFlux executeBatchAsFlux(final List<String> sqlGroup) {
         if (PgCollections.isEmpty(sqlGroup)) {
             return MultiResults.fluxError(PgExceptions.sqlHaveNoText());
         }
-        return this.protocol.batchAsFlux(Stmts.batch(sqlGroup));
+        return this.protocol.batchAsFlux(Stmts.batchWithSession(sqlGroup, this));
     }
 
     @Override
@@ -146,7 +146,7 @@ abstract class PgDatabaseSession<S extends DatabaseSession> extends PgDatabaseMe
         if (!PgStrings.hasText(multiStmt)) {
             return MultiResults.fluxError(PgExceptions.sqlHaveNoText());
         }
-        return this.protocol.executeAsFlux(Stmts.multiStmt(multiStmt));
+        return this.protocol.executeAsFlux(Stmts.multiStmtWithSession(multiStmt, this));
     }
 
     @Override

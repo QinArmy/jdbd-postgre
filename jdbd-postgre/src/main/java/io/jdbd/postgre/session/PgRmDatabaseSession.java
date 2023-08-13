@@ -323,20 +323,20 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
     }
 
 
-    /**
-     * @see #commit(Xid, boolean, Map)
-     * @see #rollback(Xid, Map)
-     */
-    private Mono<Xid> validaXidFromDatabase(final Xid xid) {
-        final StringBuilder builder = new StringBuilder(128);
-        builder.append("SELECT t.gid FROM pg_prepared_xacts AS t WHERE t.database = current_database() AND t.gid = ");
-        xidToString(builder, xid);
-        return this.protocol.query(Stmts.stmt(builder.toString()), this::mapXid)
-                .elementAt(0)
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .switchIfEmpty(Mono.defer(() -> Mono.error(PgExceptions.xaUnknownTransaction(xid))));
-    }
+//    /**
+//     * @see #commit(Xid, boolean, Map)
+//     * @see #rollback(Xid, Map)
+//     */
+//    private Mono<Xid> validaXidFromDatabase(final Xid xid) {
+//        final StringBuilder builder = new StringBuilder(128);
+//        builder.append("SELECT t.gid FROM pg_prepared_xacts AS t WHERE t.database = current_database() AND t.gid = ");
+//        xidToString(builder, xid);
+//        return this.protocol.query(Stmts.stmt(builder.toString()), this::mapXid)
+//                .elementAt(0)
+//                .filter(Optional::isPresent)
+//                .map(Optional::get)
+//                .switchIfEmpty(Mono.defer(() -> Mono.error(PgExceptions.xaUnknownTransaction(xid))));
+//    }
 
 
     /**
@@ -541,13 +541,18 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
         @Override
         public Mono<PoolRmDatabaseSession> reset() {
             return this.protocol.reset()
-                    .thenReturn(this);
+                    .then(Mono.defer(this::clearXaTransaction));
         }
 
         @Override
         public Publisher<PoolRmDatabaseSession> reconnect() {
             return this.protocol.reconnect()
-                    .thenReturn(this);
+                    .then(Mono.defer(this::clearXaTransaction));
+        }
+
+        private Mono<PoolRmDatabaseSession> clearXaTransaction() {
+            PgRmDatabaseSession.CURRENT_TRIPLE.set(this, null); // after reconnect/reset this cache invalid.
+            return Mono.just(this);
         }
 
 
