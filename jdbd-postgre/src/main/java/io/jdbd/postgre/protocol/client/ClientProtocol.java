@@ -8,12 +8,15 @@ import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.postgre.util.PgStrings;
 import io.jdbd.result.*;
 import io.jdbd.session.*;
+import io.jdbd.vendor.session.JdbdTransactionStatus;
 import io.jdbd.vendor.stmt.*;
 import io.jdbd.vendor.task.PrepareTask;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 
 final class ClientProtocol implements PgProtocol {
@@ -41,6 +44,8 @@ final class ClientProtocol implements PgProtocol {
 
     private final ProtocolManager protocolManager;
     private final TaskAdjutant adjutant;
+
+    private final AtomicBoolean closed = new AtomicBoolean(false);
 
     private final Map<String, String> initializedParamMap;
 
@@ -250,32 +255,25 @@ final class ClientProtocol implements PgProtocol {
                 .map(this::createTransactionStatus);
     }
 
-    private TransactionStatus createTransactionStatus(Map<?, ?> map) {
-        return null;
-    }
-
-    private Option<?> transactionStatusKey(final ResultItem item) {
-        return null;
-    }
-
-    private Object transactionStatusValue(ResultItem item) {
-        return null;
-    }
-
 
     @Override
-    public Mono<Void> ping(int timeSeconds) {
-        return null;
+    public Mono<Void> ping(final int timeSeconds) {
+        final String sql = "SELECT 1 AS r";
+        return Flux.from(SimpleQueryTask.query(Stmts.stmtWithTimeout(sql, timeSeconds), ROW_FUNC, this.adjutant))
+                .then();
     }
 
     @Override
     public Mono<Void> reset() {
-        return null;
+        return this.protocolManager.reset(this.initializedParamMap);
     }
 
     @Override
     public Mono<Void> reconnect() {
-        return null;
+        if (this.closed.get()) {
+            return Mono.error(new JdbdException("session invoke close(),reject reconnect"));
+        }
+        return this.protocolManager.reConnect();
     }
 
     @Override
@@ -298,28 +296,35 @@ final class ClientProtocol implements PgProtocol {
 
     @Override
     public ServerVersion serverVersion() {
-        return null;
+        return this.adjutant.server().serverVersion();
     }
 
 
     @Override
     public boolean inTransaction() {
-        return false;
+        return this.adjutant.inTransaction();
     }
 
+    /**
+     * @see <a href="https://www.postgresql.org/docs/current/sql-commit.html">COMMIT</a>
+     */
     @Override
-    public Mono<ResultStates> commit(Map<Option<?>, ?> optionMap) {
-        return null;
+    public Mono<ResultStates> commit(final Map<Option<?>, ?> optionMap) {
+        return executeCommitOrRollback(true, optionMap);
     }
 
+    /**
+     * @see <a href="https://www.postgresql.org/docs/current/sql-rollback.html">ROLLBACK</a>
+     */
     @Override
-    public Mono<ResultStates> rollback(Map<Option<?>, ?> optionMap) {
-        return null;
+    public Mono<ResultStates> rollback(final Map<Option<?>, ?> optionMap) {
+        return executeCommitOrRollback(false, optionMap);
     }
+
 
     @Override
     public boolean isClosed() {
-        return false;
+        return !this.adjutant.isActive();
     }
 
     @Override
@@ -327,6 +332,7 @@ final class ClientProtocol implements PgProtocol {
         if (!this.adjutant.isActive()) {
             return Mono.empty();
         }
+        this.closed.set(true); // here , can't reconnect
         return TerminateTask.terminate(this.adjutant);
     }
 
@@ -334,6 +340,29 @@ final class ClientProtocol implements PgProtocol {
     @Override
     public <T> T valueOf(Option<T> option) {
         return null;
+    }
+
+
+    /**
+     * @see #commit(Map)
+     * @see #rollback(Map)
+     */
+    private Mono<ResultStates> executeCommitOrRollback(final boolean commit, final Map<Option<?>, ?> optionMap) {
+        final StringBuilder builder = new StringBuilder(20);
+        if (commit) {
+            builder.append(COMMIT);
+        } else {
+            builder.append(ROLLBACK);
+        }
+        final Boolean chain = (Boolean) optionMap.get(Option.CHAIN);
+        if (chain != null) {
+            builder.append(" AND ");
+            if (!chain) {
+                builder.append("NOT ");
+            }
+            builder.append("CHAIN");
+        }
+        return Mono.from(SimpleQueryTask.update(Stmts.stmt(builder.toString()), this.adjutant));
     }
 
 
@@ -394,6 +423,74 @@ final class ClientProtocol implements PgProtocol {
         return error;
     }
 
+
+    /**
+     * @see #transactionStatus()
+     */
+    @SuppressWarnings("unchecked")
+    private TransactionStatus createTransactionStatus(final Map<?, ?> map) {
+        map.remove(Option.NAME); // remove Pseudo key
+        return JdbdTransactionStatus.fromMap((Map<Option<?>, ?>) map);
+    }
+
+    /**
+     * @see #transactionStatus()
+     */
+    private Option<?> transactionStatusKey(final ResultItem item) {
+        final Option<?> option;
+        if (item instanceof ResultRowMeta) {
+            option = Option.NAME; // here ,Pseudo key
+        } else if (item instanceof ResultStates) {
+            if (((ResultStates) item).hasMoreResult()) {
+                option = Option.NAME; // here ,Pseudo key
+            } else {
+                option = Option.IN_TRANSACTION;
+            }
+        } else switch (item.getResultNo()) {
+            case 1:
+                option = Option.ISOLATION;
+                break;
+            case 2:
+                option = Option.READ_ONLY;
+                break;
+            case 3:
+                option = Option.DEFERRABLE;
+                break;
+            default:
+                throw new IllegalArgumentException(String.format("unexpected  resultNo:%s", item.getResultNo()));
+        }
+        return option;
+    }
+
+    /**
+     * @see #transactionStatus()
+     */
+    private Object transactionStatusValue(final ResultItem item) {
+        final Object value;
+        if (item instanceof ResultRowMeta) {
+            value = ""; // here ,Pseudo value
+        } else if (item instanceof ResultStates) {
+            if (((ResultStates) item).hasMoreResult()) {
+                value = ""; // here ,Pseudo value
+            } else {
+                value = ((ResultStates) item).inTransaction();
+            }
+        } else switch (item.getResultNo()) {
+            case 1:
+                value = parseIsolation(((ResultRow) item).getNonNull(0, String.class));
+                break;
+            case 2:
+            case 3:
+                value = parseBoolean(((ResultRow) item).getNonNull(0, String.class));
+                break;
+            default:
+                throw new IllegalArgumentException(String.format("unexpected  resultNo:%s", item.getResultNo()));
+        }
+        return value;
+    }
+
+    /*-------------------below static method -------------------*/
+
     /**
      * @return true : isolation error
      * @see <a href="https://www.postgresql.org/docs/current/sql-start-transaction.html">START TRANSACTION</a>
@@ -415,6 +512,50 @@ final class ClientProtocol implements PgProtocol {
             error = true;
         }
         return error;
+    }
+
+    /**
+     * @see #transactionStatusValue(ResultItem)
+     */
+    private static Isolation parseIsolation(final String value) {
+        final Isolation isolation;
+        switch (value.toLowerCase(Locale.ROOT)) {
+            case "read committed":
+                isolation = Isolation.READ_COMMITTED;
+                break;
+            case "repeatable read":
+                isolation = Isolation.REPEATABLE_READ;
+                break;
+            case "serializable":
+                isolation = Isolation.SERIALIZABLE;
+                break;
+            case "read uncommitted":
+                isolation = Isolation.READ_UNCOMMITTED;
+                break;
+            default:
+                throw new IllegalArgumentException(String.format("unexpected isolation[%s]", value));
+        }
+        return isolation;
+    }
+
+    /**
+     * @see #transactionStatusValue(ResultItem)
+     */
+    private static boolean parseBoolean(final String value) {
+        final boolean on;
+        switch (value.toLowerCase(Locale.ROOT)) {
+            case "off":
+            case "false":
+                on = false;
+                break;
+            case "on":
+            case "true":
+                on = true;
+                break;
+            default:
+                throw new IllegalArgumentException(String.format("unexpected boolean[%s]", value));
+        }
+        return on;
     }
 
 

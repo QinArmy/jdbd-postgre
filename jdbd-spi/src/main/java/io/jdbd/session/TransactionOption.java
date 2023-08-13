@@ -11,12 +11,6 @@ public interface TransactionOption extends OptionSpec {
 
 
     @Override
-    int hashCode();
-
-    @Override
-    boolean equals(Object obj);
-
-    @Override
     String toString();
 
 

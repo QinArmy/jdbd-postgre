@@ -31,6 +31,11 @@ public abstract class Stmts {
         return new JustSessionStaticUpdateStmt(sql, null);
     }
 
+    public static StaticStmt stmtWithTimeout(final String sql, int timeout) {
+        return new JustTimeoutStaticQueryStmt(sql, timeout);
+    }
+
+
     public static StaticStmt stmtWithSession(final String sql, DatabaseSession session) {
         return new JustSessionStaticUpdateStmt(sql, session);
     }
@@ -41,6 +46,7 @@ public abstract class Stmts {
         }
         return new JustSessionStaticQueryStmt(sql, statusConsumer, null);
     }
+
 
     public static StaticStmt stmtWithSession(final String sql, Consumer<ResultStates> statusConsumer, DatabaseSession session) {
         if (statusConsumer == IGNORE_RESULT_STATES) {
@@ -761,6 +767,66 @@ public abstract class Stmts {
         }
 
     }//OptionMultiStmt
+
+
+    private static final class JustTimeoutStaticQueryStmt implements StaticStmt {
+
+        private final String sql;
+
+        private final int timeout;
+
+        private JustTimeoutStaticQueryStmt(String sql, int timeout) {
+            this.sql = sql;
+            this.timeout = timeout;
+        }
+
+        @Override
+        public String getSql() {
+            return this.sql;
+        }
+
+        @Override
+        public int getTimeout() {
+            return this.timeout;
+        }
+
+        @Override
+        public boolean isSessionCreated() {
+            return false;
+        }
+
+        @Override
+        public Consumer<ResultStates> getStatusConsumer() {
+            return IGNORE_RESULT_STATES;
+        }
+
+        @Override
+        public int getFetchSize() {
+            return 0;
+        }
+
+        @Override
+        public List<NamedValue> getStmtVarList() {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public Function<ChunkOption, Publisher<byte[]>> getImportFunction() {
+            return null;
+        }
+
+        @Override
+        public Function<ChunkOption, Subscriber<byte[]>> getExportFunction() {
+            return null;
+        }
+
+        @Override
+        public DatabaseSession databaseSession() {
+            throw new UnsupportedOperationException();
+        }
+
+
+    }//JustTimeoutStaticQueryStmt
 
 
 }

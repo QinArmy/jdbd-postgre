@@ -22,6 +22,8 @@ interface TaskAdjutant extends ITaskAdjutant, PgParser {
      */
     long processId();
 
+    boolean inTransaction();
+
     /**
      * @return maybe different instance
      */

@@ -65,31 +65,47 @@ class PgLocalDatabaseSession extends PgDatabaseSession<LocalDatabaseSession> imp
                 .thenReturn(this);
     }
 
-
+    /**
+     * @see <a href="https://www.postgresql.org/docs/current/sql-set-transaction.html">SET TRANSACTION</a>
+     * @see <a href="https://www.postgresql.org/docs/current/runtime-config-client.html#GUC-TRANSACTION-ISOLATION">transaction_isolation</a>
+     * @see <a href="https://www.postgresql.org/docs/current/runtime-config-client.html#GUC-TRANSACTION-READ-ONLY">transaction_read_only</a>
+     * @see <a href="https://www.postgresql.org/docs/current/runtime-config-client.html#GUC-TRANSACTION-DEFERRABLE">transaction_deferrable</a>
+     */
     @Override
     public final Publisher<TransactionStatus> transactionStatus() {
         return this.protocol.transactionStatus();
     }
 
+    /**
+     * @see <a href="https://www.postgresql.org/docs/current/sql-commit.html">COMMIT</a>
+     */
     @Override
     public final Publisher<LocalDatabaseSession> commit() {
         return this.protocol.commit(Collections.emptyMap())
                 .thenReturn(this);
     }
 
-
+    /**
+     * @see <a href="https://www.postgresql.org/docs/current/sql-commit.html">COMMIT</a>
+     */
     @Override
     public final Publisher<LocalDatabaseSession> commit(Map<Option<?>, ?> optionMap) {
         return this.protocol.commit(optionMap)
                 .thenReturn(this);
     }
 
+    /**
+     * @see <a href="https://www.postgresql.org/docs/current/sql-rollback.html">ROLLBACK</a>
+     */
     @Override
     public final Mono<LocalDatabaseSession> rollback() {
         return this.protocol.rollback(Collections.emptyMap())
                 .thenReturn(this);
     }
 
+    /**
+     * @see <a href="https://www.postgresql.org/docs/current/sql-rollback.html">ROLLBACK</a>
+     */
     @Override
     public final Publisher<LocalDatabaseSession> rollback(Map<Option<?>, ?> optionMap) {
         return this.protocol.rollback(optionMap)
