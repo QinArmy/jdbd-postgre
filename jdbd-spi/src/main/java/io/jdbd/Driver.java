@@ -16,6 +16,9 @@ import java.util.Map;
  *   }
  *  </pre>
  * </p>
+ * <p>
+ * Application/pool developer can get the instance of {@link Driver} by {@link #findDriver(String)}
+ * </p>
  *
  * @see DriverManager
  * @since 1.0
@@ -122,6 +125,11 @@ public interface Driver {
      */
     @Override
     String toString();
+
+
+    static Driver findDriver(String url) throws JdbdException {
+        return DriverManager.findDriver(url);
+    }
 
 
 }
