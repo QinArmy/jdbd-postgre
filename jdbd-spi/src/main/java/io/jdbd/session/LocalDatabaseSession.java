@@ -4,6 +4,7 @@ import io.jdbd.JdbdException;
 import org.reactivestreams.Publisher;
 
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  * <p>
@@ -34,18 +35,19 @@ import java.util.Map;
  *         <li>{@link #startTransaction(TransactionOption)}</li>
  *         <li>{@link #startTransaction(TransactionOption, HandleMode)}</li>
  *         <li>{@link #setTransactionCharacteristics(TransactionOption)}</li>
+ *         <li>{@link #transactionStatus()}</li>
  *         <li>{@link #inTransaction()}</li>
  *         <li>{@link #commit()}</li>
- *         <li>{@link #commit(Map)}</li>
+ *         <li>{@link #commit(Function)}</li>
  *         <li>{@link #rollback()}</li>
  *         <li>{@link #rollback(Map)}</li>
  *         <li>{@link #setSavePoint()}</li>
  *         <li>{@link #setSavePoint(String)}</li>
- *         <li>{@link #setSavePoint(String, Map)}</li>
+ *         <li>{@link #setSavePoint(String, Function)}</li>
  *         <li>{@link #releaseSavePoint(SavePoint)}</li>
- *         <li>{@link #releaseSavePoint(SavePoint, Map)}</li>
+ *         <li>{@link #releaseSavePoint(SavePoint, Function)}</li>
  *         <li>{@link #rollbackToSavePoint(SavePoint)}</li>
- *         <li>{@link #rollbackToSavePoint(SavePoint, Map)}</li>
+ *         <li>{@link #rollbackToSavePoint(SavePoint, Function)}</li>
  *     </ul>
  * </p>
  *
@@ -117,7 +119,7 @@ public interface LocalDatabaseSession extends DatabaseSession {
      *     </pre>
      * </p>
      *
-     * @see #commit(Map)
+     * @see #commit(Function)
      */
     Publisher<LocalDatabaseSession> commit();
 
@@ -133,7 +135,7 @@ public interface LocalDatabaseSession extends DatabaseSession {
      *     </ul>
      * </p>
      *
-     * @param optionMap empty or dialect option map
+     * @param optionFunc func
      * @return emit <strong>this</strong> or {@link Throwable}. Like {@code reactor.core.publisher.Mono}.
      * @throws JdbdException emit(not throw) when
      *                       <ul>
@@ -143,7 +145,7 @@ public interface LocalDatabaseSession extends DatabaseSession {
      *                          <li>serer response error message, see {@link io.jdbd.result.ServerException}</li>
      *                       </ul>
      */
-    Publisher<LocalDatabaseSession> commit(Map<Option<?>, ?> optionMap);
+    Publisher<LocalDatabaseSession> commit(Function<Option<?>, ?> optionFunc);
 
     /**
      * <p>
@@ -202,7 +204,7 @@ public interface LocalDatabaseSession extends DatabaseSession {
      * {@inheritDoc}
      */
     @Override
-    Publisher<LocalDatabaseSession> releaseSavePoint(SavePoint savepoint, Map<Option<?>, ?> optionMap);
+    Publisher<LocalDatabaseSession> releaseSavePoint(SavePoint savepoint, Function<Option<?>, ?> optionFunc);
 
     /**
      * {@inheritDoc}
@@ -214,7 +216,7 @@ public interface LocalDatabaseSession extends DatabaseSession {
      * {@inheritDoc}
      */
     @Override
-    Publisher<LocalDatabaseSession> rollbackToSavePoint(SavePoint savepoint, Map<Option<?>, ?> optionMap);
+    Publisher<LocalDatabaseSession> rollbackToSavePoint(SavePoint savepoint, Function<Option<?>, ?> optionFunc);
 
 
     /**

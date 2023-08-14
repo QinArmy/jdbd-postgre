@@ -8,6 +8,7 @@ import io.jdbd.statement.*;
 import org.reactivestreams.Publisher;
 
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  * <p>
@@ -184,11 +185,11 @@ public interface DatabaseSession extends StaticStatementSpec, DatabaseMetaSpec, 
      *     </ul>
      * </p>
      *
-     * @param optionMap non-null map.
+     * @param optionFunc non-null optionFunc.
      * @throws IllegalArgumentException throw when name have no text.
      * @throws JdbdException            throw when {@link #isSupportRefCursor()} return false.
      */
-    RefCursor refCursor(String name, Map<Option<?>, ?> optionMap);
+    RefCursor refCursor(String name, Function<Option<?>, ?> optionFunc);
 
 
     /**
@@ -267,7 +268,7 @@ public interface DatabaseSession extends StaticStatementSpec, DatabaseMetaSpec, 
      */
     Publisher<SavePoint> setSavePoint(String name);
 
-    Publisher<SavePoint> setSavePoint(String name, Map<Option<?>, ?> optionMap);
+    Publisher<SavePoint> setSavePoint(String name, Function<Option<?>, ?> optionFunc);
 
 
     Publisher<? extends DatabaseSession> releaseSavePoint(SavePoint savepoint);
@@ -280,7 +281,7 @@ public interface DatabaseSession extends StaticStatementSpec, DatabaseMetaSpec, 
      * @return the {@link Publisher} that completes successfully by
      * emitting an element(<strong>this</strong>), or with an error. Like {@code  reactor.core.publisher.Mono}
      */
-    Publisher<? extends DatabaseSession> releaseSavePoint(SavePoint savepoint, Map<Option<?>, ?> optionMap);
+    Publisher<? extends DatabaseSession> releaseSavePoint(SavePoint savepoint, Function<Option<?>, ?> optionFunc);
 
 
     /**
@@ -293,7 +294,7 @@ public interface DatabaseSession extends StaticStatementSpec, DatabaseMetaSpec, 
      */
     Publisher<? extends DatabaseSession> rollbackToSavePoint(SavePoint savepoint);
 
-    Publisher<? extends DatabaseSession> rollbackToSavePoint(SavePoint savepoint, Map<Option<?>, ?> optionMap);
+    Publisher<? extends DatabaseSession> rollbackToSavePoint(SavePoint savepoint, Function<Option<?>, ?> optionFunc);
 
 
     DatabaseSession bindIdentifier(StringBuilder builder, String identifier);

@@ -2,6 +2,7 @@ package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
+import io.jdbd.meta.DataType;
 import io.jdbd.postgre.PgConstant;
 import io.jdbd.postgre.util.PgCollections;
 import io.jdbd.postgre.util.PgExceptions;
@@ -16,6 +17,7 @@ import reactor.core.publisher.Mono;
 
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 
@@ -45,6 +47,8 @@ final class ClientProtocol implements PgProtocol {
     private final ProtocolManager protocolManager;
     private final TaskAdjutant adjutant;
 
+    private final Function<String, DataType> internalOrUserTypeFunc;
+
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
     private final Map<String, String> initializedParamMap;
@@ -53,6 +57,7 @@ final class ClientProtocol implements PgProtocol {
         this.protocolManager = wrapper.sessionManager;
         this.adjutant = this.protocolManager.taskAdjutant();
         this.initializedParamMap = wrapper.initializedParamMap;
+        this.internalOrUserTypeFunc = this.adjutant::internalOrUserType;
     }
 
     @Override
@@ -178,31 +183,13 @@ final class ClientProtocol implements PgProtocol {
      * @see <a href="https://www.postgresql.org/docs/current/sql-declare.html">define a cursor</a>
      */
     @Override
-    public RefCursor refCursor(final String name, final @Nullable Map<Option<?>, ?> optionMap,
+    public RefCursor refCursor(final String name, final Function<Option<?>, ?> optionFunc,
                                final DatabaseSession session) {
         if (!PgStrings.hasText(name)) {
             throw new IllegalArgumentException("cursor name must have text.");
-        } else if (optionMap == null) {
-            throw new NullPointerException("optionMap must be non-null");
-        } else if (optionMap.size() > 1 || !optionMap.containsKey(Option.AUTO_CLOSE_ON_ERROR)) {
-            final StringBuilder builder = new StringBuilder();
-            builder.append("%s don't options[");
-            int index = 0;
-            for (Option<?> option : optionMap.keySet()) {
-                if (option == Option.AUTO_CLOSE_ON_ERROR) {
-                    continue;
-                }
-                if (index > 0) {
-                    builder.append(',');
-                }
-                builder.append(option.name());
-                index++;
-            }
-            builder.append(']');
-            throw new JdbdException(builder.toString());
         }
 
-        return PgRefCursor.create(name, PgCursorTask.create(name, optionMap, this.adjutant), session);
+        return PgRefCursor.create(name, PgCursorTask.create(name, optionFunc, this.adjutant), session);
     }
 
     /**
@@ -302,23 +289,36 @@ final class ClientProtocol implements PgProtocol {
 
     @Override
     public boolean inTransaction() {
-        return this.adjutant.inTransaction();
+        final TxStatus status = this.adjutant.txStatus();
+        boolean match;
+        switch (status) {
+            case IDLE:
+                match = false;
+                break;
+            case TRANSACTION:
+            case ERROR:
+                match = true;
+                break;
+            default:
+                throw PgExceptions.unexpectedEnum(status);
+        }
+        return match;
     }
 
     /**
      * @see <a href="https://www.postgresql.org/docs/current/sql-commit.html">COMMIT</a>
      */
     @Override
-    public Mono<ResultStates> commit(final Map<Option<?>, ?> optionMap) {
-        return executeCommitOrRollback(true, optionMap);
+    public Mono<ResultStates> commit(final Function<Option<?>, ?> optionFunc) {
+        return executeCommitOrRollback(true, optionFunc);
     }
 
     /**
      * @see <a href="https://www.postgresql.org/docs/current/sql-rollback.html">ROLLBACK</a>
      */
     @Override
-    public Mono<ResultStates> rollback(final Map<Option<?>, ?> optionMap) {
-        return executeCommitOrRollback(false, optionMap);
+    public Mono<ResultStates> rollback(final Function<Option<?>, ?> optionFunc) {
+        return executeCommitOrRollback(false, optionFunc);
     }
 
 
@@ -337,27 +337,64 @@ final class ClientProtocol implements PgProtocol {
     }
 
 
+    @SuppressWarnings("unchecked")
     @Override
-    public <T> T valueOf(Option<T> option) {
-        return null;
+    public <T> T valueOf(final Option<T> option) {
+        final ServerEnv serverEnv = this.adjutant.server();
+        final Object value;
+        if (option == Option.BACKSLASH_ESCAPES) {
+            value = Boolean.TRUE;
+        } else if (option == Option.IN_TRANSACTION) {
+            value = this.inTransaction();
+        } else if (option == Option.CLIENT_CHARSET) {
+            value = this.adjutant.clientCharset();
+        } else if (option == Option.CLIENT_ZONE) {
+            // TODO
+            value = null;
+        } else if (option == Option.SERVER_ZONE) {
+            value = serverEnv.serverZone();
+        } else if (DATE_STYLE.equals(option)) {
+            value = serverEnv.dateStyle().name();
+        } else if (INTERNAL_STYLE.equals(option)) {
+            value = serverEnv.intervalStyle().name();
+        } else if (MONEY_LOCAL.equals(option)) {
+            value = serverEnv.moneyLocal();
+        } else {
+            value = null;
+        }
+        return (T) value;
     }
 
+    @Override
+    public Function<String, DataType> internalOrUserTypeFunc() {
+        return this.internalOrUserTypeFunc;
+    }
+
+    @Override
+    public boolean isNeedQueryUnknownType(Set<String> unknownTypeSet) {
+        return this.adjutant.isNeedQueryUnknownType(unknownTypeSet);
+    }
+
+    @Override
+    public Mono<Void> queryUnknownTypesIfNeed(Set<String> unknownTypeSet) {
+        return this.adjutant.queryUnknownTypesIfNeed(unknownTypeSet);
+    }
 
     /**
-     * @see #commit(Map)
-     * @see #rollback(Map)
+     * @see #commit(Function)
+     * @see #rollback(Function)
      */
-    private Mono<ResultStates> executeCommitOrRollback(final boolean commit, final Map<Option<?>, ?> optionMap) {
+    private Mono<ResultStates> executeCommitOrRollback(final boolean commit, final Function<Option<?>, ?> optionFunc) {
         final StringBuilder builder = new StringBuilder(20);
         if (commit) {
             builder.append(COMMIT);
         } else {
             builder.append(ROLLBACK);
         }
-        final Boolean chain = (Boolean) optionMap.get(Option.CHAIN);
-        if (chain != null) {
+        final Object chain = optionFunc.apply(Option.CHAIN);
+        if (chain instanceof Boolean) {
             builder.append(" AND ");
-            if (!chain) {
+            if (!((Boolean) chain)) {
                 builder.append("NOT ");
             }
             builder.append("CHAIN");
@@ -546,10 +583,12 @@ final class ClientProtocol implements PgProtocol {
         switch (value.toLowerCase(Locale.ROOT)) {
             case "off":
             case "false":
+            case "0":
                 on = false;
                 break;
             case "on":
             case "true":
+            case "1":
                 on = true;
                 break;
             default:

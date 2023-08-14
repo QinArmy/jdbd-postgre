@@ -7,7 +7,7 @@ import io.jdbd.session.Option;
 import io.jdbd.vendor.protocol.DatabaseProtocol;
 import reactor.core.publisher.Mono;
 
-import java.util.Map;
+import java.util.Locale;
 import java.util.Set;
 import java.util.function.Function;
 
@@ -20,8 +20,14 @@ import java.util.function.Function;
  */
 public interface PgProtocol extends DatabaseProtocol {
 
+    Option<String> DATE_STYLE = Option.from("PG_DATE_STYLE", String.class);
 
-    RefCursor refCursor(String name, Map<Option<?>, ?> optionMap, DatabaseSession session);
+    Option<String> INTERNAL_STYLE = Option.from("PG_INTERNAL_STYLE", String.class);
+
+    Option<Locale> MONEY_LOCAL = Option.from("PG_MONEY_LOCAL", Locale.class);
+
+
+    RefCursor refCursor(String name, Function<Option<?>, ?> optionFunc, DatabaseSession session);
 
     Function<String, DataType> internalOrUserTypeFunc();
 

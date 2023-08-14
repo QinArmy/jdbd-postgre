@@ -4,9 +4,11 @@ import io.jdbd.meta.DataType;
 import io.jdbd.postgre.syntax.PgParser;
 import io.jdbd.vendor.env.Environment;
 import io.jdbd.vendor.task.ITaskAdjutant;
+import reactor.core.publisher.Mono;
 
 import java.nio.charset.Charset;
 import java.time.ZoneOffset;
+import java.util.Set;
 
 interface TaskAdjutant extends ITaskAdjutant, PgParser {
 
@@ -22,7 +24,6 @@ interface TaskAdjutant extends ITaskAdjutant, PgParser {
      */
     long processId();
 
-    boolean inTransaction();
 
     /**
      * @return maybe different instance
@@ -56,6 +57,12 @@ interface TaskAdjutant extends ITaskAdjutant, PgParser {
 
 
     void appendSetCommandParameter(String parameterName);
+
+    DataType internalOrUserType(String upperCaseName);
+
+    boolean isNeedQueryUnknownType(Set<String> unknownTypeSet);
+
+    Mono<Void> queryUnknownTypesIfNeed(Set<String> unknownTypeSet);
 
 
 }

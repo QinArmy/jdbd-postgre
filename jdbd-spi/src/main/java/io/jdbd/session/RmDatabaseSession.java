@@ -2,8 +2,8 @@ package io.jdbd.session;
 
 import org.reactivestreams.Publisher;
 
-import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 
 /**
  * <p>
@@ -41,30 +41,31 @@ import java.util.Optional;
  *         <li>{@link #start(Xid, int)}</li>
  *         <li>{@link #start(Xid, int, TransactionOption)}</li>
  *         <li>{@link #end(Xid, int)}</li>
- *         <li>{@link #end(Xid, int, Map)}</li>
+ *         <li>{@link #end(Xid, int, Function)}</li>
  *         <li>{@link #prepare(Xid)}</li>
- *         <li>{@link #prepare(Xid, Map)}</li>
+ *         <li>{@link #prepare(Xid, Function)}</li>
  *         <li>{@link #commit(Xid, boolean)}</li>
- *         <li>{@link #commit(Xid, boolean, Map)}</li>
+ *         <li>{@link #commit(Xid, boolean, Function)}</li>
  *         <li>{@link #rollback(Xid)}</li>
- *         <li>{@link #rollback(Xid, Map)}</li>
+ *         <li>{@link #rollback(Xid, Function)}</li>
  *         <li>{@link #forget(Xid)}</li>
- *         <li>{@link #forget(Xid, Map)}</li>
+ *         <li>{@link #forget(Xid, Function)}</li>
  *         <li>{@link #recover(int)}</li>
- *         <li>{@link #recover(int, Map)}</li>
+ *         <li>{@link #recover(int, Function)}</li>
  *         <li>{@link #inTransaction()}</li>
  *         <li>{@link #isSupportForget()}</li>
  *         <li>{@link #startSupportFlags()}</li>
  *         <li>{@link #endSupportFlags()}</li>
  *         <li>{@link #recoverSupportFlags()}</li>
+ *         <li>{@link #transactionStatus()}</li>
  *         <li>{@link #setTransactionCharacteristics(TransactionOption)}</li>
  *         <li>{@link #setSavePoint()}</li>
  *         <li>{@link #setSavePoint(String)}</li>
- *         <li>{@link #setSavePoint(String, Map)}</li>
+ *         <li>{@link #setSavePoint(String, java.util.function.Function)}</li>
  *         <li>{@link #releaseSavePoint(SavePoint)}</li>
- *         <li>{@link #releaseSavePoint(SavePoint, Map)}</li>
+ *         <li>{@link #releaseSavePoint(SavePoint, java.util.function.Function)}</li>
  *         <li>{@link #rollbackToSavePoint(SavePoint)}</li>
- *         <li>{@link #rollbackToSavePoint(SavePoint, Map)}</li>
+ *         <li>{@link #rollbackToSavePoint(SavePoint, java.util.function.Function)}</li>
  *     </ul>
  * </p>
  *
@@ -202,7 +203,7 @@ public interface RmDatabaseSession extends DatabaseSession {
      *                      method with {@link #TM_RESUME} specified.<br/>
      *                      </li>
      *                  </ul>
-     * @param optionMap dialect option ,empty or option map.
+     * @param optionFunc dialect option ,empty or option.
      * @throws XaException emit(not throw) when
      *                     <ul>
      *                          <li>xid is null</li>
@@ -214,7 +215,7 @@ public interface RmDatabaseSession extends DatabaseSession {
      *                          <li>server response error message,see {@link io.jdbd.result.ServerException}</li>
      *                     </ul>
      */
-    Publisher<RmDatabaseSession> end(Xid xid, int flags, Map<Option<?>, ?> optionMap);
+    Publisher<RmDatabaseSession> end(Xid xid, int flags, Function<Option<?>, ?> optionFunc);
 
     Publisher<Integer> prepare(Xid xid);
 
@@ -227,8 +228,8 @@ public interface RmDatabaseSession extends DatabaseSession {
      * </ul>
      * </p>
      *
-     * @param xid       non-null
-     * @param optionMap optionMap dialect option ,empty or option map.
+     * @param xid        non-null
+     * @param optionFunc optionMap dialect option ,empty or option map.
      * @throws XaException emit(not throw) when
      *                     <ul>
      *                          <li>xid is null</li>
@@ -239,7 +240,7 @@ public interface RmDatabaseSession extends DatabaseSession {
      *                          <li>server response error message,see {@link io.jdbd.result.ServerException}</li>
      *                     </ul>
      */
-    Publisher<Integer> prepare(Xid xid, Map<Option<?>, ?> optionMap);
+    Publisher<Integer> prepare(Xid xid, Function<Option<?>, ?> optionFunc);
 
 
     Publisher<RmDatabaseSession> commit(Xid xid, boolean onePhase);
@@ -253,8 +254,8 @@ public interface RmDatabaseSession extends DatabaseSession {
      * </ul>
      * </p>
      *
-     * @param xid       non-null
-     * @param optionMap optionMap dialect option ,empty or option map.
+     * @param xid        non-null
+     * @param optionFunc optionMap dialect option ,empty or option map.
      * @throws XaException emit(not throw) when
      *                     <ul>
      *                          <li>xid is null</li>
@@ -265,7 +266,7 @@ public interface RmDatabaseSession extends DatabaseSession {
      *                          <li>server response error message,see {@link io.jdbd.result.ServerException}</li>
      *                     </ul>
      */
-    Publisher<RmDatabaseSession> commit(Xid xid, boolean onePhase, Map<Option<?>, ?> optionMap);
+    Publisher<RmDatabaseSession> commit(Xid xid, boolean onePhase, Function<Option<?>, ?> optionFunc);
 
     Publisher<RmDatabaseSession> rollback(Xid xid);
 
@@ -278,8 +279,8 @@ public interface RmDatabaseSession extends DatabaseSession {
      * </ul>
      * </p>
      *
-     * @param xid       non-null
-     * @param optionMap optionMap dialect option ,empty or option map.
+     * @param xid        non-null
+     * @param optionFunc optionMap dialect option ,empty or option map.
      * @throws XaException emit(not throw) when
      *                     <ul>
      *                          <li>xid is null</li>
@@ -290,7 +291,7 @@ public interface RmDatabaseSession extends DatabaseSession {
      *                          <li>server response error message,see {@link io.jdbd.result.ServerException}</li>
      *                     </ul>
      */
-    Publisher<RmDatabaseSession> rollback(Xid xid, Map<Option<?>, ?> optionMap);
+    Publisher<RmDatabaseSession> rollback(Xid xid, Function<Option<?>, ?> optionFunc);
 
     Publisher<RmDatabaseSession> forget(Xid xid);
 
@@ -303,8 +304,8 @@ public interface RmDatabaseSession extends DatabaseSession {
      * </ul>
      * </p>
      *
-     * @param xid       non-null
-     * @param optionMap optionMap dialect option ,empty or option map.
+     * @param xid        non-null
+     * @param optionFunc optionMap dialect option ,empty or option map.
      * @throws XaException emit(not throw) when
      *                     <ul>
      *                          <li>driver don't support this method, see {@link #isSupportForget()}</li>
@@ -316,7 +317,7 @@ public interface RmDatabaseSession extends DatabaseSession {
      *                          <li>server response error message,see {@link io.jdbd.result.ServerException}</li>
      *                     </ul>
      */
-    Publisher<RmDatabaseSession> forget(Xid xid, Map<Option<?>, ?> optionMap);
+    Publisher<RmDatabaseSession> forget(Xid xid, Function<Option<?>, ?> optionFunc);
 
     Publisher<Optional<Xid>> recover(int flags);
 
@@ -330,8 +331,8 @@ public interface RmDatabaseSession extends DatabaseSession {
      * so the conversion process of this method is the reverse of above.
      * </p>
      *
-     * @param flags     bit sets
-     * @param optionMap optionMap dialect option ,empty or option map.
+     * @param flags      bit sets
+     * @param optionFunc optionMap dialect option ,empty or option map.
      * @return return the xids whose xid format follow this driver, If xid format don't follow this driver, then it is represented by {@link Optional#empty()}.
      * @throws XaException emit(not throw) when
      *                     <ul>
@@ -341,10 +342,10 @@ public interface RmDatabaseSession extends DatabaseSession {
      *                          <li>server response error message,see {@link io.jdbd.result.ServerException}</li>
      *                     </ul>
      */
-    Publisher<Optional<Xid>> recover(int flags, Map<Option<?>, ?> optionMap);
+    Publisher<Optional<Xid>> recover(int flags, Function<Option<?>, ?> optionFunc);
 
     /**
-     * @return true : support {@link #forget(Xid, Map)} method
+     * @return true : support {@link #forget(Xid, Function)} method
      */
     boolean isSupportForget();
 
@@ -354,12 +355,12 @@ public interface RmDatabaseSession extends DatabaseSession {
     int startSupportFlags();
 
     /**
-     * @return the sub set of {@link #end(Xid, int, Map)} support flags(bit set).
+     * @return the sub set of {@link #end(Xid, int, Function)} support flags(bit set).
      */
     int endSupportFlags();
 
     /**
-     * @return the sub set of {@link #recover(int, Map)} support flags(bit set).
+     * @return the sub set of {@link #recover(int, Function)} support flags(bit set).
      */
     int recoverSupportFlags();
 
@@ -380,7 +381,7 @@ public interface RmDatabaseSession extends DatabaseSession {
      * {@inheritDoc}
      */
     @Override
-    Publisher<RmDatabaseSession> releaseSavePoint(SavePoint savepoint, Map<Option<?>, ?> optionMap);
+    Publisher<RmDatabaseSession> releaseSavePoint(SavePoint savepoint, Function<Option<?>, ?> optionFunc);
 
 
     /**
@@ -394,7 +395,7 @@ public interface RmDatabaseSession extends DatabaseSession {
      * {@inheritDoc}
      */
     @Override
-    Publisher<RmDatabaseSession> rollbackToSavePoint(SavePoint savepoint, Map<Option<?>, ?> optionMap);
+    Publisher<RmDatabaseSession> rollbackToSavePoint(SavePoint savepoint, Function<Option<?>, ?> optionFunc);
 
 
     /**

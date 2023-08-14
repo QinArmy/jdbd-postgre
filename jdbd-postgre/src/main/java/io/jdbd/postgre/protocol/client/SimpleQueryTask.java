@@ -321,7 +321,7 @@ final class SimpleQueryTask extends PgCommandTask implements SimpleStmtTask {
 
 
     private SimpleQueryTask(Stmt stmt, ResultSink sink, TaskAdjutant adjutant) throws JdbdException {
-        super(adjutant, sink::error);
+        super(adjutant, sink);
         this.stmt = stmt;
         this.sink = sink;
 
@@ -427,14 +427,14 @@ final class SimpleQueryTask extends PgCommandTask implements SimpleStmtTask {
     }
 
     @Override
-    final boolean handlePrepareResponse(List<PgType> paramTypeList, @Nullable ResultRowMeta rowMeta) {
+    boolean handlePrepareResponse(List<PgType> paramTypeList, @Nullable ResultRowMeta rowMeta) {
         // never here for simple query
         String msg = String.format("Server response unknown message type[%s]", (char) Messages.t);
         throw new UnExpectedMessageException(msg);
     }
 
     @Override
-    final boolean handleClientTimeout() {
+    boolean handleClientTimeout() {
         //TODO
         return false;
     }

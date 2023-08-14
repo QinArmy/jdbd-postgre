@@ -45,5 +45,11 @@ How to clear channel?
 12. 为什么 不支持 JDBC escape call syntax {call storedobject(?)} ？
     * 用中国人的话讲,那不是道.
     * 用老外的话讲,stupid.
+
+13. 为什么要把 DatabaseSession 方法上 的 Option Map 重构成 Function?
+    * map 能遍历,需要能未知的和不支持的 Option 做处理,这增加了编程工作
+    * map 能修改,若不想被修改则需要再创建一个Map 对象
+    * 这样一来 driver 开发者只需关心相应的 Option 即可.可以看作是责任的免除.
     
+
     

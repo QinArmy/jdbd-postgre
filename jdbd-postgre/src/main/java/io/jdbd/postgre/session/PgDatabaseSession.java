@@ -4,7 +4,6 @@ import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
 import io.jdbd.meta.DatabaseMetaData;
-import io.jdbd.postgre.PgDriver;
 import io.jdbd.postgre.protocol.client.PgProtocol;
 import io.jdbd.postgre.util.PgCollections;
 import io.jdbd.postgre.util.PgExceptions;
@@ -27,9 +26,7 @@ import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
@@ -192,12 +189,12 @@ abstract class PgDatabaseSession<S extends DatabaseSession> extends PgDatabaseMe
 
     @Override
     public final RefCursor refCursor(String name) {
-        return this.protocol.refCursor(name, Collections.emptyMap(), this);
+        return this.protocol.refCursor(name, DatabaseProtocol.OPTION_FUNC, this);
     }
 
     @Override
-    public final RefCursor refCursor(String name, Map<Option<?>, ?> optionMap) {
-        return this.protocol.refCursor(name, optionMap, this);
+    public final RefCursor refCursor(String name, Function<Option<?>, ?> optionFunc) {
+        return this.protocol.refCursor(name, DatabaseProtocol.OPTION_FUNC, this);
     }
 
     /**
@@ -230,24 +227,22 @@ abstract class PgDatabaseSession<S extends DatabaseSession> extends PgDatabaseMe
                 .append(this.savePointIndex.getAndIncrement())
                 .append('_')
                 .append(ThreadLocalRandom.current().nextInt(Integer.MAX_VALUE));
-        return this.setSavePoint(builder.toString(), Collections.emptyMap());
+        return this.setSavePoint(builder.toString(), DatabaseProtocol.OPTION_FUNC);
     }
 
     @Override
     public final Publisher<SavePoint> setSavePoint(String name) {
-        return this.setSavePoint(name, Collections.emptyMap());
+        return this.setSavePoint(name, DatabaseProtocol.OPTION_FUNC);
     }
 
     /**
      * @see <a href="https://www.postgresql.org/docs/current/sql-savepoint.html">SAVEPOINT</a>
      */
     @Override
-    public final Publisher<SavePoint> setSavePoint(final String name, final Map<Option<?>, ?> optionMap) {
+    public final Publisher<SavePoint> setSavePoint(final String name, final Function<Option<?>, ?> optionFunc) {
         final Mono<SavePoint> mono;
         if (!PgStrings.hasText(name)) {
             mono = Mono.error(PgExceptions.savePointNameIsEmpty());
-        } else if (!PgCollections.isEmpty(optionMap)) {
-            mono = Mono.error(PgExceptions.dontSupportOptionMap(PgDriver.POSTGRE_SQL, "setSavePoint", optionMap));
         } else {
             final StringBuilder builder = new StringBuilder(25);
             builder.append("SAVEPOINT ");
@@ -261,7 +256,7 @@ abstract class PgDatabaseSession<S extends DatabaseSession> extends PgDatabaseMe
 
     @Override
     public final Publisher<S> releaseSavePoint(final SavePoint savepoint) {
-        return this.releaseSavePoint(savepoint, Collections.emptyMap());
+        return this.releaseSavePoint(savepoint, DatabaseProtocol.OPTION_FUNC);
     }
 
     /**
@@ -269,13 +264,11 @@ abstract class PgDatabaseSession<S extends DatabaseSession> extends PgDatabaseMe
      */
     @SuppressWarnings("unchecked")
     @Override
-    public final Publisher<S> releaseSavePoint(final SavePoint savepoint, final Map<Option<?>, ?> optionMap) {
+    public final Publisher<S> releaseSavePoint(final SavePoint savepoint, final Function<Option<?>, ?> optionFunc) {
         final String name;
         final Mono<S> mono;
         if (!(savepoint instanceof NamedSavePoint && PgStrings.hasText((name = savepoint.name())))) {
             mono = Mono.error(PgExceptions.unknownSavePoint(savepoint));
-        } else if (!PgCollections.isEmpty(optionMap)) {
-            mono = Mono.error(PgExceptions.dontSupportOptionMap(PgDriver.POSTGRE_SQL, "releaseSavePoint", optionMap));
         } else {
             final StringBuilder builder = new StringBuilder(30);
             builder.append("RELEASE SAVEPOINT ");
@@ -288,7 +281,7 @@ abstract class PgDatabaseSession<S extends DatabaseSession> extends PgDatabaseMe
 
     @Override
     public final Publisher<S> rollbackToSavePoint(final SavePoint savepoint) {
-        return this.rollbackToSavePoint(savepoint, Collections.emptyMap());
+        return this.rollbackToSavePoint(savepoint, DatabaseProtocol.OPTION_FUNC);
     }
 
     /**
@@ -296,13 +289,11 @@ abstract class PgDatabaseSession<S extends DatabaseSession> extends PgDatabaseMe
      */
     @SuppressWarnings("unchecked")
     @Override
-    public final Publisher<S> rollbackToSavePoint(final SavePoint savepoint, final Map<Option<?>, ?> optionMap) {
+    public final Publisher<S> rollbackToSavePoint(final SavePoint savepoint, final Function<Option<?>, ?> optionFunc) {
         final String name;
         final Mono<S> mono;
         if (!(savepoint instanceof NamedSavePoint && PgStrings.hasText((name = savepoint.name())))) {
             mono = Mono.error(PgExceptions.unknownSavePoint(savepoint));
-        } else if (!PgCollections.isEmpty(optionMap)) {
-            mono = Mono.error(PgExceptions.dontSupportOptionMap(PgDriver.POSTGRE_SQL, "rollbackToSavePoint", optionMap));
         } else {
             final StringBuilder builder = new StringBuilder(30);
             builder.append("ROLLBACK TO SAVEPOINT ");

@@ -12,7 +12,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
-import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -20,6 +19,8 @@ public interface DatabaseProtocol extends OptionSpec, Closeable {
 
 
     Function<CurrentRow, ResultRow> ROW_FUNC = CurrentRow::asResultRow;
+
+    Function<Option<?>, ?> OPTION_FUNC = option -> null;
 
 
     long sessionIdentifier();
@@ -163,9 +164,9 @@ public interface DatabaseProtocol extends OptionSpec, Closeable {
 
     boolean inTransaction();
 
-    Mono<ResultStates> commit(Map<Option<?>, ?> optionMap);
+    Mono<ResultStates> commit(Function<Option<?>, ?> optionFunc);
 
-    Mono<ResultStates> rollback(Map<Option<?>, ?> optionMap);
+    Mono<ResultStates> rollback(Function<Option<?>, ?> optionFunc);
 
 
     boolean isClosed();

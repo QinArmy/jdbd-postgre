@@ -10,6 +10,7 @@ import io.jdbd.result.CurrentRow;
 import io.jdbd.result.ResultStates;
 import io.jdbd.result.Warning;
 import io.jdbd.session.*;
+import io.jdbd.vendor.protocol.DatabaseProtocol;
 import io.jdbd.vendor.stmt.Stmts;
 import io.jdbd.vendor.util.JdbdBuffers;
 import io.jdbd.vendor.util.JdbdExceptions;
@@ -19,12 +20,11 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.function.Function;
 
 /**
  * <p>
@@ -108,11 +108,11 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
 
     @Override
     public final Publisher<RmDatabaseSession> end(Xid xid, int flags) {
-        return this.end(xid, flags, Collections.emptyMap());
+        return this.end(xid, flags, DatabaseProtocol.OPTION_FUNC);
     }
 
     @Override
-    public final Publisher<RmDatabaseSession> end(final Xid xid, final int flags, final Map<Option<?>, ?> optionMap) {
+    public final Publisher<RmDatabaseSession> end(final Xid xid, final int flags, final Function<Option<?>, ?> optionFunc) {
         final XaStatesTriple triple = this.currentTriple;
 
         final Mono<RmDatabaseSession> mono;
@@ -124,8 +124,6 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
             mono = Mono.error(PgExceptions.xaDontSupportSuspendResume());
         } else if (((~(TM_SUCCESS | TM_FAIL)) & flags) != 0) {
             mono = Mono.error(PgExceptions.xaInvalidFlagForEnd(flags));
-        } else if (!PgCollections.isEmpty(optionMap)) {
-            mono = Mono.error(PgExceptions.xaDontSupportOptionMap("end", optionMap));
         } else if (CURRENT_TRIPLE.compareAndSet(this, triple, new XaStatesTriple(triple.xid, XaStates.IDLE, flags))) {
             mono = Mono.just(this);
         } else {
@@ -137,14 +135,14 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
 
     @Override
     public final Publisher<Integer> prepare(Xid xid) {
-        return this.prepare(xid, Collections.emptyMap());
+        return this.prepare(xid, DatabaseProtocol.OPTION_FUNC);
     }
 
     /**
      * @see <a href="https://www.postgresql.org/docs/current/sql-prepare-transaction.html">PREPARE TRANSACTION</a>
      */
     @Override
-    public final Publisher<Integer> prepare(final Xid xid, final Map<Option<?>, ?> optionMap) {
+    public final Publisher<Integer> prepare(final Xid xid, final Function<Option<?>, ?> optionFunc) {
         final XaStatesTriple triple = this.currentTriple;
 
         final Mono<Integer> mono;
@@ -152,8 +150,6 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
             mono = Mono.error(PgExceptions.xaNonCurrentTransaction(xid)); // here use xid
         } else if (triple.xaStates != XaStates.IDLE) {
             mono = Mono.error(PgExceptions.xaStatesDontSupportPrepareCommand(triple.xid, triple.xaStates));
-        } else if (!PgCollections.isEmpty(optionMap)) {
-            mono = Mono.error(PgExceptions.xaDontSupportOptionMap("prepare", optionMap));
         } else {
             final StringBuilder builder = new StringBuilder(60);
             builder.append("PREPARE TRANSACTION  ");
@@ -169,7 +165,7 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
 
     @Override
     public final Publisher<RmDatabaseSession> commit(Xid xid, boolean onePhase) {
-        return this.commit(xid, onePhase, Collections.emptyMap());
+        return this.commit(xid, onePhase, DatabaseProtocol.OPTION_FUNC);
     }
 
     /**
@@ -177,7 +173,7 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
      */
     @Override
     public final Publisher<RmDatabaseSession> commit(final @Nullable Xid xid, final boolean onePhase,
-                                                     final Map<Option<?>, ?> optionMap) {
+                                                     final Function<Option<?>, ?> optionFunc) {
         if (xid == null) {
             return Mono.error(PgExceptions.xidIsNull());
         }
@@ -197,13 +193,11 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
             mono = Mono.error(PgExceptions.xaTransactionRollbackOnly(triple.xid));
         } else if (onePhase) {
             if (triple.xaStates == XaStates.IDLE) {
-                mono = this.protocol.commit(optionMap)
+                mono = this.protocol.commit(optionFunc)
                         .flatMap(states -> handleOnePhaseCommitResult(states, triple));
             } else {
                 mono = Mono.error(PgExceptions.xaStatesDontSupportCommitCommand(triple.xid, triple.xaStates));
             }
-        } else if (!PgCollections.isEmpty(optionMap)) {
-            mono = Mono.error(PgExceptions.xaDontSupportOptionMap("commit", optionMap));
         } else if (triple.xaStates == XaStates.PREPARED) {
             final StringBuilder builder = new StringBuilder(64);
             builder.append("COMMIT PREPARED ");
@@ -220,14 +214,14 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
 
     @Override
     public final Publisher<RmDatabaseSession> rollback(Xid xid) {
-        return this.rollback(xid, Collections.emptyMap());
+        return this.rollback(xid, DatabaseProtocol.OPTION_FUNC);
     }
 
     /**
      * @see <a href="https://www.postgresql.org/docs/current/sql-rollback-prepared.html">ROLLBACK PREPARED</a>
      */
     @Override
-    public final Publisher<RmDatabaseSession> rollback(final @Nullable Xid xid, final Map<Option<?>, ?> optionMap) {
+    public final Publisher<RmDatabaseSession> rollback(final @Nullable Xid xid, final Function<Option<?>, ?> optionFunc) {
         final XaStatesTriple triple;
 
         final Mono<RmDatabaseSession> mono;
@@ -236,8 +230,6 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
         } else if ((triple = this.preparedXaMp.get(xid)) == null) {
             String m = String.format("xa %s isn't prepared transaction.", xid);
             mono = Mono.error(new XaException(m, XaException.XAER_PROTO));
-        } else if (!PgCollections.isEmpty(optionMap)) {
-            mono = Mono.error(PgExceptions.xaDontSupportOptionMap("rollback", optionMap));
         } else {
             final StringBuilder builder = new StringBuilder(80);
             builder.append("ROLLBACK PREPARED ");
@@ -252,31 +244,29 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
 
     @Override
     public final Publisher<RmDatabaseSession> forget(Xid xid) {
-        return this.forget(xid, Collections.emptyMap());
+        return this.forget(xid, DatabaseProtocol.OPTION_FUNC);
     }
 
     @Override
-    public final Publisher<RmDatabaseSession> forget(final Xid xid, final Map<Option<?>, ?> optionMap) {
+    public final Publisher<RmDatabaseSession> forget(final Xid xid, final Function<Option<?>, ?> optionFunc) {
         return Mono.error(new XaException("postgre don't support forget command", XaException.XAER_RMERR));
     }
 
     @Override
     public final Publisher<Optional<Xid>> recover(int flags) {
-        return this.recover(flags, Collections.emptyMap());
+        return this.recover(flags, DatabaseProtocol.OPTION_FUNC);
     }
 
     /**
      * @see <a href="https://www.postgresql.org/docs/current/view-pg-prepared-xacts.html">pg_prepared_xacts</a>
      */
     @Override
-    public final Publisher<Optional<Xid>> recover(final int flags, final Map<Option<?>, ?> optionMap) {
+    public final Publisher<Optional<Xid>> recover(final int flags, final Function<Option<?>, ?> optionFunc) {
         final int supportBitSet = recoverSupportFlags();
 
         final Flux<Optional<Xid>> flux;
         if (((~supportBitSet) & flags) != 0) {
             flux = Flux.error(PgExceptions.xaInvalidFlagForRecover(flags));
-        } else if (!PgCollections.isEmpty(optionMap)) {
-            flux = Flux.error(PgExceptions.xaDontSupportOptionMap("recover", optionMap));
         } else if ((flags & TM_START_RSCAN) == 0) {
             flux = Flux.empty();
         } else {
@@ -309,8 +299,8 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
     }
 
     /**
-     * @see #commit(Xid, boolean, Map)
-     * @see #rollback(Xid, Map)
+     * @see #commit(Xid, boolean, Function)
+     * @see #rollback(Xid, Function)
      */
     private Mono<RmDatabaseSession> handleCommitOrRollbackResult(final XaStatesTriple old) {
         final Mono<RmDatabaseSession> mono;
@@ -361,7 +351,7 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
 
 
     /**
-     * @see #prepare(Xid, Map)
+     * @see #prepare(Xid, Function)
      */
     private Mono<Integer> handlePrepareResult(final ResultStates states, final XaStatesTriple old) {
         final Warning warning;
@@ -382,7 +372,7 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
     }
 
     /**
-     * @see #commit(Xid, boolean, Map)
+     * @see #commit(Xid, boolean, Function)
      */
     private Mono<RmDatabaseSession> handleOnePhaseCommitResult(final ResultStates states, final XaStatesTriple old) {
         final Warning warning;
@@ -418,7 +408,7 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
     }
 
     /**
-     * @see #recover(int, Map)
+     * @see #recover(int, Function)
      * @see #xidToString(StringBuilder, Xid)
      */
     private Optional<Xid> mapXid(final CurrentRow row) {
@@ -481,7 +471,7 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
     }
 
     /**
-     * @see #prepare(Xid, Map)
+     * @see #prepare(Xid, Function)
      */
     private XaException handlePrepareError(XaStatesTriple triple, Throwable cause) {
         if (cause instanceof XaException) {
@@ -492,7 +482,7 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
     }
 
     /**
-     * @see #end(Xid, int, Map)
+     * @see #end(Xid, int, Function)
      */
     private static XaException sessionBusyWithThread(@Nullable Xid xid) {
         String m = String.format("session xid[%s] is busy with another thread", xid);
@@ -500,7 +490,7 @@ class PgRmDatabaseSession extends PgDatabaseSession<RmDatabaseSession> implement
     }
 
     /**
-     * @see #prepare(Xid, Map)
+     * @see #prepare(Xid, Function)
      * @see #mapXid(CurrentRow)
      */
     private static String xidToString(final StringBuilder builder, final Xid xid) {
