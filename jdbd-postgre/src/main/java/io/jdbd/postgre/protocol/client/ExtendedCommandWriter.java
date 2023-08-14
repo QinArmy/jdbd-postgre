@@ -1,5 +1,6 @@
 package io.jdbd.postgre.protocol.client;
 
+import io.jdbd.vendor.stmt.ParamBatchStmt;
 import io.jdbd.vendor.stmt.ParamSingleStmt;
 import io.jdbd.vendor.stmt.PrepareStmt;
 import io.netty.buffer.ByteBuf;
@@ -17,8 +18,8 @@ interface ExtendedCommandWriter {
      * {@link ExtendedStmtTask#getStmt()} no parameter placeholder,
      * and satisfy one of below conditions:
      * <ul>
-     *     <li>{@link io.jdbd.postgre.stmt.BindStmt}</li>
-     *     <li>{@link io.jdbd.postgre.stmt.BindBatchStmt} and {@link BindBatchStmt#getGroupList()} size is one.</li>
+     *     <li>{@link io.jdbd.vendor.stmt.ParamStmt}</li>
+     *     <li>{@link ParamBatchStmt} and {@link ParamBatchStmt#getGroupList()} size is one.</li>
      * </ul>
      * so {@link ExtendedStmtTask#getStmt()} from {@link io.jdbd.statement.BindStatement} not {@link io.jdbd.statement.PreparedStatement}.
      * </p>

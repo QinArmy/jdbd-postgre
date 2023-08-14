@@ -3,7 +3,6 @@ package io.jdbd.session;
 import io.jdbd.JdbdException;
 import org.reactivestreams.Publisher;
 
-import java.util.Map;
 import java.util.function.Function;
 
 /**
@@ -40,7 +39,7 @@ import java.util.function.Function;
  *         <li>{@link #commit()}</li>
  *         <li>{@link #commit(Function)}</li>
  *         <li>{@link #rollback()}</li>
- *         <li>{@link #rollback(Map)}</li>
+ *         <li>{@link #rollback(Function)}</li>
  *         <li>{@link #setSavePoint()}</li>
  *         <li>{@link #setSavePoint(String)}</li>
  *         <li>{@link #setSavePoint(String, Function)}</li>
@@ -158,7 +157,7 @@ public interface LocalDatabaseSession extends DatabaseSession {
      *     </pre>
      * </p>
      *
-     * @see #rollback(Map)
+     * @see #rollback(Function)
      */
     Publisher<LocalDatabaseSession> rollback();
 

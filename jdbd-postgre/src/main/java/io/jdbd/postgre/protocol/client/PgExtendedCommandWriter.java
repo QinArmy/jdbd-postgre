@@ -46,8 +46,6 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
 
     private final ExtendedStmtTask stmtTask;
 
-    private final TaskAdjutant adjutant;
-
     private final ParamSingleStmt stmt;
 
     private final boolean oneShot;
@@ -67,11 +65,12 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
     private int fetchSize;
 
 
-    private PgExtendedCommandWriter(final ExtendedStmtTask stmtTask) throws SQLException {
+    private PgExtendedCommandWriter(final ExtendedStmtTask stmtTask) {
+        super(stmtTask.adjutant());
         this.stmtTask = stmtTask;
-        this.adjutant = stmtTask.adjutant();
         this.stmt = stmtTask.getStmt();
-        final PgStatement statement = this.adjutant.sqlParser().parse(this.stmt.getSql());
+        final PgStatement statement;
+        statement = this.adjutant.parse(this.stmt.getSql());
         if (isOneShotStmt(this.stmt)) {
             if (statement.sqlPartList().size() != 1) {
                 throw PgExceptions.createBindCountNotMatchError(0, 0, getFirstBatchBindCount(this.stmt));
@@ -138,7 +137,7 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
 
     @Override
     public Publisher<ByteBuf> executeOneShot() {
-        final List<BindValue> bindGroup = obtainBindGroupForOneShot();
+        final List<ParamValue> bindGroup = obtainBindGroupForOneShot();
         if (bindGroup.size() > 0 || !this.oneShot) {
             throw new IllegalStateException("Not one shot");
         }
@@ -404,13 +403,13 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
     /**
      * @throws IllegalStateException stmt when not one shot.
      */
-    private List<BindValue> obtainBindGroupForOneShot() throws IllegalStateException {
+    private List<ParamValue> obtainBindGroupForOneShot() throws IllegalStateException {
         final ParamSingleStmt stmt = this.stmt;
-        final List<BindValue> bindGroup;
-        if (stmt instanceof BindStmt) {
-            bindGroup = ((BindStmt) stmt).getBindGroup();
-        } else if (stmt instanceof BindBatchStmt) {
-            final List<List<BindValue>> groupList = ((BindBatchStmt) stmt).getGroupList();
+        final List<ParamValue> bindGroup;
+        if (stmt instanceof ParamStmt) {
+            bindGroup = ((ParamStmt) stmt).getBindGroup();
+        } else if (stmt instanceof ParamBatchStmt) {
+            final List<List<ParamValue>> groupList = ((ParamBatchStmt) stmt).getGroupList();
             if (groupList.size() != 1) {
                 throw new IllegalStateException("stmt not one shot.");
             }
@@ -428,7 +427,7 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
     private void continueBindExecuteInEventLoop(FluxSink<ByteBuf> channelSink, int batchIndex) {
         ByteBuf message = null;
         try {
-            List<? extends ParamValue> nextBindGroup = getBindGroup(batchIndex);
+            List nextBindGroup = getBindGroup(batchIndex);
             while (nextBindGroup != null) {
                 message = createBindMessage(batchIndex, nextBindGroup.size());
                 if (continueWriteBindParam(message, batchIndex, 0, nextBindGroup, channelSink)) {
@@ -453,9 +452,8 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
      * @see #continueWriteBindParam(ByteBuf, int, int, List, FluxSink)
      * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Bind message</a>
      */
-    private void writeNonNullBindValue(final ByteBuf message, final int batchIndex, final PgType pgType
-            , final ParamValue paramValue)
-            throws SQLException, LocalFileException {
+    private void writeNonNullBindValue(final ByteBuf message, final int batchIndex, final PgType pgType,
+                                       final ParamValue paramValue) {
 
         final Charset clientCharset = this.adjutant.clientCharset();
 
@@ -935,12 +933,12 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
 
 
     @Nullable
-    private List<? extends ParamValue> getBindGroup(final int batchIndex) throws IllegalArgumentException {
+    private List getBindGroup(final int batchIndex) throws IllegalArgumentException {
         ParamSingleStmt stmt = this.stmt;
         if (stmt instanceof PrepareStmt) {
             stmt = ((PrepareStmt) stmt).getStmt();
         }
-        final List<? extends ParamValue> bindGroup;
+        final List bindGroup;
         if (stmt instanceof ParamStmt) {
             switch (batchIndex) {
                 case 0:
@@ -954,7 +952,7 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
             }
 
         } else {
-            final ParamBatchStmt<? extends ParamValue> batchStmt = (ParamBatchStmt<? extends ParamValue>) stmt;
+            final ParamBatchStmt batchStmt = (ParamBatchStmt) stmt;
             final int groupCount = batchStmt.getGroupList().size();
             if (batchIndex < 0 || batchIndex > groupCount) {
                 String msg = String.format("batchIndex[%s] not in [0,%s)", batchStmt, groupCount);
@@ -976,7 +974,7 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
      * @see #continueBindExecuteInEventLoop(FluxSink, int)
      */
     private boolean continueWriteBindParam(ByteBuf message, final int batchIndex, int paramIndex
-            , List<? extends ParamValue> bindGroup, FluxSink<ByteBuf> channelSink) throws SQLException {
+            , List bindGroup, FluxSink<ByteBuf> channelSink) throws SQLException {
 
         final List<PgType> paramTypeList = Objects.requireNonNull(this.paramTypeList, "this.paramTypeList");
         final int paramCount = paramTypeList.size();
@@ -1052,11 +1050,11 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
      * @see ParameterSubscriber#onCompleteInEventLoop()
      */
     @Nullable
-    private List<? extends ParamValue> handBindComplete(final ByteBuf bindMessage, final int batchIndex
+    private List handBindComplete(final ByteBuf bindMessage, final int batchIndex
             , FluxSink<ByteBuf> channelSink) {
 
 
-        final List<? extends ParamValue> nextBindGroup = getBindGroup(batchIndex + 1);
+        final List nextBindGroup = getBindGroup(batchIndex + 1);
 
         Messages.writeLength(bindMessage); // write bind message length .
 
@@ -1138,10 +1136,10 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
 
     private static boolean isOneShotStmt(final ParamSingleStmt stmt) {
         final boolean oneShot;
-        if (stmt instanceof BindStmt) {
-            oneShot = ((BindStmt) stmt).getBindGroup().isEmpty();
-        } else if (stmt instanceof BindBatchStmt) {
-            final List<List<BindValue>> groupList = ((BindBatchStmt) stmt).getGroupList();
+        if (stmt instanceof ParamStmt) {
+            oneShot = ((ParamStmt) stmt).getBindGroup().isEmpty();
+        } else if (stmt instanceof ParamBatchStmt) {
+            final List<List<ParamValue>> groupList = ((ParamBatchStmt) stmt).getGroupList();
             oneShot = groupList.size() == 1 && groupList.get(0).isEmpty();
         } else {
             oneShot = false;
@@ -1157,7 +1155,7 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
         if (stmt instanceof ParamStmt) {
             onlyOne = true;
         } else {
-            final ParamBatchStmt<? extends ParamValue> batchStmt = (ParamBatchStmt<? extends ParamValue>) stmt;
+            final ParamBatchStmt batchStmt = (ParamBatchStmt) stmt;
             onlyOne = batchStmt.getGroupList().size() == 1;
         }
         return onlyOne;
@@ -1168,7 +1166,7 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
         if (stmt instanceof ParamStmt) {
             bindCount = ((ParamStmt) stmt).getBindGroup().size();
         } else {
-            final ParamBatchStmt<? extends ParamValue> batchStmt = (ParamBatchStmt<? extends ParamValue>) stmt;
+            final ParamBatchStmt batchStmt = (ParamBatchStmt) stmt;
             if (batchStmt.getGroupList().isEmpty()) {
                 bindCount = 0;
             } else {
@@ -1186,7 +1184,7 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
         if (stmt instanceof ParamStmt) {
             fetchSize = stmt.getFetchSize();
         } else {
-            final ParamBatchStmt<? extends ParamValue> batchStmt = (ParamBatchStmt<? extends ParamValue>) stmt;
+            final ParamBatchStmt batchStmt = (ParamBatchStmt) stmt;
             if (batchStmt.getGroupList().size() == 1) {
                 fetchSize = batchStmt.getFetchSize();
             } else {
@@ -1276,10 +1274,10 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
                 return;
             }
             this.end = true;
-            List<? extends ParamValue> nextBindGroup = null;
+            List nextBindGroup = null;
             final ByteBuf message = this.message;
             try {
-                List<? extends ParamValue> bindGroup = getBindGroup(this.batchIndex);
+                List bindGroup = getBindGroup(this.batchIndex);
                 if (bindGroup == null) {
                     String msg = String.format("batchIndex[%s] not find any bind.", this.batchIndex);
                     throw new IllegalStateException(msg);

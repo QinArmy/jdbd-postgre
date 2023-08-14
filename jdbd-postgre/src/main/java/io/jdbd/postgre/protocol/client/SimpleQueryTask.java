@@ -36,7 +36,7 @@ import java.util.function.Function;
  * @see <a href="https://www.postgresql.org/docs/current/protocol-flow.html#id-1.10.6.7.4">Simple Query</a>
  * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Simple Query Message Formats</a>
  */
-final class SimpleQueryTask extends PgCommandTask implements SimpleStmtTask {
+final class SimpleQueryTask extends PgCommandTask {
 
     /*################################## blow for static stmt ##################################*/
 
@@ -349,13 +349,6 @@ final class SimpleQueryTask extends PgCommandTask implements SimpleStmtTask {
     /*#################### blow io.jdbd.postgre.protocol.client.SimpleStmtTask method ##########################*/
 
     @Override
-    public void handleNoQueryMessage() {
-        // create Query message occur error,end task.
-        this.sendPacketSignal(true)
-                .subscribe();
-    }
-
-    @Override
     Stmt getStmt() {
         return this.stmt;
     }
@@ -424,6 +417,11 @@ final class SimpleQueryTask extends PgCommandTask implements SimpleStmtTask {
     @Override
     Logger getLog() {
         return LOG;
+    }
+
+    @Override
+    boolean isDownstreamCanceled() {
+        return this.sink.isCancelled();
     }
 
     @Override

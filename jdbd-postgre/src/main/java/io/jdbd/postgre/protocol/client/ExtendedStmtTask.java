@@ -14,8 +14,6 @@ interface ExtendedStmtTask {
 
     void addErrorToTask(Throwable error);
 
-    boolean hasError();
-
     ParamSingleStmt getStmt();
 
     TaskAdjutant adjutant();

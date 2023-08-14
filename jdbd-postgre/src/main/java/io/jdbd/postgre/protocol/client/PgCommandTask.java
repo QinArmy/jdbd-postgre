@@ -6,9 +6,7 @@ import io.jdbd.postgre.syntax.PgParser;
 import io.jdbd.postgre.util.PgArrays;
 import io.jdbd.result.ResultRowMeta;
 import io.jdbd.vendor.result.ResultSink;
-import io.jdbd.vendor.stmt.SingleStmt;
-import io.jdbd.vendor.stmt.StaticBatchStmt;
-import io.jdbd.vendor.stmt.Stmt;
+import io.jdbd.vendor.stmt.*;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import reactor.util.annotation.Nullable;
@@ -18,7 +16,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.IntSupplier;
-import java.util.function.Supplier;
 
 /**
  * <p>
@@ -109,14 +106,13 @@ abstract class PgCommandTask extends PgTask implements StmtTask {
         final boolean isCanceled;
         if (this.downstreamCanceled || hasError()) {
             isCanceled = true;
-        } else if (this.sink.isCancelled()) {
+        } else if (this.isDownstreamCanceled()) {
             logger.trace("Downstream cancel subscribe.");
             isCanceled = true;
             this.downstreamCanceled = true;
         } else {
             isCanceled = false;
         }
-        logger.trace("Read command response,isCanceled:{}", isCanceled);
         return isCanceled;
     }
 
@@ -279,6 +275,9 @@ abstract class PgCommandTask extends PgTask implements StmtTask {
 
     abstract void internalToString(StringBuilder builder);
 
+
+    abstract boolean isDownstreamCanceled();
+
     /**
      * @return true: task end.
      */
@@ -438,7 +437,7 @@ abstract class PgCommandTask extends PgTask implements StmtTask {
 
     /**
      * @return true: read CommandComplete message end , false : more cumulate.
-     * @see #readResultStateWithReturning(ByteBuf, Supplier)
+     * @see #readResultStateOfQuery(ByteBuf, IntSupplier)
      * @see #readResultStateWithoutReturning(ByteBuf)
      */
     private boolean readCommandComplete(final ByteBuf cumulateBuffer, final boolean hasColumn,
@@ -496,7 +495,7 @@ abstract class PgCommandTask extends PgTask implements StmtTask {
 
 
         if (!this.isCancelled()) {
-            this.sink.next(PgResultStates.create(params));
+            this.next(PgResultStates.create(params));
         }
         return true;
     }
@@ -504,19 +503,19 @@ abstract class PgCommandTask extends PgTask implements StmtTask {
     private void handleSetCommand(final int resultIndex) {
         final Stmt stmt = this.getStmt();
         try {
-            final PgParser parser = this.adjutant.sqlParser();
+            final PgParser parser = this.adjutant;
             final String sql;
             if (stmt instanceof SingleStmt) {
                 final List<String> sqlList = parser.separateMultiStmt(((SingleStmt) stmt).getSql());
                 sql = sqlList.get(resultIndex);
-            } else if (stmt instanceof BindMultiStmt) {
-                final BindStmt bindStmt = ((BindMultiStmt) stmt).getStmtList().get(resultIndex);
+            } else if (stmt instanceof ParamMultiStmt) {
+                final ParamStmt bindStmt = ((ParamMultiStmt) stmt).getStmtList().get(resultIndex);
                 sql = bindStmt.getSql();
             } else if (stmt instanceof StaticBatchStmt) {
                 sql = ((StaticBatchStmt) stmt).getSqlGroup().get(resultIndex);
             } else {
                 sql = null;
-                log.debug("Unknown Stmt[{}]", stmt);
+                getLog().debug("Unknown Stmt[{}]", stmt);
             }
             if (sql != null) {
                 this.adjutant.appendSetCommandParameter(parser.parseSetParameter(sql));

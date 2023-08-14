@@ -385,6 +385,11 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
     }
 
     @Override
+    boolean isDownstreamCanceled() {
+        return this.sink.isCancelled();
+    }
+
+    @Override
     boolean handleSelectCommand(final long rowCount) {
         final boolean moreFetch;
         if (this.commandWriter.supportFetch()
