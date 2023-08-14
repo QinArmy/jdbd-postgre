@@ -3,11 +3,11 @@ package io.jdbd.postgre.session;
 import io.jdbd.pool.PoolLocalDatabaseSession;
 import io.jdbd.postgre.protocol.client.PgProtocol;
 import io.jdbd.session.*;
+import io.jdbd.vendor.protocol.DatabaseProtocol;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
 
-import java.util.Collections;
-import java.util.Map;
+import java.util.function.Function;
 
 
 /**
@@ -81,7 +81,7 @@ class PgLocalDatabaseSession extends PgDatabaseSession<LocalDatabaseSession> imp
      */
     @Override
     public final Publisher<LocalDatabaseSession> commit() {
-        return this.protocol.commit(Collections.emptyMap())
+        return this.protocol.commit(DatabaseProtocol.OPTION_FUNC)
                 .thenReturn(this);
     }
 
@@ -89,8 +89,8 @@ class PgLocalDatabaseSession extends PgDatabaseSession<LocalDatabaseSession> imp
      * @see <a href="https://www.postgresql.org/docs/current/sql-commit.html">COMMIT</a>
      */
     @Override
-    public final Publisher<LocalDatabaseSession> commit(Map<Option<?>, ?> optionMap) {
-        return this.protocol.commit(optionMap)
+    public final Publisher<LocalDatabaseSession> commit(Function<Option<?>, ?> optionFunc) {
+        return this.protocol.commit(optionFunc)
                 .thenReturn(this);
     }
 
@@ -99,7 +99,7 @@ class PgLocalDatabaseSession extends PgDatabaseSession<LocalDatabaseSession> imp
      */
     @Override
     public final Mono<LocalDatabaseSession> rollback() {
-        return this.protocol.rollback(Collections.emptyMap())
+        return this.protocol.rollback(DatabaseProtocol.OPTION_FUNC)
                 .thenReturn(this);
     }
 
@@ -107,8 +107,8 @@ class PgLocalDatabaseSession extends PgDatabaseSession<LocalDatabaseSession> imp
      * @see <a href="https://www.postgresql.org/docs/current/sql-rollback.html">ROLLBACK</a>
      */
     @Override
-    public final Publisher<LocalDatabaseSession> rollback(Map<Option<?>, ?> optionMap) {
-        return this.protocol.rollback(optionMap)
+    public final Publisher<LocalDatabaseSession> rollback(Function<Option<?>, ?> optionFunc) {
+        return this.protocol.rollback(optionFunc)
                 .thenReturn(this);
     }
 

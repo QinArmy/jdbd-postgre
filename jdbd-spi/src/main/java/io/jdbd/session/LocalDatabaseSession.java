@@ -174,7 +174,7 @@ public interface LocalDatabaseSession extends DatabaseSession {
      *     </ul>
      * </p>
      *
-     * @param optionMap empty or dialect option map
+     * @param optionFunc {@link Option} function
      * @return emit <strong>this</strong> or {@link Throwable}. Like {@code reactor.core.publisher.Mono}.
      * @throws JdbdException emit(not throw) when
      *                       <ul>
@@ -184,7 +184,7 @@ public interface LocalDatabaseSession extends DatabaseSession {
      *                          <li>serer response error message, see {@link io.jdbd.result.ServerException}</li>
      *                       </ul>
      */
-    Publisher<LocalDatabaseSession> rollback(Map<Option<?>, ?> optionMap);
+    Publisher<LocalDatabaseSession> rollback(Function<Option<?>, ?> optionFunc);
 
 
     /**

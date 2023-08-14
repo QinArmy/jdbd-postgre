@@ -7,6 +7,7 @@ import io.jdbd.postgre.util.PgCollections;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.result.*;
 import io.jdbd.session.ChunkOption;
+import io.jdbd.session.DatabaseSession;
 import io.jdbd.session.SessionCloseException;
 import io.jdbd.statement.PreparedStatement;
 import io.jdbd.vendor.result.MultiResults;
@@ -16,6 +17,8 @@ import io.jdbd.vendor.task.PrepareTask;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
@@ -137,6 +140,8 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
 
     /*################################## blow Constructor method ##################################*/
 
+    private static final Logger LOG = LoggerFactory.getLogger(ExtendedQueryTask.class);
+
     private final ExtendedCommandWriter commandWriter;
 
     final Stmt stmt;
@@ -151,7 +156,7 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
 
 
     private ExtendedQueryTask(Stmt stmt, ResultSink sink, TaskAdjutant adjutant) throws SQLException {
-        super(adjutant, sink::error);
+        super(adjutant, sink);
         this.stmt = stmt;
         this.sink = sink;
         this.commandWriter = PgExtendedCommandWriter.create(this);
@@ -195,6 +200,11 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
         return Objects.requireNonNull(this.parameterTypeList, "this.parameterTypeList");
     }
 
+    @Override
+    public void suspendTask() {
+        // TODO
+    }
+
 
     @Nullable
     @Override
@@ -223,15 +233,12 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
     }
 
     @Override
-    public Mono<Void> abandonBind() {
-        return Mono.create(sink -> {
-            if (this.adjutant.inEventLoop()) {
-                abandonBindInEventLoop(sink);
-            } else {
-                this.adjutant.execute(() -> abandonBindInEventLoop(sink));
-            }
-        });
-
+    public void abandonBind() {
+        if (this.adjutant.inEventLoop()) {
+            abandonBindInEventLoop();
+        } else {
+            this.adjutant.execute(this::abandonBindInEventLoop);
+        }
     }
 
     @Nullable
@@ -249,23 +256,23 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
 
     @Override
     public void handleNoExecuteMessage() {
-        if (this.phase != Phase.END) {
-            log.debug("No execute message sent.end task.");
-            this.phase = Phase.BINDING_ERROR;
-            this.sendPacketSignal(true) // end task
-                    .doOnSuccess(inDecodeMethod -> {
-                        if (inDecodeMethod) {
-                            return;
-                        }
-                        if (hasError()) {
-                            publishError(this.sink::error);
-                        } else {
-                            this.sink.error(new IllegalStateException("No execute message sent."));
-                        }
-                    })
-                    .subscribe();// if throw error ,representing task have ended,so ignore error.
-
+        if (this.phase == Phase.END) {
+            return;
         }
+        LOG.debug("No execute message sent.end task.");
+        this.phase = Phase.BINDING_ERROR;
+        this.sendPacketSignal(true) // end task
+                .doOnSuccess(inDecodeMethod -> {
+                    if (inDecodeMethod) {
+                        return;
+                    }
+                    if (hasError()) {
+                        publishError(this.sink::error);
+                    } else {
+                        this.sink.error(new IllegalStateException("No execute message sent."));
+                    }
+                })
+                .subscribe();// if throw error ,representing task have ended,so ignore error.
     }
 
     @Nullable
@@ -366,6 +373,10 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
         return taskEnd;
     }
 
+    @Override
+    Logger getLog() {
+        return LOG;
+    }
 
     @Override
     void internalToString(StringBuilder builder) {
@@ -478,7 +489,7 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
     /**
      * @see #abandonBind()
      */
-    private void abandonBindInEventLoop(MonoSink<Void> sink) {
+    private void abandonBindInEventLoop() {
         switch (this.phase) {
             case WAIT_FOR_BIND: {
                 if (this.commandWriter.needClose()) {
@@ -487,18 +498,12 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
                 this.phase = Phase.ABANDON_BIND;
                 this.sendPacketSignal(true)
                         .subscribe();
-                sink.success();
-                log.debug("abandonBind success");
+                LOG.debug("abandonBind success");
             }
             break;
-            case END: {
-                sink.error(new JdbdException(String.format("%s have ended.", PreparedStatement.class.getName())));
-            }
-            break;
-            default: {
-                sink.error(new JdbdException(String.format("%s is executing.", PreparedStatement.class.getName())));
-            }
-
+            case END:
+            default:
+                // no-op
         }
 
 
@@ -676,13 +681,11 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
 
     private static final class PgPrepareStmt implements PrepareStmt {
 
-        static PgPrepareStmt prepare(String sql) {
-            return new PgPrepareStmt(sql);
-        }
 
         private final String sql;
 
         private ParamSingleStmt actualTmt;
+
 
         private PgPrepareStmt(String sql) {
             this.sql = sql;
@@ -737,6 +740,15 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
             return getStmt().getExportFunction();
         }
 
+        @Override
+        public boolean isSessionCreated() {
+            return getStmt().isSessionCreated();
+        }
+
+        @Override
+        public DatabaseSession databaseSession() {
+            return getStmt().databaseSession();
+        }
 
     }//class PgPrepareStmt
 
