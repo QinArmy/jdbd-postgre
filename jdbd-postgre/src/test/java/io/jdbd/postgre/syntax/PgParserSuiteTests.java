@@ -108,7 +108,7 @@ public class PgParserSuiteTests {
             assertEquals(staticSql, static1);
 
             assertEquals(stmt.getParamCount(), 1);
-            assertEquals(stmt.getSql(), sql, "getSql()");
+            assertEquals(stmt.originalSql(), sql, "getSql()");
         }
 
     }
@@ -321,7 +321,7 @@ public class PgParserSuiteTests {
             staticSql = list.get(0);
             assertEquals(staticSql, sql);
             assertEquals(stmt.getParamCount(), 0);
-            assertEquals(stmt.getSql(), sql, "getSql()");
+            assertEquals(stmt.originalSql(), sql, "getSql()");
         }
 
     }

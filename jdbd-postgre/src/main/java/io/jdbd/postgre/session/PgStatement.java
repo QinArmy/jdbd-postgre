@@ -105,8 +105,11 @@ abstract class PgStatement<S extends Statement> implements Statement, StmtOption
             error = PgExceptions.timeoutIsNegative(seconds);
             closeOnBindError(error);
             throw error;
+        } else if (this instanceof BindSingleStatement) {
+            this.timeout = seconds;
+        } else {
+            this.timeout = 0;
         }
-        this.timeout = seconds;
         return (S) this;
     }
 

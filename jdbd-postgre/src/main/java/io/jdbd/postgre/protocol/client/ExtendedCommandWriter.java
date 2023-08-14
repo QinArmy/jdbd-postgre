@@ -1,7 +1,7 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.vendor.stmt.ParamBatchStmt;
-import io.jdbd.vendor.stmt.ParamSingleStmt;
+import io.jdbd.vendor.stmt.ParamStmt;
 import io.jdbd.vendor.stmt.PrepareStmt;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
@@ -14,12 +14,13 @@ interface ExtendedCommandWriter {
 
     /**
      * <p>
-     * {@link ParamSingleStmt} is one shot ,If {@link ParamSingleStmt#getSql()} method of
-     * {@link ExtendedStmtTask#getStmt()} no parameter placeholder,
-     * and satisfy one of below conditions:
+     * One shot : one network round trip .
+     * </p>
+     * <p>
+     * {@link ExtendedStmtTask#getStmt()} satisfy one of below conditions:
      * <ul>
-     *     <li>{@link io.jdbd.vendor.stmt.ParamStmt}</li>
-     *     <li>{@link ParamBatchStmt} and {@link ParamBatchStmt#getGroupList()} size is one.</li>
+     *     <li>{@link ParamStmt} and  {@link ParamStmt#getFetchSize()} == 0 </li>
+     *     <li> {@link ParamBatchStmt} and {@link ParamBatchStmt#getGroupList()} == 1 and {@link ParamBatchStmt#getFetchSize()}  == 0</li>
      * </ul>
      * so {@link ExtendedStmtTask#getStmt()} from {@link io.jdbd.statement.BindStatement} not {@link io.jdbd.statement.PreparedStatement}.
      * </p>
@@ -33,7 +34,7 @@ interface ExtendedCommandWriter {
     boolean needClose();
 
     @Nullable
-    CachePrepare getCache();
+    CacheStmt getCache();
 
     int getFetchSize();
 

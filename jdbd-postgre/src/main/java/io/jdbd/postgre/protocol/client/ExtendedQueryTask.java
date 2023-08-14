@@ -2,6 +2,7 @@ package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
+import io.jdbd.meta.DataType;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.util.PgCollections;
 import io.jdbd.postgre.util.PgExceptions;
@@ -282,7 +283,7 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
 
         Publisher<ByteBuf> publisher;
         try {
-            CachePrepare cachePrepare;
+            CacheStmt cachePrepare;
             if (commandWriter.isOneShot()) {
                 publisher = commandWriter.executeOneShot();
                 this.phase = Phase.READ_EXECUTE_RESPONSE;
@@ -457,7 +458,7 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
      * @return true : occur error,can't emit.
      * @see #start()
      */
-    private boolean emitPreparedStatement(final CachePrepare cache) {
+    private boolean emitPreparedStatement(final CacheStmt cache) {
         if (cache instanceof CachePrepareImpl) {
             final ResultSink sink = this.sink;
             if (sink instanceof PrepareResultSink && !hasError()) {
@@ -758,7 +759,7 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
     }//class PgPrepareStmt
 
 
-    private static final class CachePrepareImpl implements CachePrepare {
+    private static final class CachePrepareImpl implements CacheStmt {
 
         private final String sql;
 
@@ -766,7 +767,7 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
 
         private final String prepareName;
 
-        private final List<PgType> paramTypeList;
+        private final List<DataType> paramTypeList;
 
         private final ResultRowMeta rowMeta;
 
@@ -794,7 +795,7 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
         }
 
         @Override
-        public List<PgType> getParamOidList() {
+        public List<DataType> getParamOidList() {
             return this.paramTypeList;
         }
 

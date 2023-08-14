@@ -32,7 +32,7 @@ final class PgStatementImpl implements PgStatement {
     }
 
     @Override
-    public final String getSql() {
+    public final String originalSql() {
         return this.sql;
     }
 

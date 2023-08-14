@@ -69,16 +69,9 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
         super(stmtTask.adjutant());
         this.stmtTask = stmtTask;
         this.stmt = stmtTask.getStmt();
+        this.oneShot = isOneShotStmt(this.stmt);
         final PgStatement statement;
         statement = this.adjutant.parse(this.stmt.getSql());
-        if (isOneShotStmt(this.stmt)) {
-            if (statement.sqlPartList().size() != 1) {
-                throw PgExceptions.createBindCountNotMatchError(0, 0, getFirstBatchBindCount(this.stmt));
-            }
-            this.oneShot = true;
-        } else {
-            this.oneShot = false;
-        }
         this.replacedSql = replacePlaceholder(statement);
         this.statementName = "";
 
@@ -104,7 +97,7 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
 
     @Nullable
     @Override
-    public CachePrepare getCache() {
+    public CacheStmt getCache() {
         return null;
     }
 
@@ -387,7 +380,7 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
         if (staticSqlList.size() == 1) {
             sql = this.stmt.getSql();
         } else {
-            final StringBuilder builder = new StringBuilder(statement.getSql().length() + staticSqlList.size());
+            final StringBuilder builder = new StringBuilder(statement.originalSql().length() + staticSqlList.size());
             final int paramCount = staticSqlList.size() - 1;
             for (int i = 0; i < paramCount; i++) {
                 builder.append(staticSqlList.get(i))
@@ -1137,10 +1130,9 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
     private static boolean isOneShotStmt(final ParamSingleStmt stmt) {
         final boolean oneShot;
         if (stmt instanceof ParamStmt) {
-            oneShot = ((ParamStmt) stmt).getBindGroup().isEmpty();
+            oneShot = stmt.getFetchSize() == 0;
         } else if (stmt instanceof ParamBatchStmt) {
-            final List<List<ParamValue>> groupList = ((ParamBatchStmt) stmt).getGroupList();
-            oneShot = groupList.size() == 1 && groupList.get(0).isEmpty();
+            oneShot = ((ParamBatchStmt) stmt).getGroupList().size() == 1 && stmt.getFetchSize() == 0;
         } else {
             oneShot = false;
         }

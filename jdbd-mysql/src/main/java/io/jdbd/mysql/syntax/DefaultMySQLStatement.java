@@ -24,7 +24,7 @@ final class DefaultMySQLStatement implements MySQLStatement {
     }
 
     @Override
-    public String getSql() {
+    public String originalSql() {
         return this.sql;
     }
 

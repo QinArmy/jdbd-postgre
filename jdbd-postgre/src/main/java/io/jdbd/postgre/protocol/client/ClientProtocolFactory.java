@@ -13,6 +13,7 @@ import io.jdbd.result.ResultRow;
 import io.jdbd.result.ResultRowMeta;
 import io.jdbd.vendor.env.Properties;
 import io.jdbd.vendor.stmt.Stmts;
+import io.jdbd.vendor.util.JdbdSoftReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
@@ -32,6 +33,8 @@ public final class ClientProtocolFactory extends FixedEnv implements PgProtocolF
     final ConcurrentMap<String, PgStatement> stmtMap = PgCollections.concurrentHashMap();
 
 
+    final ConcurrentMap<String, JdbdSoftReference<PgStatement>> pgStatementMap = PgCollections.concurrentHashMap();
+
     private ClientProtocolFactory() {
         throw new UnsupportedOperationException();
     }
@@ -45,6 +48,21 @@ public final class ClientProtocolFactory extends FixedEnv implements PgProtocolF
     private static Mono<ConnectionWrapper> connect(PgTaskExecutor executor, int hostIndex) {
         final SessionManagerImpl connectionManager = new SessionManagerImpl(executor, hostIndex);
         return connectionManager.connect();
+    }
+
+    @Override
+    public String factoryName() {
+        return null;
+    }
+
+    @Override
+    public Mono<PgProtocol> createProtocol() {
+        return null;
+    }
+
+    @Override
+    public String toString() {
+        return super.toString();
     }
 
     private static final class SessionManagerImpl implements ProtocolManager {

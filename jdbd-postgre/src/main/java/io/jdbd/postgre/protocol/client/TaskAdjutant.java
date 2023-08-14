@@ -56,6 +56,10 @@ interface TaskAdjutant extends ITaskAdjutant, PgParser {
     ServerEnv server();
 
 
+    CacheStmt prepareOneShot(String sql);
+
+    String replaceSql(String sql);
+
     void appendSetCommandParameter(String parameterName);
 
     DataType internalOrUserType(String upperCaseName);

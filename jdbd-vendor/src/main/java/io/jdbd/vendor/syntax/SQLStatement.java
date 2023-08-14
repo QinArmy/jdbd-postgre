@@ -10,6 +10,6 @@ public interface SQLStatement {
     List<String> sqlPartList();
 
 
-    String getSql();
+    String originalSql();
 
 }

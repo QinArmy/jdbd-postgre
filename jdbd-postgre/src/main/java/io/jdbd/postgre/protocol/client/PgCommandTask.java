@@ -255,7 +255,7 @@ abstract class PgCommandTask extends PgTask implements StmtTask {
                 }
                 break;
                 case Messages.s: {// PortalSuspended message
-                    Messages.skipOneMessage(cumulateBuffer);
+                    Messages.skipOneMessage(cumulateBuffer); //TODO fix me
                     logger.debug("receive PortalSuspended message,client timeout.");
                     handleClientTimeout();
                 }
