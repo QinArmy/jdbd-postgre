@@ -1,5 +1,6 @@
 package io.jdbd.postgre.protocol.client;
 
+import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
 import io.jdbd.postgre.syntax.PgParser;
 import io.jdbd.vendor.env.Environment;
@@ -56,7 +57,10 @@ interface TaskAdjutant extends ITaskAdjutant, PgParser {
     ServerEnv server();
 
 
-    CacheStmt prepareOneShot(String sql);
+    CacheStmt parseOneShot(String sql);
+
+    @Nullable
+    CacheStmt getCacheForPrepare(String sql);
 
     String replaceSql(String sql);
 

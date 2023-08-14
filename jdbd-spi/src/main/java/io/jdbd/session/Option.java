@@ -10,7 +10,6 @@ import java.io.ObjectStreamException;
 import java.nio.charset.Charset;
 import java.time.Duration;
 import java.time.ZoneOffset;
-import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentMap;
 
@@ -179,8 +178,8 @@ public final class Option<T> {
      * [NO] CHAIN option of COMMIT command.
      * </p>
      *
-     * @see LocalDatabaseSession#commit(Map)
-     * @see LocalDatabaseSession#rollback(Map)
+     * @see LocalDatabaseSession#commit(java.util.function.Function)
+     * @see LocalDatabaseSession#rollback(java.util.function.Function)
      * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/commit.html">MySQL : COMMIT [WORK] [AND [NO] CHAIN]</a>
      * @see <a href="https://www.postgresql.org/docs/current/sql-commit.html">postgre : COMMIT [ WORK | TRANSACTION ] [ AND [ NO ] CHAIN ]</a>
      */
@@ -192,8 +191,8 @@ public final class Option<T> {
      * [NO] RELEASE option of COMMIT/ROLLBACK command.
      * </p>
      *
-     * @see LocalDatabaseSession#commit(Map)
-     * @see LocalDatabaseSession#rollback(Map)
+     * @see LocalDatabaseSession#commit(java.util.function.Function)
+     * @see LocalDatabaseSession#rollback(java.util.function.Function)
      * @see <a href="https://dev.mysql.com/doc/refman/8.0/en/commit.html">MySQL : ROLLBACK [WORK] [[NO] RELEASE]</a>
      */
     public static final Option<Boolean> RELEASE = Option.from("RELEASE", Boolean.class);
@@ -293,6 +292,8 @@ public final class Option<T> {
      * @see <a href="https://www.postgresql.org/docs/current/sql-declare.html">PostgreSQL DECLARE</a>
      */
     public static final Option<RefCursor> CURSOR = Option.from("CURSOR", RefCursor.class);
+
+    public static final Option<Integer> PREPARE_THRESHOLD = Option.from(Driver.PREPARE_THRESHOLD, Integer.class);
 
 
     private final String name;

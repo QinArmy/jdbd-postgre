@@ -785,12 +785,12 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
         }
 
         @Override
-        public String getSql() {
+        public String originalSql() {
             return this.sql;
         }
 
         @Override
-        public String getReplacedSql() {
+        public String postgreSql() {
             return this.replacedSql;
         }
 

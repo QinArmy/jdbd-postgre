@@ -20,7 +20,7 @@ interface ExtendedCommandWriter {
      * {@link ExtendedStmtTask#getStmt()} satisfy one of below conditions:
      * <ul>
      *     <li>{@link ParamStmt} and  {@link ParamStmt#getFetchSize()} == 0 </li>
-     *     <li> {@link ParamBatchStmt} and {@link ParamBatchStmt#getGroupList()} == 1 and {@link ParamBatchStmt#getFetchSize()}  == 0</li>
+     *     <li> {@link ParamBatchStmt} and {@link ParamBatchStmt#getGroupList()} > 1 or  {@link ParamBatchStmt#getFetchSize()}  == 0</li>
      * </ul>
      * so {@link ExtendedStmtTask#getStmt()} from {@link io.jdbd.statement.BindStatement} not {@link io.jdbd.statement.PreparedStatement}.
      * </p>

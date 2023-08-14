@@ -331,7 +331,11 @@ public interface DatabaseSession extends StaticStatementSpec, DatabaseMetaSpec, 
      * The implementation of this method must provide java doc(html list) for explaining supporting {@link Option} list.
      * </p>
      * <p>
-     * The implementation of this method must support {@link Option#AUTO_RECONNECT}.
+     * The implementation of this method always support :
+     * <ul>
+     *     <li>{@link Option#AUTO_RECONNECT}</li>
+     *     <li>{@link Option#PREPARE_THRESHOLD}</li>
+     * </ul>
      * </p>
      * <p>
      * The implementation of this method perhaps support some of following :

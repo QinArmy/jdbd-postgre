@@ -70,11 +70,19 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
         this.stmtTask = stmtTask;
         this.stmt = stmtTask.getStmt();
         this.oneShot = isOneShotStmt(this.stmt);
-        final PgStatement statement;
-        statement = this.adjutant.parse(this.stmt.getSql());
-        this.replacedSql = replacePlaceholder(statement);
-        this.statementName = "";
 
+        final String sql = this.stmt.getSql();
+        final CacheStmt cacheStmt;
+        if (!(this.stmt instanceof PrepareStmt)) {
+            cacheStmt = this.adjutant.parseOneShot(sql);
+            this.replacedSql = cacheStmt.postgreSql();
+        } else if ((cacheStmt = this.adjutant.getCacheForPrepare(sql)) == null) {
+            this.replacedSql = this.adjutant.replaceSql(sql);
+        } else {
+            this.replacedSql = cacheStmt.postgreSql();
+        }
+
+        this.statementName = "";
         this.portalName = null;
 
     }
@@ -119,6 +127,7 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
     @Override
     public Publisher<ByteBuf> prepare() {
         if (this.oneShot) {
+            // no bug,never here
             throw new IllegalStateException("Current is  one shot");
         }
         final List<ByteBuf> messageList = new ArrayList<>(2);
@@ -214,7 +223,7 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
 
 
     /**
-     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Parse</a>
+     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Parse (F)</a>
      */
     private ByteBuf createParseMessage() {
         final Charset charset = this.adjutant.clientCharset();
@@ -224,7 +233,7 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
         message.writeByte(Messages.P);
         message.writeZero(Messages.LENGTH_SIZE); // placeholder of length
         final String statementName = this.statementName;
-        if (PgStrings.hasText(statementName)) {
+        if (!statementName.isEmpty()) {
             message.writeBytes(statementName.getBytes(charset)); //definite statement name for caching statement
         }
         message.writeByte(Messages.STRING_TERMINATOR);
@@ -1132,7 +1141,7 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
         if (stmt instanceof ParamStmt) {
             oneShot = stmt.getFetchSize() == 0;
         } else if (stmt instanceof ParamBatchStmt) {
-            oneShot = ((ParamBatchStmt) stmt).getGroupList().size() == 1 && stmt.getFetchSize() == 0;
+            oneShot = ((ParamBatchStmt) stmt).getGroupList().size() > 1 || stmt.getFetchSize() == 0;
         } else {
             oneShot = false;
         }

@@ -1,21 +1,22 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.meta.DataType;
-import io.jdbd.result.ResultRowMeta;
-import reactor.util.annotation.Nullable;
-
-import java.util.List;
-
+/**
+ * <p>
+ * This interface representing extended query statement.
+ * </p>
+ * <p>
+ * This interface is base interface of {@link ServerCacheStmt}.
+ * </p>
+ *
+ * @since 1.0
+ */
 interface CacheStmt {
 
-    String getSql();
+    String originalSql();
 
-    String getReplacedSql();
+    String postgreSql();
 
-    List<DataType> getParamOidList();
-
-    @Nullable
-    ResultRowMeta getRowMeta();
+    boolean isStandardConformingStrings();
 
     int useCount();
 

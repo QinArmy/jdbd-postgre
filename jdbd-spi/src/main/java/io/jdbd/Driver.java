@@ -45,6 +45,8 @@ public interface Driver {
      */
     String FACTORY_NAME = "factoryName";
 
+    String PREPARE_THRESHOLD = "prepareThreshold";
+
 
     String CLIENT_INFO = "clientInfo";
 
