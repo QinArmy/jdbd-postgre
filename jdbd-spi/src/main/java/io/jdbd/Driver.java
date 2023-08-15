@@ -20,7 +20,6 @@ import java.util.Map;
  * Application/pool developer can get the instance of {@link Driver} by {@link #findDriver(String)}
  * </p>
  *
- * @see DriverManager
  * @since 1.0
  */
 public interface Driver {
@@ -74,12 +73,12 @@ public interface Driver {
     /**
      * @param url jdbc url
      */
-    DatabaseSessionFactory createSessionFactory(String url, Map<String, Object> properties) throws JdbdException;
+    DatabaseSessionFactory forDeveloper(String url, Map<String, Object> properties) throws JdbdException;
 
     /**
      * <p>
      * This method is designed for poll session vendor developer,so application developer shouldn't invoke this method
-     * and use {@link #createSessionFactory(String, Map)} method.
+     * and use {@link #forDeveloper(String, Map)} method.
      * </p>
      *
      * <p>  This method return {@link DatabaseSessionFactory} has below feature.

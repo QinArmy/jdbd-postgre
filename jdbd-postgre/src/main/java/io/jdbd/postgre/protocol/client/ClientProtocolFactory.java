@@ -22,7 +22,7 @@ import reactor.core.publisher.Mono;
 import java.util.*;
 import java.util.concurrent.ConcurrentMap;
 
-public final class ClientProtocolFactory extends FixedEnv implements PgProtocolFactory {
+public final class ClientProtocolFactory extends ProtocolFactory implements PgProtocolFactory {
 
 
     public static ClientProtocolFactory create(PgHost host) {

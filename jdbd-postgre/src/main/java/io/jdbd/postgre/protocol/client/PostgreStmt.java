@@ -10,15 +10,20 @@ package io.jdbd.postgre.protocol.client;
  *
  * @since 1.0
  */
-interface CacheStmt {
+interface PostgreStmt {
 
+    /**
+     * @return the sql that parameter placeholder is {@code ?} .
+     */
     String originalSql();
 
+    /**
+     * @return the sql that parameter placeholder is {@code $n} .
+     */
     String postgreSql();
 
     boolean isStandardConformingStrings();
 
     int useCount();
-
 
 }

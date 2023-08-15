@@ -48,19 +48,18 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
 
     private final ParamSingleStmt stmt;
 
-    private final boolean oneShot;
+    private final boolean oneRoundTrip;
 
     private final String statementName;
 
-
-    private final String replacedSql;
+    private final PostgreStmt cacheStmt;
 
     private List<PgType> paramTypeList;
 
     /**
      * if support fetch ,then create portal name.
      */
-    private String portalName;
+    private final String portalName;
 
     private int fetchSize;
 
@@ -69,28 +68,38 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
         super(stmtTask.adjutant());
         this.stmtTask = stmtTask;
         this.stmt = stmtTask.getStmt();
-        this.oneShot = isOneShotStmt(this.stmt);
+        this.oneRoundTrip = isOneShotStmt(this.stmt);
 
         final String sql = this.stmt.getSql();
-        final CacheStmt cacheStmt;
-        if (!(this.stmt instanceof PrepareStmt)) {
-            cacheStmt = this.adjutant.parseOneShot(sql);
-            this.replacedSql = cacheStmt.postgreSql();
-        } else if ((cacheStmt = this.adjutant.getCacheForPrepare(sql)) == null) {
-            this.replacedSql = this.adjutant.replaceSql(sql);
+        final PostgreStmt cacheStmt;
+        cacheStmt = this.adjutant.parseAsPostgreStmt(sql);
+        assert cacheStmt.originalSql().equals(sql);
+        this.cacheStmt = cacheStmt;
+        if (cacheStmt instanceof ServerCacheStmt) {
+            this.statementName = ((ServerCacheStmt) cacheStmt).stmtName();
         } else {
-            this.replacedSql = cacheStmt.postgreSql();
+            this.statementName = this.adjutant.nextStmtName();
         }
 
-        this.statementName = "";
-        this.portalName = null;
+        if (this.oneRoundTrip
+                || (cacheStmt instanceof ServerCacheStmt && ((ServerCacheStmt) cacheStmt).getRowMeta() == null)) {
+            this.portalName = "";
+        } else {
+            this.portalName = this.adjutant.nextPortName(this.statementName);
+        }
+
 
     }
 
 
     @Override
-    public boolean isOneShot() {
-        return this.oneShot;
+    public boolean isOneRoundTrip() {
+        return this.oneRoundTrip;
+    }
+
+    @Override
+    public boolean isNeedPrepare() {
+        return this.stmt instanceof PrepareStmt && !(this.cacheStmt instanceof ServerCacheStmt);
     }
 
     @Override
@@ -105,7 +114,7 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
 
     @Nullable
     @Override
-    public CacheStmt getCache() {
+    public PostgreStmt getCache() {
         return null;
     }
 
@@ -116,7 +125,7 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
 
     @Override
     public String getReplacedSql() {
-        return this.replacedSql;
+        return this.cacheStmt.postgreSql();
     }
 
     @Override
@@ -126,7 +135,7 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
 
     @Override
     public Publisher<ByteBuf> prepare() {
-        if (this.oneShot) {
+        if (this.oneRoundTrip) {
             // no bug,never here
             throw new IllegalStateException("Current is  one shot");
         }
@@ -138,9 +147,9 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
     }
 
     @Override
-    public Publisher<ByteBuf> executeOneShot() {
+    public Publisher<ByteBuf> executeOneRoundTrip() {
         final List<ParamValue> bindGroup = obtainBindGroupForOneShot();
-        if (bindGroup.size() > 0 || !this.oneShot) {
+        if (bindGroup.size() > 0 || !this.oneRoundTrip) {
             throw new IllegalStateException("Not one shot");
         }
 
@@ -205,7 +214,7 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
     }
 
     /**
-     * @see #executeOneShot()
+     * @see #executeOneRoundTrip()
      * @see #bindAndExecute()
      */
     private void beforeExecute() {
@@ -342,7 +351,7 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
 
 
     /**
-     * @see #executeOneShot()
+     * @see #executeOneRoundTrip()
      * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Bind</a>
      */
     private ByteBuf createBindMessage(final int batchIndex, final int bindCount)
@@ -365,7 +374,7 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
         }
         message.writeByte(Messages.STRING_TERMINATOR);
 
-        final List<PgType> paramTypeList = this.oneShot ? Collections.emptyList() : this.stmtTask.getParamTypes();
+        final List<PgType> paramTypeList = this.oneRoundTrip ? Collections.emptyList() : this.stmtTask.getParamTypes();
         final int paramCount = paramTypeList.size();
         if (bindCount != paramCount) {
             throw PgExceptions.parameterCountMatch(batchIndex, paramCount, bindCount);
@@ -375,7 +384,7 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
             message.writeShort(PgBinds.decideFormatCode(type));
         }
         message.writeShort(paramCount); // The number of parameter values
-        if (this.oneShot) { // one shot.
+        if (this.oneRoundTrip) { // one shot.
             message.writeShort(paramCount); // result format count
             Messages.writeLength(message);
         }

@@ -37,7 +37,7 @@ public final class PgDriver implements Driver {
     }
 
     @Override
-    public DatabaseSessionFactory createSessionFactory(String url, Map<String, Object> properties) throws JdbdException {
+    public DatabaseSessionFactory forDeveloper(String url, Map<String, Object> properties) throws JdbdException {
         return PgDatabaseSessionFactory.create(url, properties, false);
     }
 

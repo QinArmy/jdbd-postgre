@@ -18,7 +18,7 @@ import java.util.Map;
  * <p>
  * The instance of this interface is created by :
  * <ul>
- *     <li>{@link Driver#createSessionFactory(String, Map)}</li>
+ *     <li>{@link Driver#forDeveloper(String, Map)}</li>
  *     <li>{@link Driver#forPoolVendor(String, Map)}</li>
  *     <li>pool vendor</li>
  * </ul>

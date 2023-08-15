@@ -14,7 +14,7 @@ interface ExtendedCommandWriter {
 
     /**
      * <p>
-     * One shot : one network round trip .
+     * One round trip : once network round trip .
      * </p>
      * <p>
      * {@link ExtendedStmtTask#getStmt()} satisfy one of below conditions:
@@ -27,14 +27,16 @@ interface ExtendedCommandWriter {
      *
      * @return true : {@link ExtendedStmtTask#getStmt()} is one shot.
      */
-    boolean isOneShot();
+    boolean isOneRoundTrip();
+
+    boolean isNeedPrepare();
 
     boolean supportFetch();
 
     boolean needClose();
 
     @Nullable
-    CacheStmt getCache();
+    PostgreStmt getCache();
 
     int getFetchSize();
 
@@ -43,18 +45,18 @@ interface ExtendedCommandWriter {
     String getStatementName();
 
     /**
-     * @throws IllegalStateException throw(not emit) when {@link #isOneShot()} return false.
+     * @throws IllegalStateException throw(not emit) when {@link #isOneRoundTrip()} return false.
      */
     Publisher<ByteBuf> prepare();
 
     /**
-     * @throws IllegalStateException throw(not emit) when {@link #isOneShot()} return true.
+     * @throws IllegalStateException throw(not emit) when {@link #isOneRoundTrip()} return true.
      */
-    Publisher<ByteBuf> executeOneShot();
+    Publisher<ByteBuf> executeOneRoundTrip();
 
     /**
      * @throws IllegalArgumentException throw(not emit) when stmt sql and {@link PrepareStmt#getSql()} not match.
-     * @throws IllegalStateException    throw(not emit) when {@link #isOneShot()} return false.
+     * @throws IllegalStateException    throw(not emit) when {@link #isOneRoundTrip()} return false.
      */
     Publisher<ByteBuf> bindAndExecute();
 

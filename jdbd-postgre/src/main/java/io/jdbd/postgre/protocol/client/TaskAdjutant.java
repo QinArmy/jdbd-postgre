@@ -1,6 +1,5 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
 import io.jdbd.postgre.syntax.PgParser;
 import io.jdbd.vendor.env.Environment;
@@ -9,6 +8,7 @@ import reactor.core.publisher.Mono;
 
 import java.nio.charset.Charset;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Set;
 
 interface TaskAdjutant extends ITaskAdjutant, PgParser {
@@ -56,13 +56,15 @@ interface TaskAdjutant extends ITaskAdjutant, PgParser {
      */
     ServerEnv server();
 
+    ProtocolFactory factory();
 
-    CacheStmt parseOneShot(String sql);
+    PostgreStmt parseAsPostgreStmt(String sql);
 
-    @Nullable
-    CacheStmt getCacheForPrepare(String sql);
+    String nextStmtName();
 
-    String replaceSql(String sql);
+    String nextPortName(String stmtName);
+
+    void cachePostgreStmt(String sql, List<DataType> paramTypeList, PgRowMeta rowMeta);
 
     void appendSetCommandParameter(String parameterName);
 

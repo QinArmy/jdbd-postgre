@@ -37,7 +37,7 @@ public final class MySQLDriver implements Driver {
     }
 
     @Override
-    public DatabaseSessionFactory createSessionFactory(String url, Map<String, Object> properties)
+    public DatabaseSessionFactory forDeveloper(String url, Map<String, Object> properties)
             throws JdbdException {
         Objects.requireNonNull(url, "url");
         Objects.requireNonNull(properties, "properties");

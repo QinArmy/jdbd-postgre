@@ -39,7 +39,7 @@ abstract class DriverManager {
             }
             return driver;
         } catch (Throwable e) {
-            //no bug and no security,never here
+            //no bug ,never here
             throw new JdbdException(e.getMessage(), e);
         }
 

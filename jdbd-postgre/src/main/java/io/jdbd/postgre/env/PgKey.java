@@ -13,7 +13,7 @@ import java.util.List;
  */
 public final class PgKey<T> extends Key<T> {
 
-    public static final PgKey<String> k = new PgKey<>("", String.class, null);
+    public static final PgKey<Integer> PREPARE_THRESHOLD = new PgKey<>("prepareThreshold", Integer.class, 10);
 
 
     public static final PgKey<String> OPTIONS = new PgKey<>("options", String.class, null);

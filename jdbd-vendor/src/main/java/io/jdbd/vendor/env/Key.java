@@ -12,6 +12,7 @@ import java.util.function.Consumer;
  */
 public abstract class Key<T> {
 
+
     public final String name;
 
     public final Class<T> valueClass;

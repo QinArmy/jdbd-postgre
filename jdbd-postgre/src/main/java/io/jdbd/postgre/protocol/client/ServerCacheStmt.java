@@ -6,7 +6,7 @@ import reactor.util.annotation.Nullable;
 
 import java.util.List;
 
-interface ServerCacheStmt extends CacheStmt {
+interface ServerCacheStmt extends PostgreStmt {
 
     String stmtName();
 

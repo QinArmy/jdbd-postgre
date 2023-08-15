@@ -2,9 +2,7 @@ package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
-import io.jdbd.meta.DataType;
 import io.jdbd.postgre.PgType;
-import io.jdbd.postgre.util.PgCollections;
 import io.jdbd.postgre.util.PgExceptions;
 import io.jdbd.result.*;
 import io.jdbd.session.ChunkOption;
@@ -245,6 +243,7 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
     @Nullable
     @Override
     public Warning getWarning() {
+        //TODO Notice
         return null;
     }
 
@@ -283,26 +282,22 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
 
         Publisher<ByteBuf> publisher;
         try {
-            CacheStmt cachePrepare;
-            if (commandWriter.isOneShot()) {
-                publisher = commandWriter.executeOneShot();
+
+            if (commandWriter.isOneRoundTrip()) {
+                publisher = commandWriter.executeOneRoundTrip();
                 this.phase = Phase.READ_EXECUTE_RESPONSE;
-            } else if ((cachePrepare = commandWriter.getCache()) != null) {
-                final ParamSingleStmt stmt = (ParamSingleStmt) this.stmt;
-                if (stmt instanceof PrepareStmt) {
-                    if (emitPreparedStatement(cachePrepare)) {
-                        this.phase = Phase.END;
-                    } else {
-                        this.phase = Phase.WAIT_FOR_BIND;
-                    }
-                    publisher = null;
-                } else {
-                    publisher = commandWriter.bindAndExecute();
-                    this.phase = Phase.READ_EXECUTE_RESPONSE;
-                }
-            } else {
+            } else if (commandWriter.isNeedPrepare()) {
+
+                publisher = commandWriter.bindAndExecute();
+                this.phase = Phase.READ_EXECUTE_RESPONSE;
+
                 publisher = commandWriter.prepare();
                 this.phase = Phase.READ_PREPARE_RESPONSE;
+            } else if (emitPreparedStatement()) {
+                this.phase = Phase.END;
+            } else {
+                publisher = commandWriter.bindAndExecute();
+                this.phase = Phase.READ_EXECUTE_RESPONSE;
             }
         } catch (Throwable e) {
             this.phase = Phase.START_ERROR;
@@ -458,19 +453,12 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
      * @return true : occur error,can't emit.
      * @see #start()
      */
-    private boolean emitPreparedStatement(final CacheStmt cache) {
-        if (cache instanceof CachePrepareImpl) {
-            final ResultSink sink = this.sink;
-            if (sink instanceof PrepareResultSink && !hasError()) {
-                final PrepareResultSink prepareSink = (PrepareResultSink) this.sink;
-                prepareSink.setCachePrepare((CachePrepareImpl) cache);
-                prepareSink.stmtSink.success(this);
-            } else {
-                String msg = String.format("Unknown %s implementation.", sink.getClass().getName());
-                addError(new IllegalArgumentException(msg));
-            }
+    private boolean emitPreparedStatement() {
+        final ResultSink sink = this.sink;
+        if (sink instanceof PrepareResultSink && !hasError()) {
+            ((PrepareResultSink) this.sink).stmtSink.success(this);
         } else {
-            String msg = String.format("Unknown %s implementation.", cache.getClass().getName());
+            String msg = String.format("Unknown %s implementation.", sink.getClass().getName());
             addError(new IllegalArgumentException(msg));
         }
         return hasError();
@@ -618,8 +606,6 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
 
         private final MonoSink<PrepareTask> stmtSink;
 
-        private CachePrepareImpl cachePrepare;
-
         private ResultSink resultSink;
 
 
@@ -634,12 +620,6 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
             this.resultSink = resultSink;
         }
 
-        public void setCachePrepare(CachePrepareImpl cachePrepare) {
-            if (this.cachePrepare != null) {
-                throw new IllegalStateException("this.cachePrepare isn't null");
-            }
-            this.cachePrepare = cachePrepare;
-        }
 
         @Override
         public void error(Throwable e) {
@@ -757,60 +737,6 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
         }
 
     }//class PgPrepareStmt
-
-
-    private static final class CachePrepareImpl implements CacheStmt {
-
-        private final String sql;
-
-        private final String replacedSql;
-
-        private final String prepareName;
-
-        private final List<DataType> paramTypeList;
-
-        private final ResultRowMeta rowMeta;
-
-        private final long cacheTime;
-
-
-        private CachePrepareImpl(String sql, String replacedSql, List<PgType> paramTypeList
-                , String prepareName, @Nullable ResultRowMeta rowMeta, long cacheTime) {
-            this.sql = sql;
-            this.replacedSql = replacedSql;
-            this.paramTypeList = PgCollections.unmodifiableList(paramTypeList);
-            this.prepareName = prepareName;
-            this.rowMeta = rowMeta;
-            this.cacheTime = cacheTime;
-        }
-
-        @Override
-        public String originalSql() {
-            return this.sql;
-        }
-
-        @Override
-        public String postgreSql() {
-            return this.replacedSql;
-        }
-
-        @Override
-        public List<DataType> getParamOidList() {
-            return this.paramTypeList;
-        }
-
-        @Override
-        public ResultRowMeta getRowMeta() {
-            return this.rowMeta;
-        }
-
-        @Override
-        public long getCacheTime() {
-            return this.cacheTime;
-        }
-
-
-    }
 
 
 }

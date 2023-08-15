@@ -156,8 +156,7 @@ public interface Statement extends OptionSpec {
      *         <li>{@link BindSingleStatement#executeQuery()}</li>
      *         <li>{@link BindSingleStatement#executeQuery(Function)}</li>
      *         <li>{@link BindSingleStatement#executeQuery(Function, Consumer)}</li>
-     *         <li>{@link BindSingleStatement#executeBatchQuery()}</li>
-     *         <li>{@link BindSingleStatement#executeBatchAsFlux()},if sql is query statement.</li>
+     *         <li>{@link BindSingleStatement#executeBatchAsFlux()},if only sql is query statement and batch size is 1 .</li>
      *     </ul>
      * </p>
      * <p>
@@ -165,10 +164,10 @@ public interface Statement extends OptionSpec {
      * </p>
      *
      * @param fetchSize <ul>
-     *                                                                     <li>0 : fetch all, this is default value</li>
-     *                                                                     <li>positive : fetch size</li>
-     *                                                                     <li>negative : error</li>
-     *                                                    </ul>
+     *                                                                                      <li>0 : fetch all, this is default value</li>
+     *                                                                                      <li>positive : fetch size</li>
+     *                                                                                      <li>negative : error</li>
+     *                                                                     </ul>
      * @throws IllegalArgumentException throw when fetchSize is negative.
      */
     Statement setFetchSize(int fetchSize) throws JdbdException;

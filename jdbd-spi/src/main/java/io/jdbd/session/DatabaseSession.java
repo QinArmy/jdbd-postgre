@@ -324,7 +324,7 @@ public interface DatabaseSession extends StaticStatementSpec, DatabaseMetaSpec, 
     /**
      * <p>
      * This method should provide the access of some key(<strong>NOTE</strong> : is key,not all) properties of url ,but {@link io.jdbd.Driver#PASSWORD},
-     * see {@link io.jdbd.Driver#createSessionFactory(String, Map)}.<br/>
+     * see {@link io.jdbd.Driver#forDeveloper(String, Map)}.<br/>
      * </p>
      *
      * <p>
