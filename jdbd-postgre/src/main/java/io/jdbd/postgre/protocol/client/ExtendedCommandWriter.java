@@ -33,7 +33,7 @@ interface ExtendedCommandWriter {
 
     boolean supportFetch();
 
-    boolean needClose();
+    boolean isNeedClose();
 
     @Nullable
     PostgreStmt getCache();
@@ -66,7 +66,7 @@ interface ExtendedCommandWriter {
     Publisher<ByteBuf> fetch();
 
     /**
-     * @throws IllegalStateException throw(not emit) when {@link #needClose()} return false.
+     * @throws IllegalStateException throw(not emit) when {@link #isNeedClose()} return false.
      */
     Publisher<ByteBuf> closeStatement();
 

@@ -108,7 +108,7 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
     }
 
     @Override
-    public boolean needClose() {
+    public boolean isNeedClose() {
         return !this.statementName.isEmpty() && getCache() == null;
     }
 
@@ -197,7 +197,7 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
 
     @Override
     public Publisher<ByteBuf> closeStatement() {
-        if (!needClose()) {
+        if (!isNeedClose()) {
             throw new IllegalStateException("Don't need close.");
         }
         final byte[] nameBytes = this.statementName.getBytes(this.adjutant.clientCharset());

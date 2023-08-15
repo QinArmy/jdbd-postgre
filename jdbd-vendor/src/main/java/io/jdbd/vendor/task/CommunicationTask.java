@@ -246,6 +246,7 @@ public abstract class CommunicationTask {
      * <li>emit {@link Throwable} when {@link CommunicationTaskExecutor} reject signal</li>
      * </ul>
      */
+    @Deprecated
     protected final Mono<Boolean> sendPacketSignal(boolean endTask) {
         final Mono<Boolean> mono;
         if (this.adjutant.inEventLoop()) {
