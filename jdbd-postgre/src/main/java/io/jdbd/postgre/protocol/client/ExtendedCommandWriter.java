@@ -1,11 +1,15 @@
 package io.jdbd.postgre.protocol.client;
 
+import io.jdbd.meta.DataType;
+import io.jdbd.result.ResultRowMeta;
 import io.jdbd.vendor.stmt.ParamBatchStmt;
 import io.jdbd.vendor.stmt.ParamStmt;
 import io.jdbd.vendor.stmt.PrepareStmt;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
 import reactor.util.annotation.Nullable;
+
+import java.util.List;
 
 /**
  * @see ExtendedStmtTask
@@ -40,9 +44,7 @@ interface ExtendedCommandWriter {
 
     int getFetchSize();
 
-    String getReplacedSql();
-
-    String getStatementName();
+    boolean handlePrepareResponse(List<DataType> paramTypeList, @Nullable ResultRowMeta rowMeta);
 
     /**
      * @throws IllegalStateException throw(not emit) when {@link #isOneRoundTrip()} return false.

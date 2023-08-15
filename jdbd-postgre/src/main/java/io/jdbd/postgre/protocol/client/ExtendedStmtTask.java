@@ -1,6 +1,6 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.postgre.PgType;
+import io.jdbd.meta.DataType;
 import io.jdbd.result.ResultRowMeta;
 import io.jdbd.vendor.stmt.ParamSingleStmt;
 import reactor.util.annotation.Nullable;
@@ -18,7 +18,7 @@ interface ExtendedStmtTask {
 
     TaskAdjutant adjutant();
 
-    List<PgType> getParamTypes();
+    List<? extends DataType> getParamTypes();
 
     @Nullable
     ResultRowMeta getRowMeta();

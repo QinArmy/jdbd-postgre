@@ -103,6 +103,15 @@ public interface DatabaseSession extends StaticStatementSpec, DatabaseMetaSpec, 
      * except that is async emit a {@link PreparedStatement}.
      * </p>
      * <p>
+     * {@link PreparedStatement} is designed for providing following methods:
+     *     <ul>
+     *         <li>{@link PreparedStatement#paramTypeList()}</li>
+     *         <li>{@link PreparedStatement#resultRowMeta()}</li>
+     *         <li>{@link PreparedStatement#waring()}</li>
+     *     </ul>
+     *     , so if you don't need above methods, then you can use {@link #bindStatement(String, boolean)}.
+     * </p>
+     * <p>
      * <strong>NOTE</strong> : driver don't send message to database server before subscribing.
      * </p>
      *
@@ -141,7 +150,10 @@ public interface DatabaseSession extends StaticStatementSpec, DatabaseMetaSpec, 
      * </p>
      *
      * @param sql                 have text sql.
-     * @param forceServerPrepared true : must use server-prepared.
+     * @param forceServerPrepared <ul>
+     *                            <li>true :  must use server-prepared.</li>
+     *                            <li>false : use client-prepared if can  </li>
+     *                            </ul>
      * @throws IllegalArgumentException throw when only sql have no text.
      * @see BindStatement#isForcePrepare()
      */

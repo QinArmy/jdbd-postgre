@@ -20,6 +20,18 @@ import java.util.function.Function;
  * This interface is is similar to {@code java.sql.PreparedStatement}, except that this interface is reactive.
  * </p>
  * <p>
+ * This interface is designed for providing following methods:
+ *     <ul>
+ *         <li>{@link #paramTypeList()}</li>
+ *         <li>{@link #resultRowMeta()}</li>
+ *         <li>{@link #waring()}</li>
+ *     </ul>
+ *     , so if you don't need above methods, then you can use {@link DatabaseSession#bindStatement(String, boolean)}.
+ * </p>
+ * <p>
+ * The instance of this interface is created by {@link DatabaseSession#prepareStatement(String)} method.
+ * </p>
+ * <p>
  * You should invoke one of following :
  * <ul>
  *     <li>{@link #executeUpdate()}</li>
@@ -30,12 +42,8 @@ import java.util.function.Function;
  *     <li>{@link #executeBatchQuery()}</li>
  *     <li>{@link #executeBatchAsMulti()}</li>
  *     <li>{@link #executeBatchAsFlux()}</li>
- *     <li>{@link #declareCursor()}</li>
  *     <li>{@link #abandonBind()}</li>
  * </ul>
- * </p>
- * <p>
- * The instance of this interface is created by {@link DatabaseSession#prepareStatement(String)} method.
  * </p>
  * <p>
  *     <strong>NOTE</strong>: this interface is auto closing when
