@@ -1,9 +1,11 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.JdbdException;
+import io.jdbd.meta.DataType;
 import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.syntax.PgParser;
 import io.jdbd.postgre.util.PgArrays;
+import io.jdbd.postgre.util.PgCollections;
 import io.jdbd.result.ResultRowMeta;
 import io.jdbd.vendor.result.ResultSink;
 import io.jdbd.vendor.stmt.*;
@@ -12,9 +14,11 @@ import org.slf4j.Logger;
 import reactor.util.annotation.Nullable;
 
 import java.nio.charset.Charset;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.IntFunction;
 import java.util.function.IntSupplier;
 
 /**
@@ -47,6 +51,8 @@ abstract class PgCommandTask extends PgTask implements StmtTask {
     private boolean downstreamCanceled;
 
     private CopyOperationHandler copyOperationHandler;
+
+    private Set<Integer> unknownTypeOidSet;
 
 
     /**
@@ -172,14 +178,6 @@ abstract class PgCommandTask extends PgTask implements StmtTask {
                     continueRead = Messages.hasOneMessage(cumulateBuffer);
                 }
                 break;
-                case Messages.Z: {// ReadyForQuery message
-                    serverStatusConsumer.accept(TxStatus.read(cumulateBuffer));
-                    taskEnd = true;
-                    continueRead = false;
-                    logger.trace("Simple query command end,read optional notice.");
-                    readNoticeAfterReadyForQuery(cumulateBuffer, serverStatusConsumer);
-                }
-                break;
                 case Messages.C: {// CommandComplete message,if return rows, CommandComplete message is read by io.jdbd.postgre.protocol.client.ResultSetReader.read()
                     if (readResultStateWithoutReturning(cumulateBuffer)) {
                         continueRead = Messages.hasOneMessage(cumulateBuffer);
@@ -260,6 +258,14 @@ abstract class PgCommandTask extends PgTask implements StmtTask {
                     handleClientTimeout();
                 }
                 break;
+                case Messages.Z: {// ReadyForQuery message
+                    serverStatusConsumer.accept(TxStatus.read(cumulateBuffer));
+                    taskEnd = true;
+                    continueRead = false;
+                    logger.trace("Simple query command end,read optional notice.");
+                    readNoticeAfterReadyForQuery(cumulateBuffer, serverStatusConsumer);
+                }
+                break;
                 default: {
                     handleUnexpectedMessage(cumulateBuffer);
                 }
@@ -281,7 +287,7 @@ abstract class PgCommandTask extends PgTask implements StmtTask {
     /**
      * @return true: task end.
      */
-    abstract boolean handlePrepareResponse(List<PgType> paramTypeList, @Nullable ResultRowMeta rowMeta);
+    abstract boolean handlePrepareResponse(List<DataType> paramTypeList, @Nullable ResultRowMeta rowMeta);
 
     abstract boolean handleClientTimeout();
 
@@ -401,14 +407,14 @@ abstract class PgCommandTask extends PgTask implements StmtTask {
      *
      * @return true : task end
      * @see #readExecuteResponse(ByteBuf, Consumer)
-     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">ParameterDescription</a>
-     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">RowDescription</a>
+     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">ParameterDescription (B)</a>
+     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">RowDescription (B)</a>
      * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">NoData</a>
      * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">ReadyForQuery</a>
      */
     private boolean readPrepareResponse(final ByteBuf cumulateBuffer, final Consumer<Object> serverStatusConsumer) {
-        final List<PgType> paramTypeList;
-        paramTypeList = Messages.readParameterDescription(cumulateBuffer);
+        final List<DataType> paramTypeList;
+        paramTypeList = readParameterDescription(cumulateBuffer);
 
         final ResultRowMeta rowMeta;
         switch (cumulateBuffer.getByte(cumulateBuffer.readerIndex())) {
@@ -432,6 +438,57 @@ abstract class PgCommandTask extends PgTask implements StmtTask {
         serverStatusConsumer.accept(TxStatus.read(cumulateBuffer)); // read ReadyForQuery message
 
         return handlePrepareResponse(paramTypeList, rowMeta);
+    }
+
+
+    /**
+     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">ParameterDescription (B)</a>
+     */
+    private List<DataType> readParameterDescription(final ByteBuf cumulateBuffer) {
+        final int msgStartIndex = cumulateBuffer.readerIndex();
+        if (cumulateBuffer.readByte() != Messages.t) {
+            throw new IllegalArgumentException("Non ParameterDescription message");
+        }
+        final int length = cumulateBuffer.readInt();
+        final int count = cumulateBuffer.readShort();
+
+        final IntFunction<DataType> typeFunc = this.adjutant.oidToDataTypeFunc();
+        final List<DataType> paramTypeList;
+        DataType dataType;
+        int oid;
+        switch (count) {
+            case 0:
+                paramTypeList = Collections.emptyList();
+                break;
+            case 1: {
+                oid = cumulateBuffer.readInt();
+                dataType = PgType.from(oid);
+                if (dataType == PgType.UNSPECIFIED) {
+                    dataType = typeFunc.apply(oid);
+                }
+                if (dataType == PgType.UNSPECIFIED) {
+                    addUnknownTypeOid(oid);
+                }
+                paramTypeList = Collections.singletonList(dataType);
+            }
+            break;
+            default: {
+                paramTypeList = PgCollections.arrayList(count);
+                for (int i = 0; i < count; i++) {
+                    oid = cumulateBuffer.readInt();
+                    dataType = PgType.from(oid);
+                    if (dataType == PgType.UNSPECIFIED) {
+                        dataType = typeFunc.apply(oid);
+                    }
+                    if (dataType == PgType.UNSPECIFIED) {
+                        addUnknownTypeOid(oid);
+                    }
+                    paramTypeList.add(dataType);
+                }
+            }
+        }
+        cumulateBuffer.readerIndex(msgStartIndex + 1 + length); // avoid tail filler
+        return paramTypeList;
     }
 
 
@@ -524,6 +581,15 @@ abstract class PgCommandTask extends PgTask implements StmtTask {
             this.addError(e);
         }
 
+    }
+
+
+    private void addUnknownTypeOid(int oid) {
+        Set<Integer> set = this.unknownTypeOidSet;
+        if (set == null) {
+            this.unknownTypeOidSet = set = PgCollections.hashSet();
+        }
+        set.add(oid);
     }
 
 

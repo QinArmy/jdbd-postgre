@@ -1,6 +1,5 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.util.PgExceptions;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -11,9 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 
 abstract class Messages {
@@ -357,9 +354,9 @@ abstract class Messages {
             throw new IllegalArgumentException("Non ParameterDescription message.");
         }
         boolean canRead = false;
-        while (hasOneMessage(cumulateBuffer)) {
-            final int msgStartIndex = cumulateBuffer.readerIndex();
-            final int msgType = cumulateBuffer.readByte();
+        for (int msgStartIndex, msgType; hasOneMessage(cumulateBuffer); ) {
+            msgStartIndex = cumulateBuffer.readerIndex();
+            msgType = cumulateBuffer.readByte();
             if (msgType == Z) {// ReadyForQuery
                 canRead = true;
                 break;
@@ -368,35 +365,6 @@ abstract class Messages {
         }
         cumulateBuffer.readerIndex(originalIndex);
         return canRead;
-    }
-
-    /**
-     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">ParameterDescription</a>
-     */
-    static List<PgType> readParameterDescription(ByteBuf cumulateBuffer) {
-        final int msgStartIndex = cumulateBuffer.readerIndex();
-        if (cumulateBuffer.readByte() != t) {
-            throw new IllegalArgumentException("Non ParameterDescription message");
-        }
-        final int length = cumulateBuffer.readInt();
-        final int count = cumulateBuffer.readShort();
-        final List<PgType> paramTypeList;
-        switch (count) {
-            case 0:
-                paramTypeList = Collections.emptyList();
-                break;
-            case 1:
-                paramTypeList = Collections.singletonList(PgType.from(cumulateBuffer.readInt()));
-                break;
-            default: {
-                paramTypeList = new ArrayList<>(count);
-                for (int i = 0; i < count; i++) {
-                    paramTypeList.add(PgType.from(cumulateBuffer.readInt()));
-                }
-            }
-        }
-        cumulateBuffer.readerIndex(msgStartIndex + 1 + length); // avoid tail filler
-        return paramTypeList;
     }
 
     static void skipOneMessage(final ByteBuf message) {

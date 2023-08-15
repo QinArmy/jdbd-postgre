@@ -10,6 +10,7 @@ import java.nio.charset.Charset;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Set;
+import java.util.function.IntFunction;
 
 interface TaskAdjutant extends ITaskAdjutant, PgParser {
 
@@ -63,6 +64,9 @@ interface TaskAdjutant extends ITaskAdjutant, PgParser {
     String nextStmtName();
 
     String nextPortName(String stmtName);
+
+
+    IntFunction<DataType> oidToDataTypeFunc();
 
     void cachePostgreStmt(String sql, List<DataType> paramTypeList, PgRowMeta rowMeta);
 

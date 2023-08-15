@@ -6,11 +6,17 @@ import io.netty.buffer.ByteBuf;
  * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">ReadyForQuery</a>
  */
 enum TxStatus {
-    /** idle,not in a transaction block */
+    /**
+     * idle,not in a transaction block
+     */
     IDLE,
-    /** in a transaction block */
+    /**
+     * in a transaction block
+     */
     TRANSACTION,
-    /** in a failed transaction block (queries will be rejected until block is ended). */
+    /**
+     * in a failed transaction block (queries will be rejected until block is ended).
+     */
     ERROR;
 
     static TxStatus from(byte statusByte) {
@@ -31,13 +37,16 @@ enum TxStatus {
         return status;
     }
 
-    static TxStatus read(ByteBuf message) {
+    static TxStatus read(final ByteBuf message) {
         if (message.readByte() != Messages.Z) {
             throw new IllegalArgumentException("Non ReadyForQuery message.");
         }
-        final int readIndex = message.readerIndex();
-        final int nextMsgIndex = readIndex + message.readInt();
-        final TxStatus status = from(message.readByte());
+        final int readIndex, nextMsgIndex;
+        readIndex = message.readerIndex();
+        nextMsgIndex = readIndex + message.readInt();
+
+        final TxStatus status;
+        status = from(message.readByte());
 
         message.readerIndex(nextMsgIndex); // avoid tail filler
         return status;
