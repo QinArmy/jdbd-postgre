@@ -4,6 +4,8 @@ import io.jdbd.meta.DataType;
 
 final class UserDefinedType implements DataType {
 
+    int oid;
+
     @Override
     public String name() {
         return this.typeName();

@@ -1,6 +1,7 @@
 package io.jdbd.postgre.util;
 
 import io.jdbd.JdbdException;
+import io.jdbd.meta.DataType;
 import io.jdbd.postgre.PgConstant;
 import io.jdbd.postgre.PgType;
 import io.jdbd.type.Interval;
@@ -77,9 +78,12 @@ public abstract class PgBinds extends JdbdBinds {
     }
 
 
-    public static int decideFormatCode(final PgType type) {
+    public static int decideFormatCode(final DataType type) {
+
         final int formatCode;
-        switch (type) {
+        if (!(type instanceof PgType)) {
+            formatCode = 0; //  text format
+        } else switch ((PgType) type) {
             case SMALLINT:
             case INTEGER:
             case BIGINT:

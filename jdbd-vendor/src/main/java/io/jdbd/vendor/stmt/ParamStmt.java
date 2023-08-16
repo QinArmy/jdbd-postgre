@@ -23,7 +23,7 @@ public interface ParamStmt extends ParamSingleStmt, FetchAbleSingleStmt {
     /**
      * @return a unmodifiable list
      */
-    List<ParamValue> getBindGroup();
+    List<ParamValue> getParamGroup();
 
 
 }

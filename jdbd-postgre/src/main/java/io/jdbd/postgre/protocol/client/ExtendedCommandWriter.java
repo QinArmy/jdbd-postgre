@@ -1,7 +1,6 @@
 package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.meta.DataType;
-import io.jdbd.result.ResultRowMeta;
 import io.jdbd.vendor.stmt.ParamBatchStmt;
 import io.jdbd.vendor.stmt.ParamStmt;
 import io.jdbd.vendor.stmt.PrepareStmt;
@@ -44,7 +43,7 @@ interface ExtendedCommandWriter {
 
     int getFetchSize();
 
-    boolean handlePrepareResponse(List<DataType> paramTypeList, @Nullable ResultRowMeta rowMeta);
+    void handlePrepareResponse(List<DataType> paramTypeList, @Nullable PgRowMeta rowMeta);
 
     /**
      * @throws IllegalStateException throw(not emit) when {@link #isOneRoundTrip()} return false.

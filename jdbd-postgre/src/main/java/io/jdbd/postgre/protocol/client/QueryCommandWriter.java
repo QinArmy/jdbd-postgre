@@ -152,7 +152,7 @@ final class QueryCommandWriter extends CommandWriter {
             message.writeByte(Messages.Q);
             message.writeZero(Messages.LENGTH_SIZE); // placeholder
 
-            writeStatement(-1, sqlPartList, stmt.getBindGroup(), message);
+            writeStatement(-1, sqlPartList, stmt.getParamGroup(), message);
 
             message.writeByte(Messages.STRING_TERMINATOR);
 
@@ -188,7 +188,7 @@ final class QueryCommandWriter extends CommandWriter {
                     message.writeByte(PgConstant.SEMICOLON);
                     message.writeByte(PgConstant.SPACE);
                 }
-                writeStatement(i, statement.sqlPartList(), stmt.getBindGroup(), message);
+                writeStatement(i, statement.sqlPartList(), stmt.getParamGroup(), message);
             }
 
             message.writeByte(Messages.STRING_TERMINATOR);

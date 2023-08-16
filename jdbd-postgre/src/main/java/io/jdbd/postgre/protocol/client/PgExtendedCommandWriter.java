@@ -1,14 +1,14 @@
 package io.jdbd.postgre.protocol.client;
 
+import io.jdbd.JdbdException;
+import io.jdbd.lang.Nullable;
+import io.jdbd.meta.DataType;
 import io.jdbd.postgre.PgConstant;
 import io.jdbd.postgre.PgType;
-import io.jdbd.postgre.stmt.BindValue;
 import io.jdbd.postgre.syntax.PgStatement;
-import io.jdbd.postgre.util.PgBinds;
-import io.jdbd.postgre.util.PgExceptions;
-import io.jdbd.postgre.util.PgStrings;
-import io.jdbd.postgre.util.PgTimes;
+import io.jdbd.postgre.util.*;
 import io.jdbd.result.ResultRowMeta;
+import io.jdbd.statement.OutParameter;
 import io.jdbd.vendor.stmt.*;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
@@ -19,7 +19,6 @@ import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
-import reactor.util.annotation.Nullable;
 
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -29,7 +28,6 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -38,7 +36,7 @@ import java.util.Objects;
  */
 final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCommandWriter {
 
-    static PgExtendedCommandWriter create(ExtendedStmtTask stmtTask) throws SQLException {
+    static PgExtendedCommandWriter create(ExtendedStmtTask stmtTask) throws JdbdException {
         return new PgExtendedCommandWriter(stmtTask);
     }
 
@@ -54,12 +52,11 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
 
     private final PostgreStmt cacheStmt;
 
-    private List<PgType> paramTypeList;
-
     /**
      * if support fetch ,then create portal name.
      */
     private final String portalName;
+
 
     private int fetchSize;
 
@@ -104,7 +101,9 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
 
     @Override
     public boolean supportFetch() {
-        return this.fetchSize > 0 && PgStrings.hasText(this.portalName);
+        return this.stmt.getFetchSize() > 0
+                && PgStrings.hasText(this.portalName)
+                && this.stmtTask.getRowMeta() != null;
     }
 
     @Override
@@ -123,14 +122,19 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
         return this.fetchSize;
     }
 
-    @Override
-    public String getReplacedSql() {
-        return this.cacheStmt.postgreSql();
-    }
 
     @Override
-    public String getStatementName() {
-        return this.statementName;
+    public void handlePrepareResponse(final List<DataType> paramTypeList, final @Nullable PgRowMeta rowMeta) {
+        final PostgreStmt stmt = this.cacheStmt;
+        if (stmt instanceof ServerCacheStmt) {
+            final ServerCacheStmt serverStmt = (ServerCacheStmt) stmt;
+            if (!paramTypeList.equals(serverStmt.getParamOidList())
+                    || !Objects.equals(((ServerCacheStmt) stmt).getRowMeta(), rowMeta)) {
+                this.adjutant.cachePostgreStmt(stmt, paramTypeList, rowMeta);
+            }
+        } else if (stmt.useCount() > this.adjutant.factory().prepareThreshold) {
+            this.adjutant.cachePostgreStmt(stmt, paramTypeList, rowMeta);
+        }
     }
 
     @Override
@@ -139,7 +143,7 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
             // no bug,never here
             throw new IllegalStateException("Current is  one shot");
         }
-        final List<ByteBuf> messageList = new ArrayList<>(2);
+        final List<ByteBuf> messageList = PgCollections.arrayList(2);
         messageList.add(createParseMessage());    // Parse message
         appendDescribeMessage(messageList, true); // Describe message for statement
         appendSyncMessage(messageList);           // Sync message
@@ -155,7 +159,7 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
 
         beforeExecute();
 
-        final List<ByteBuf> messageList = new ArrayList<>(3);
+        final List<ByteBuf> messageList = PgCollections.arrayList(3);
 
         messageList.add(createParseMessage());    // Parse message
         messageList.add(createBindMessage(0, 0)); // Bind message
@@ -169,13 +173,6 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
 
     @Override
     public Publisher<ByteBuf> bindAndExecute() {
-        if (this.paramTypeList != null) {
-            throw new IllegalStateException("duplication execute.");
-        }
-
-        beforeExecute();
-
-        this.paramTypeList = this.stmtTask.getParamTypes();
         return Flux.create(sink -> {
             if (this.adjutant.inEventLoop()) {
                 continueBindExecuteInEventLoop(sink, 0);
@@ -225,17 +222,18 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
             final int fetchSize = getFetchSizeFromStmt(this.stmt);
             if (fetchSize > 0) {
                 this.fetchSize = fetchSize;
-                this.portalName = this.adjutant.createPortalName();
             }
         }
     }
 
 
     /**
+     * @see #executeOneRoundTrip()
+     * @see #prepare()
      * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Parse (F)</a>
      */
     private ByteBuf createParseMessage() {
-        final Charset charset = this.adjutant.clientCharset();
+        final Charset charset = this.clientCharset;
 
         final ByteBuf message = this.adjutant.allocator().buffer(1024, Integer.MAX_VALUE);
         //  write Parse message
@@ -247,15 +245,17 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
         }
         message.writeByte(Messages.STRING_TERMINATOR);
 
-        message.writeBytes(this.replacedSql.getBytes(charset));
+        message.writeBytes(this.cacheStmt.postgreSql().getBytes(charset));
         message.writeByte(Messages.STRING_TERMINATOR);
 
-        message.writeShort(0); //jdbd-postgre don't support parameter oid in Parse message,@see /document/note/Q&A.md
-
+        if (this.stmt instanceof PrepareStmt) {
+            message.writeShort(0); // PreparedStatement
+        } else {
+            bindParamOidInParseMessage(message);
+        }
         Messages.writeLength(message);
         return message;
     }
-
 
     /**
      * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Execute</a>
@@ -287,7 +287,9 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
     }
 
     /**
-     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Describe</a>
+     * @see #executeOneRoundTrip()
+     * @see #prepare()
+     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Describe (F)</a>
      */
     private void appendDescribeMessage(final List<ByteBuf> messageList, final boolean describeStatement) {
         final String name = describeStatement ? this.statementName : this.portalName;
@@ -303,7 +305,7 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
 
         message.writeByte(Messages.D);
         message.writeInt(length);
-        message.writeByte(describeStatement ? 'S' : 'P');
+        message.writeByte(describeStatement ? 'S' : 'P'); // S : response ParameterDescription and RowDescription ; P : response only RowDescription
         if (nameBytes.length > 0) {
             message.writeBytes(nameBytes);
         }
@@ -320,6 +322,7 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
 
     /**
      * @see #appendSyncMessage(List)
+     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Sync (F)</a>
      */
     private void writeSyncMessage(ByteBuf message) {
         message.writeByte(Messages.S);
@@ -352,44 +355,92 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
 
     /**
      * @see #executeOneRoundTrip()
-     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Bind</a>
+     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Bind (F)</a>
      */
-    private ByteBuf createBindMessage(final int batchIndex, final int bindCount)
-            throws JdbdSQLException {
+    private ByteBuf createBindMessage(final int batchIndex, final int groupSize) throws JdbdException {
 
-        final Charset clientCharset = this.adjutant.clientCharset();
+        final Charset clientCharset = this.clientCharset;
         final ByteBuf message = this.adjutant.allocator().buffer(1024);
         message.writeByte(Messages.B);
         message.writeZero(Messages.LENGTH_SIZE);//placeholder of length
         // The name of the destination portal (an empty string selects the unnamed portal).
         if (supportFetch()) {
-            final String portalName = Objects.requireNonNull(this.portalName, "this.portalName");
-            message.writeBytes(portalName.getBytes(clientCharset));
+            message.writeBytes(this.portalName.getBytes(clientCharset));
         }
         message.writeByte(Messages.STRING_TERMINATOR);
         // The name of the source prepared statement (an empty string selects the unnamed prepared statement).
         final String statementName = this.statementName;
-        if (!statementName.equals("")) {
+        if (PgStrings.hasText(statementName)) {
             message.writeBytes(statementName.getBytes(clientCharset));
         }
         message.writeByte(Messages.STRING_TERMINATOR);
 
-        final List<PgType> paramTypeList = this.oneRoundTrip ? Collections.emptyList() : this.stmtTask.getParamTypes();
+        final List<? extends DataType> paramTypeList = this.stmtTask.getParamTypes();
         final int paramCount = paramTypeList.size();
-        if (bindCount != paramCount) {
-            throw PgExceptions.parameterCountMatch(batchIndex, paramCount, bindCount);
+        if (groupSize != paramCount) {
+            throw PgExceptions.parameterCountMatch(batchIndex, paramCount, groupSize);
         }
         message.writeShort(paramCount); // The number of parameter format codes
-        for (PgType type : paramTypeList) {
+        for (DataType type : paramTypeList) {
             message.writeShort(PgBinds.decideFormatCode(type));
         }
         message.writeShort(paramCount); // The number of parameter values
-        if (this.oneRoundTrip) { // one shot.
-            message.writeShort(paramCount); // result format count
-            Messages.writeLength(message);
-        }
         return message;
     }
+
+    /**
+     * @see #createParseMessage()
+     * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Parse (F)</a>
+     */
+    private void bindParamOidInParseMessage(final ByteBuf message) throws JdbdException {
+        final ParamSingleStmt stmt = this.stmt;
+        final List<ParamValue> paramGroup;
+        if (stmt instanceof ParamStmt) {
+            paramGroup = ((ParamStmt) stmt).getParamGroup();
+        } else if (stmt instanceof ParamBatchStmt) {
+            paramGroup = ((ParamBatchStmt) stmt).getGroupList().get(0);
+        } else {
+            throw PgExceptions.unknownStmt(stmt);
+        }
+
+
+        final int paramCount = paramGroup.size();
+
+        message.writeShort(paramCount);
+
+        ParamValue paramValue;
+        DataType dataType, typeFromCache;
+        Object value;
+        for (int i = 0; i < paramCount; i++) {
+            paramValue = paramGroup.get(i);
+            dataType = paramValue.getType();
+
+            value = paramValue.get();
+            if (value instanceof OutParameter) {
+                message.writeInt(PgType.VOID.oid);
+            } else if (dataType instanceof PgType) {
+                message.writeInt(((PgType) dataType).oid);
+            } else if (dataType instanceof UserDefinedType) {
+                message.writeInt(((UserDefinedType) dataType).oid);
+            } else if (dataType instanceof InternalType) {
+                message.writeInt(((InternalType) dataType).oid);
+            } else if ((typeFromCache = this.adjutant.internalOrUserType(dataType.typeName())) == null) {
+                //here , 1. BindSingleStatement bug ; 2. type cache is cleared
+                String m = String.format("unrecognized type %s", dataType);
+                throw new JdbdException(m);
+            } else if (typeFromCache instanceof UserDefinedType) {
+                message.writeInt(((UserDefinedType) typeFromCache).oid);
+            } else if (typeFromCache instanceof InternalType) {
+                message.writeInt(((InternalType) typeFromCache).oid);
+            } else {
+                // no new type ,never here
+                throw new IllegalStateException(String.format("unrecognized type %s", typeFromCache));
+            }
+
+        }
+
+    }
+
 
     private String replacePlaceholder(PgStatement statement) {
 
@@ -418,7 +469,7 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
         final ParamSingleStmt stmt = this.stmt;
         final List<ParamValue> bindGroup;
         if (stmt instanceof ParamStmt) {
-            bindGroup = ((ParamStmt) stmt).getBindGroup();
+            bindGroup = ((ParamStmt) stmt).getParamGroup();
         } else if (stmt instanceof ParamBatchStmt) {
             final List<List<ParamValue>> groupList = ((ParamBatchStmt) stmt).getGroupList();
             if (groupList.size() != 1) {
@@ -435,14 +486,14 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
      * @see #bindAndExecute()
      * @see ParameterSubscriber#onCompleteInEventLoop()
      */
-    private void continueBindExecuteInEventLoop(FluxSink<ByteBuf> channelSink, int batchIndex) {
+    private void continueBindExecuteInEventLoop(final FluxSink<ByteBuf> sink, int batchIndex) {
         ByteBuf message = null;
         try {
-            List nextBindGroup = getBindGroup(batchIndex);
+            List<ParamValue> nextBindGroup = getBindGroup(batchIndex);
             while (nextBindGroup != null) {
                 message = createBindMessage(batchIndex, nextBindGroup.size());
-                if (continueWriteBindParam(message, batchIndex, 0, nextBindGroup, channelSink)) {
-                    nextBindGroup = handBindComplete(message, batchIndex, channelSink);
+                if (continueWriteBindParam(message, batchIndex, 0, nextBindGroup, sink)) {
+                    nextBindGroup = handBindComplete(message, batchIndex, sink);
                 } else {
                     // exists Publisher type parameter.
                     break;
@@ -452,7 +503,7 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
             }
         } catch (Throwable e) {
             if (message != null) {
-                handleBindError(message, e, batchIndex, channelSink);
+                handleBindError(message, e, batchIndex, sink);
             }
 
         }
@@ -463,10 +514,10 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
      * @see #continueWriteBindParam(ByteBuf, int, int, List, FluxSink)
      * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Bind message</a>
      */
-    private void writeNonNullBindValue(final ByteBuf message, final int batchIndex, final PgType pgType,
-                                       final ParamValue paramValue) {
+    private void bindParameter(final ByteBuf message, final int batchIndex, final PgType pgType,
+                               final ParamValue paramValue) {
 
-        final Charset clientCharset = this.adjutant.clientCharset();
+        final Charset clientCharset = this.clientCharset;
 
         switch (pgType) {
             case BOOLEAN: {// binary format
@@ -790,7 +841,7 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
 
 
     /**
-     * @see #writeNonNullBindValue(ByteBuf, int, PgType, ParamValue)
+     * @see #bindParameter(ByteBuf, int, PgType, ParamValue)
      */
     private void bindNonNullToBytea(ByteBuf message, final int batchIndex, PgType pgType, ParamValue paramValue)
             throws LocalFileException, SQLException {
@@ -817,7 +868,7 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
     }
 
     /**
-     * @see #writeNonNullBindValue(ByteBuf, int, PgType, ParamValue)
+     * @see #bindParameter(ByteBuf, int, PgType, ParamValue)
      */
     private void writeNonNullToDate(ByteBuf message, final int batchIndex, PgType pgType, ParamValue paramValue)
             throws SQLException {
@@ -842,7 +893,7 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
     }
 
     /**
-     * @see #writeNonNullBindValue(ByteBuf, int, PgType, ParamValue)
+     * @see #bindParameter(ByteBuf, int, PgType, ParamValue)
      */
     private void writeNonNullToTimestamp(ByteBuf message, final int batchIndex, PgType pgType, ParamValue paramValue)
             throws SQLException {
@@ -867,7 +918,7 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
     }
 
     /**
-     * @see #writeNonNullBindValue(ByteBuf, int, PgType, ParamValue)
+     * @see #bindParameter(ByteBuf, int, PgType, ParamValue)
      */
     private void writeNonNullToTimestampTz(ByteBuf message, final int batchIndex, PgType pgType, ParamValue paramValue)
             throws SQLException {
@@ -893,7 +944,7 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
 
 
     /**
-     * @see #writeNonNullBindValue(ByteBuf, int, PgType, ParamValue)
+     * @see #bindParameter(ByteBuf, int, PgType, ParamValue)
      */
     private void bindNonNullToLongString(ByteBuf message, final int batchIndex, PgType pgType, ParamValue paramValue)
             throws SQLException, LocalFileException {
@@ -944,16 +995,16 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
 
 
     @Nullable
-    private List getBindGroup(final int batchIndex) throws IllegalArgumentException {
+    private List<ParamValue> getBindGroup(final int batchIndex) throws IllegalArgumentException {
         ParamSingleStmt stmt = this.stmt;
         if (stmt instanceof PrepareStmt) {
             stmt = ((PrepareStmt) stmt).getStmt();
         }
-        final List bindGroup;
+        final List<ParamValue> bindGroup;
         if (stmt instanceof ParamStmt) {
             switch (batchIndex) {
                 case 0:
-                    bindGroup = ((ParamStmt) stmt).getBindGroup();
+                    bindGroup = ((ParamStmt) stmt).getParamGroup();
                     break;
                 case 1:
                     bindGroup = null;
@@ -984,56 +1035,50 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
      * @see <a href="https://www.postgresql.org/docs/current/protocol-message-formats.html">Bind</a>
      * @see #continueBindExecuteInEventLoop(FluxSink, int)
      */
-    private boolean continueWriteBindParam(ByteBuf message, final int batchIndex, int paramIndex
-            , List bindGroup, FluxSink<ByteBuf> channelSink) throws SQLException {
+    private boolean continueWriteBindParam(final ByteBuf message, final int batchIndex, int paramIndex,
+                                           final List<ParamValue> paramGroup, final FluxSink<ByteBuf> channelSink)
+            throws JdbdException {
 
-        final List<PgType> paramTypeList = Objects.requireNonNull(this.paramTypeList, "this.paramTypeList");
-        final int paramCount = paramTypeList.size();
+        final int paramCount = paramGroup.size();
         if (paramIndex < 0 || (paramCount > 0 && paramIndex >= paramCount)) {
             throw new IllegalArgumentException(String.format("paramIndex[%s] error.", paramIndex));
         }
-        if (bindGroup.size() != paramCount) {
-            throw PgExceptions.createBindCountNotMatchError(batchIndex, paramCount, bindGroup.size());
-        }
 
+        ParamValue paramValue;
+        DataType dataType;
+        Object value;
         for (int valueLengthIndex, valueEndIndex; paramIndex < paramCount; paramIndex++) {
-            final ParamValue paramValue = bindGroup.get(paramIndex);
-            final PgType pgType = paramTypeList.get(paramIndex);
+            paramValue = paramGroup.get(paramIndex);
+
 
             if (paramValue.getIndex() != paramIndex) {
-                final BindValue bindValue = BindValue.wrap(pgType, paramValue);
-                throw PgExceptions.createBindIndexNotMatchError(batchIndex, paramIndex, bindValue);
+                throw PgExceptions.createBindIndexNotMatchError(batchIndex, paramIndex, paramValue);
             }
-            final Object value = paramValue.get();
-            if (value == null) {
+            value = paramValue.get();
+            if (value == null || value instanceof OutParameter) {
                 message.writeInt(-1); //  -1 indicates a NULL parameter value
                 continue;
             }
 
-            if (value instanceof Publisher) {
-                if (!pgType.supportPublisher()) {
-                    throw PgExceptions.nonSupportBindSqlTypeError(batchIndex, pgType, paramValue);
-                }
-                final ParameterSubscriber subscriber;
-                subscriber = new ParameterSubscriber(message, batchIndex, paramIndex, pgType, channelSink);
-                final Publisher<?> publisher = (Publisher<?>) value;
-                publisher.subscribe(subscriber);
-                break;  // break loop , async bind
-            } else {
-                valueLengthIndex = message.writerIndex();
-                message.writeZero(4); // placeholder of parameter value length.
-                if (!(value instanceof byte[]) && value.getClass().isArray()) {
-                    writeNonNullArray(batchIndex, pgType, paramValue, message);// write array parameter
-                } else {
-                    writeNonNullBindValue(message, batchIndex, pgType, paramValue); // write non-array parameter
-                }
-                valueEndIndex = message.writerIndex();
 
-                message.writerIndex(valueLengthIndex);
-                message.writeInt(valueEndIndex - valueLengthIndex - 4);
-                message.writerIndex(valueEndIndex);
+            valueLengthIndex = message.writerIndex();
+            message.writeZero(4); // placeholder of parameter value length.
+
+            dataType = paramValue.getType();
+
+
+            if (!(value instanceof byte[]) && value.getClass().isArray()) {
+                writeNonNullArray(batchIndex, dataType, paramValue, message);// write array parameter
+            } else {
+                bindParameter(message, batchIndex, dataType, paramValue); // write non-array parameter
             }
-        }
+            valueEndIndex = message.writerIndex();
+
+            message.writerIndex(valueLengthIndex);
+            message.writeInt(valueEndIndex - valueLengthIndex - 4);
+            message.writerIndex(valueEndIndex);
+
+        } // FOR loop
 
         final boolean bindFinish = paramIndex == paramCount;
         if (bindFinish) {
@@ -1174,7 +1219,7 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
     private static int getFirstBatchBindCount(final ParamSingleStmt stmt) {
         final int bindCount;
         if (stmt instanceof ParamStmt) {
-            bindCount = ((ParamStmt) stmt).getBindGroup().size();
+            bindCount = ((ParamStmt) stmt).getParamGroup().size();
         } else {
             final ParamBatchStmt batchStmt = (ParamBatchStmt) stmt;
             if (batchStmt.getGroupList().isEmpty()) {

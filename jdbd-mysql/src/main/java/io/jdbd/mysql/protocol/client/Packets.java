@@ -700,7 +700,7 @@ abstract class Packets {
         if (stmt instanceof SingleStmt) {
             capacity += (((SingleStmt) stmt).getSql().length() + 128);
             if (stmt instanceof ParamStmt) {
-                capacity += (((ParamStmt) stmt).getBindGroup().size() * 6);
+                capacity += (((ParamStmt) stmt).getParamGroup().size() * 6);
             } else if (stmt instanceof ParamBatchStmt) {
                 capacity += (((ParamBatchStmt) stmt).getGroupList().size() * 10);
             }

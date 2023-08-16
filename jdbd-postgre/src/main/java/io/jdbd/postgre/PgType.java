@@ -5,7 +5,6 @@ import io.jdbd.meta.JdbdType;
 import io.jdbd.meta.SQLType;
 import io.jdbd.postgre.util.PgCollections;
 import io.jdbd.result.RefCursor;
-import io.jdbd.type.Interval;
 import io.jdbd.type.Point;
 import reactor.util.annotation.Nullable;
 
@@ -57,7 +56,7 @@ public enum PgType implements SQLType {
     TSVECTOR(PgConstant.TYPE_TSVECTOR, JdbdType.DIALECT_TYPE, String.class),
     TSQUERY(PgConstant.TYPE_TSQUERY, JdbdType.DIALECT_TYPE, String.class),
     OID(PgConstant.TYPE_OID, JdbdType.BIGINT, Long.class),
-    INTERVAL(PgConstant.TYPE_INTERVAL, JdbdType.INTERVAL, Interval.class),
+    INTERVAL(PgConstant.TYPE_INTERVAL, JdbdType.INTERVAL, String.class),
     UUID(PgConstant.TYPE_UUID, JdbdType.DIALECT_TYPE, UUID.class),
     XML(PgConstant.TYPE_XML, JdbdType.XML, String.class),
 
@@ -180,7 +179,7 @@ public enum PgType implements SQLType {
 
     private static final Map<Short, PgType> CODE_TO_TYPE_MAP = createCodeToTypeMap();
 
-    private final short typeOid;
+    public final short oid;
 
     private final String typeName;
 
@@ -195,7 +194,7 @@ public enum PgType implements SQLType {
         if (jdbdType == JdbdType.ARRAY) {
             throw new IllegalArgumentException(String.format("jdbcType[%s] error", jdbdType));
         }
-        this.typeOid = typeOid;
+        this.oid = typeOid;
         this.typeName = this.name();
         this.jdbdType = jdbdType;
         this.javaType = javaType;
@@ -204,7 +203,7 @@ public enum PgType implements SQLType {
     }
 
     PgType(short typeOid, PgType elementType) {
-        this.typeOid = typeOid;
+        this.oid = typeOid;
         this.typeName = elementType.name() + "[]";
         this.jdbdType = JdbdType.ARRAY;
         this.javaType = String.class; // postgre array always output array.
@@ -289,10 +288,10 @@ public enum PgType implements SQLType {
         final PgType[] values = PgType.values();
         Map<Short, PgType> map = PgCollections.hashMap((int) (values.length / 0.75f));
         for (PgType type : PgType.values()) {
-            if (map.containsKey(type.typeOid)) {
-                throw new IllegalStateException(String.format("Type[%s] oid[%s] duplication.", type, type.typeOid));
+            if (map.containsKey(type.oid)) {
+                throw new IllegalStateException(String.format("Type[%s] oid[%s] duplication.", type, type.oid));
             }
-            map.put(type.typeOid, type);
+            map.put(type.oid, type);
         }
         return Collections.unmodifiableMap(map);
     }

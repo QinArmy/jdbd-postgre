@@ -1,5 +1,6 @@
 package io.jdbd.postgre.protocol.client;
 
+import io.jdbd.JdbdException;
 import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
 import io.jdbd.postgre.util.PgExceptions;
@@ -21,7 +22,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
 
-import java.sql.SQLException;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -154,7 +154,7 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
     private ResultRowMeta resultRowMeta;
 
 
-    private ExtendedQueryTask(Stmt stmt, ResultSink sink, TaskAdjutant adjutant) throws SQLException {
+    private ExtendedQueryTask(Stmt stmt, ResultSink sink, TaskAdjutant adjutant) throws JdbdException {
         super(adjutant, sink);
         this.stmt = stmt;
         this.sink = sink;
@@ -265,7 +265,7 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
             return;
         }
         LOG.debug("No execute message sent.end task.");
-        this.taskPhase = TaskPhase.BINDING_ERROR;
+        //TODO
     }
 
     @Nullable
@@ -289,7 +289,7 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
                         this.taskPhase = TaskPhase.END;
                         break;
                     case BIND_END: // execute bind message
-                        //no-op
+                        this.taskPhase = TaskPhase.READ_EXECUTE_RESPONSE;
                         break;
                     default: { // no bug,never here
                         this.taskPhase = TaskPhase.START_ERROR;
@@ -329,10 +329,6 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
             case END: // here, start() end task
                 taskEnd = true;
                 break;
-            case RESUME: // here ,start() resume and bind success
-                this.taskPhase = TaskPhase.READ_EXECUTE_RESPONSE;
-                taskEnd = false;
-                break;
             case SUSPEND: { // here, start() method suspend task
                 assert this.packetPublisher == null;
                 switch (this.bindPhase) {
@@ -361,10 +357,18 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
                 closeStatementOrPortalIfNeed();
             }
             this.taskPhase = TaskPhase.END;
-            if (hasError()) {
-                publishError(this.sink::error);
-            } else {
-                this.sink.complete();
+            switch (this.bindPhase) {
+                case ERROR_ON_BIND:
+                case ABANDON_BIND:
+                    //no-op , because now,no downstream
+                    break;
+                default: {
+                    if (hasError()) {
+                        publishError(this.sink::error);
+                    } else {
+                        this.sink.complete();
+                    }
+                }
             }
         }
         return taskEnd;
@@ -432,7 +436,7 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
     }
 
     @Override
-    boolean handlePrepareResponse(final List<DataType> paramTypeList, final @Nullable ResultRowMeta rowMeta) {
+    boolean handlePrepareResponse(final List<DataType> paramTypeList, final @Nullable PgRowMeta rowMeta) {
         if (this.taskPhase != TaskPhase.READ_PREPARE_RESPONSE || this.parameterTypeList != null) {
             throw new UnExpectedMessageException("Unexpected ParameterDescription message.");
         }
@@ -518,11 +522,10 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
         LOG.debug("bind occur error  ", error); // now ,no downstream ,so just log.
 
         this.bindPhase = BindPhase.ERROR_ON_BIND;
-        closeStatementOrPortalIfNeed();
 
-        if (this.taskPhase == TaskPhase.SUSPEND) {
+        if (this.taskPhase == TaskPhase.SUSPEND && isNeedCloseStatementOrPortal()) {
             this.taskPhase = TaskPhase.RESUME;
-            submit(this::addError);
+            submit(this::addError); // now ,no downstream
         }
 
 
@@ -598,22 +601,13 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
         if (this.bindPhase != BindPhase.WAIT_FOR_BIND) {
             return;
         }
+
         this.bindPhase = BindPhase.ABANDON_BIND;
 
-        switch (this.taskPhase) {
-            case SUSPEND: {
-                if (this.commandWriter.isNeedClose()) {
-                    submit(this::addError); // resume task for closing statement
-                }
-            }
-            break;
-            case NONE: // here , stmt is cached
-            case READ_PREPARE_RESPONSE:
-            case END:
-            default:
-                // no-op
+        if (this.taskPhase == TaskPhase.SUSPEND && isNeedCloseStatementOrPortal()) {
+            this.taskPhase = TaskPhase.RESUME;
+            submit(this::addError); // resume task for closing statement
         }
-
 
     }
 
@@ -632,19 +626,24 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
         }
 
         try {
+
+            this.bindPhase = BindPhase.BIND_END;
+
             ((PgPrepareStmt) this.stmt).setActualStmt(stmt);
             ((PrepareResultSink) this.sink).setResultSink(sink);
 
-            this.bindPhase = BindPhase.BIND_END;
             this.packetPublisher = this.commandWriter.bindAndExecute();
 
             switch (this.taskPhase) {
+                case NONE: // here , start() emit task,
                 case READ_PREPARE_RESPONSE:
-                    // no-op
+                    this.taskPhase = TaskPhase.READ_EXECUTE_RESPONSE;
                     break;
-                case SUSPEND:
+                case SUSPEND: {
+                    this.taskPhase = TaskPhase.RESUME;
                     this.submit(sink::error);  // resume task
-                    break;
+                }
+                break;
                 case END:
                 case READ_EXECUTE_RESPONSE:
                 default:
@@ -652,10 +651,26 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
             }
         } catch (Throwable e) {
             this.bindPhase = BindPhase.ERROR_ON_BIND;
-            closeOnBindError(PgExceptions.wrap(e));
+
+            if (this.taskPhase != TaskPhase.SUSPEND) {
+                addError(PgExceptions.wrap(e));
+            } else if (isNeedCloseStatementOrPortal()) {
+                this.taskPhase = TaskPhase.RESUME;
+                addError(PgExceptions.wrap(e));
+                this.submit(sink::error);  // resume task
+            } else {
+                this.taskPhase = TaskPhase.END;
+                sink.error(PgExceptions.wrap(e));
+            }
+
         }
 
 
+    }
+
+
+    private boolean isNeedCloseStatementOrPortal() {
+        return this.commandWriter.isNeedClose();
     }
 
 

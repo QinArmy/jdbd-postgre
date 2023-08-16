@@ -156,7 +156,7 @@ final class ExecuteCommandWriter implements CommandWriter {
                 String m = String.format("batchIndex[%s] isn't negative for stmt[%s].", batchIndex, stmt);
                 throw new IllegalArgumentException(m);
             }
-            bindGroup = ((ParamStmt) stmt).getBindGroup();
+            bindGroup = ((ParamStmt) stmt).getParamGroup();
         } else if (stmt instanceof ParamBatchStmt) {
             final ParamBatchStmt batchStmt = (ParamBatchStmt) stmt;
             final List<List<ParamValue>> groupList = batchStmt.getGroupList();

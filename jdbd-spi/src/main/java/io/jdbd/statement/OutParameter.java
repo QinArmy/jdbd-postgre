@@ -5,14 +5,14 @@ import io.jdbd.result.OutResultItem;
 
 /**
  * <p>
- * This interface representing OUT/INOUT parameter of stored procedure/function.
+ * This interface representing OUT parameter of stored procedure/function.
  * You create instance of {@link OutParameter} by {@link OutParameter#out(String)}.
  * </p>
  * <p>
- * This interface is base interface of {@link InOutParameter}.
+ * <strong>NOTE</strong> : this interface isn't the base interface of {@link InOutParameter}.
  * </p>
  * <p>
- * OUT/INOUT parameter is usually supported by following statement :
+ * OUT parameter is usually supported by following statement :
  *     <ul>
  *         <li>{@link PreparedStatement}</li>
  *         <li>{@link BindStatement}</li>
@@ -94,11 +94,6 @@ import io.jdbd.result.OutResultItem;
  */
 public interface OutParameter extends Parameter {
 
-    /**
-     * @return OUT/INOUT parameter name,empty is allowed by some database , for example : MySQL ,PostgreSQL,because these database don't need.
-     */
-    String name();
-
 
     /**
      * override {@link Object#hashCode()}
@@ -121,7 +116,7 @@ public interface OutParameter extends Parameter {
     String toString();
 
     /**
-     * @param name OUT/INOUT parameter name,empty is allowed by some database , for example : MySQL ,PostgreSQL,because these database don't need.
+     * @param name OUT parameter name,empty is allowed by some database , for example : MySQL ,PostgreSQL,because these database don't need.
      * @throws NullPointerException throw when name is null .
      */
     default OutParameter out(String name) {

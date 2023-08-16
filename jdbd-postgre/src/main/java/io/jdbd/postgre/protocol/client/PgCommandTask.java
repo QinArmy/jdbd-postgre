@@ -6,7 +6,6 @@ import io.jdbd.postgre.PgType;
 import io.jdbd.postgre.syntax.PgParser;
 import io.jdbd.postgre.util.PgArrays;
 import io.jdbd.postgre.util.PgCollections;
-import io.jdbd.result.ResultRowMeta;
 import io.jdbd.vendor.result.ResultSink;
 import io.jdbd.vendor.stmt.*;
 import io.netty.buffer.ByteBuf;
@@ -287,7 +286,7 @@ abstract class PgCommandTask extends PgTask implements StmtTask {
     /**
      * @return true: task end.
      */
-    abstract boolean handlePrepareResponse(List<DataType> paramTypeList, @Nullable ResultRowMeta rowMeta);
+    abstract boolean handlePrepareResponse(List<DataType> paramTypeList, @Nullable PgRowMeta rowMeta);
 
     abstract boolean handleClientTimeout();
 
@@ -402,7 +401,7 @@ abstract class PgCommandTask extends PgTask implements StmtTask {
      *     <li>RowDescription (or NoData)</li>
      *     <li>ReadyForQuery</li>
      * </ol>
-     * ,and invoke {@link #handlePrepareResponse(List, ResultRowMeta).}
+     * ,and invoke {@link #handlePrepareResponse(List, PgRowMeta).}
      * </p>
      *
      * @return true : task end
@@ -416,12 +415,11 @@ abstract class PgCommandTask extends PgTask implements StmtTask {
         final List<DataType> paramTypeList;
         paramTypeList = readParameterDescription(cumulateBuffer);
 
-        final ResultRowMeta rowMeta;
+        final PgRowMeta rowMeta;
         switch (cumulateBuffer.getByte(cumulateBuffer.readerIndex())) {
-            case Messages.T: {// RowDescription message
+            case Messages.T: // RowDescription message
                 rowMeta = PgRowMeta.readForPrepare(cumulateBuffer, this.adjutant);
-            }
-            break;
+                break;
             case Messages.n: {// NoData message
                 Messages.skipOneMessage(cumulateBuffer);
                 rowMeta = null;

@@ -3,6 +3,7 @@ package io.jdbd.postgre.protocol.client;
 import io.jdbd.meta.DataType;
 import io.jdbd.meta.JdbdType;
 
+@Deprecated
 final class PgUserType implements DataType {
 
     JdbdType jdbdType;

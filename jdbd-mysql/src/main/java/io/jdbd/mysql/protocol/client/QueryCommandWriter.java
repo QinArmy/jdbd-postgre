@@ -191,7 +191,7 @@ final class QueryCommandWriter {
                 }
                 final ParamStmt stmt = stmtGroup.get(i);
                 final List<String> staticSqlList = parser.parse(stmt.getSql()).sqlPartList();
-                doWriteBindableCommand(i, staticSqlList, stmt.getBindGroup(), packet);
+                doWriteBindableCommand(i, staticSqlList, stmt.getParamGroup(), packet);
             }
             return Packets.createPacketPublisher(packet, this.sequenceId, this.adjutant);
         } catch (Throwable e) {
@@ -216,7 +216,7 @@ final class QueryCommandWriter {
             if (Capabilities.supportQueryAttr(adjutant.capability())) {
                 writeQueryAttribute(packet, stmt, adjutant);
             }
-            doWriteBindableCommand(-1, staticSqlList, stmt.getBindGroup(), packet);
+            doWriteBindableCommand(-1, staticSqlList, stmt.getParamGroup(), packet);
             return Packets.createPacketPublisher(packet, this.sequenceId, adjutant);
         } catch (Throwable e) {
             packet.release();

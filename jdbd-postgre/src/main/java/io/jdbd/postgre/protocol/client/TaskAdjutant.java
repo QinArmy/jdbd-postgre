@@ -1,7 +1,9 @@
 package io.jdbd.postgre.protocol.client;
 
+import io.jdbd.lang.Nullable;
 import io.jdbd.meta.DataType;
 import io.jdbd.postgre.syntax.PgParser;
+import io.jdbd.result.ResultRowMeta;
 import io.jdbd.vendor.env.Environment;
 import io.jdbd.vendor.task.ITaskAdjutant;
 import reactor.core.publisher.Mono;
@@ -68,10 +70,11 @@ interface TaskAdjutant extends ITaskAdjutant, PgParser {
 
     IntFunction<DataType> oidToDataTypeFunc();
 
-    void cachePostgreStmt(String sql, List<DataType> paramTypeList, PgRowMeta rowMeta);
+    void cachePostgreStmt(PostgreStmt stmt, List<DataType> paramTypeList, @Nullable ResultRowMeta rowMeta);
 
     void appendSetCommandParameter(String parameterName);
 
+    @Nullable
     DataType internalOrUserType(String upperCaseName);
 
     boolean isNeedQueryUnknownType(Set<String> unknownTypeSet);

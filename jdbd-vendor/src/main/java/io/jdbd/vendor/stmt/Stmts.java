@@ -461,7 +461,7 @@ public abstract class Stmts {
 
 
         @Override
-        public final List<ParamValue> getBindGroup() {
+        public final List<ParamValue> getParamGroup() {
             return this.bindGroup;
         }
 
@@ -518,7 +518,7 @@ public abstract class Stmts {
 
 
         @Override
-        public final List<ParamValue> getBindGroup() {
+        public final List<ParamValue> getParamGroup() {
             return this.bindGroup;
         }
 
@@ -585,7 +585,7 @@ public abstract class Stmts {
         }
 
         @Override
-        public List<ParamValue> getBindGroup() {
+        public List<ParamValue> getParamGroup() {
             return this.paramList;
         }
 

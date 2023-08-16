@@ -10,6 +10,9 @@ import io.jdbd.result.OutResultItem;
  * You create instance of {@link InOutParameter} by {@link InOutParameter#inout(String, Object)}.
  * </p>
  * <p>
+ *     <strong>NOTE</strong> : this interface isn't the sub interface of {@link OutParameter}.
+ * </p>
+ * <p>
  * INPUT parameter is usually supported by following statement :
  *     <ul>
  *         <li>{@link PreparedStatement}</li>
@@ -90,7 +93,12 @@ import io.jdbd.result.OutResultItem;
  * @see OutResultItem
  * @since 1.0
  */
-public interface InOutParameter extends ValueParameter, OutParameter {
+public interface InOutParameter extends ValueParameter {
+
+    /**
+     * @return OUT/INOUT parameter name,empty is allowed by some database , for example : MySQL ,PostgreSQL,because these database don't need.
+     */
+    String name();
 
 
     /**
