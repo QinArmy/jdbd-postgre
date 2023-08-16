@@ -40,12 +40,20 @@ public interface DataType {
      */
     String typeName();
 
-
+    /**
+     * <p>
+     * <strong>NOTE</strong> : if {@link #isUnknown()} return true ,this method always return false.
+     * </p>
+     */
     boolean isArray();
 
     boolean isUnknown();
 
-
+    /**
+     * <p>
+     * <strong>NOTE</strong> : if {@link #isUnknown()} return true ,this method always return false.
+     * </p>
+     */
     boolean isUserDefined();
 
 }

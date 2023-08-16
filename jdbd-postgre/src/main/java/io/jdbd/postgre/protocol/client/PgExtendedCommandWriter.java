@@ -9,6 +9,10 @@ import io.jdbd.postgre.syntax.PgStatement;
 import io.jdbd.postgre.util.*;
 import io.jdbd.result.ResultRowMeta;
 import io.jdbd.statement.OutParameter;
+import io.jdbd.type.Blob;
+import io.jdbd.type.Clob;
+import io.jdbd.type.PublisherParameter;
+import io.jdbd.type.Text;
 import io.jdbd.vendor.stmt.*;
 import io.netty.buffer.ByteBuf;
 import org.reactivestreams.Publisher;
@@ -1044,9 +1048,12 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
             throw new IllegalArgumentException(String.format("paramIndex[%s] error.", paramIndex));
         }
 
+        final List<DataType> paramTypeList = this.paramTypeList;
+        final boolean prepareStmt = this.stmt instanceof PrepareStmt;
         ParamValue paramValue;
         DataType dataType;
         Object value;
+
         for (int valueLengthIndex, valueEndIndex; paramIndex < paramCount; paramIndex++) {
             paramValue = paramGroup.get(paramIndex);
 
@@ -1054,17 +1061,51 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
             if (paramValue.getIndex() != paramIndex) {
                 throw PgExceptions.createBindIndexNotMatchError(batchIndex, paramIndex, paramValue);
             }
-            value = paramValue.get();
-            if (value == null || value instanceof OutParameter) {
+            value = paramValue.getValue();
+            if (value == null) {
                 message.writeInt(-1); //  -1 indicates a NULL parameter value
                 continue;
             }
 
-
             valueLengthIndex = message.writerIndex();
             message.writeZero(4); // placeholder of parameter value length.
 
-            dataType = paramValue.getType();
+
+            if (value instanceof PublisherParameter) {
+                if (value instanceof Blob) {
+
+                } else if (value instanceof Clob) {
+
+                } else if (value instanceof Text) {
+
+                } else {
+
+                }
+                break;
+            }
+            if (prepareStmt) {
+                dataType = paramTypeList.get(paramIndex);
+            } else {
+                dataType = paramValue.getType();
+            }
+
+            if (dataType.isArray()) {
+                if (value instanceof String || !(dataType instanceof PgType)) {
+                    bindStringToArray(batchIndex, paramValue, message);
+                } else if (value.getClass().isArray()) {
+                    writeArrayObject(batchIndex, paramValue, message);
+                } else {
+                    throw PgExceptions.nonSupportBindSqlTypeError(batchIndex, paramValue);
+                }
+            } else if (dataType instanceof PgType) {
+                bindBuildInType(batchIndex, paramValue, message);
+            } else if (isIllegalTypeName(dataType)) {
+                throw PgExceptions.errorTypeName(dataType);
+            } else if (value instanceof String) {
+                message.writeBytes(((String) value).getBytes(this.clientCharset));
+            } else {
+                throw PgExceptions.nonSupportBindSqlTypeError(stmtIndex, paramValue);
+            }
 
 
             if (!(value instanceof byte[]) && value.getClass().isArray()) {
