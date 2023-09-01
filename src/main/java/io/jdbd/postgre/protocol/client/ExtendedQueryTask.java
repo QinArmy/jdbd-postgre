@@ -171,8 +171,8 @@ final class ExtendedQueryTask extends PgCommandTask implements PrepareTask, Exte
     }
 
     @Override
-    public <R> Flux<R> executeQuery(final ParamStmt stmt, Function<CurrentRow, R> function) {
-        return MultiResults.query(function, stmt.getStatusConsumer(), sink -> executeAfterBinding(sink, stmt));
+    public <R> Flux<R> executeQuery(final ParamStmt stmt, Function<CurrentRow, R> function,Consumer<ResultStates> consumer) {
+        return MultiResults.query(function, consumer, sink -> executeAfterBinding(sink, stmt));
     }
 
     @Override

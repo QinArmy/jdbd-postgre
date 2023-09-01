@@ -34,7 +34,7 @@ abstract class PgCommandTask extends PgTask implements StmtTask {
 
     private static final String INSERT = "INSERT";
 
-    private static final Set<String> UPDATE_COMMANDS = PgArrays.asUnmodifiableSet(INSERT, "UPDATE", "DELETE");
+    private static final List<String> UPDATE_COMMANDS = PgArrays.unmodifiableListOf(INSERT, "UPDATE", "DELETE");
 
     private static final String SELECT = "SELECT";
 

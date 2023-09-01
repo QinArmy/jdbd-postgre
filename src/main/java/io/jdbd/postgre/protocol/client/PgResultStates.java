@@ -2,6 +2,8 @@ package io.jdbd.postgre.protocol.client;
 
 import io.jdbd.postgre.PgServerVersion;
 import io.jdbd.result.ResultStates;
+import io.jdbd.result.Warning;
+import io.jdbd.session.Option;
 
 abstract class PgResultStates implements ResultStates {
 
@@ -113,17 +115,17 @@ abstract class PgResultStates implements ResultStates {
         }
 
         @Override
-        public final long affectedRows() {
+        public  long affectedRows() {
             return this.affectedRows;
         }
 
         @Override
-        public final long lastInsertedId() {
+        public  long lastInsertedId() {
             return this.insertId;
         }
 
         @Override
-        public final String message() {
+        public  String message() {
             String message = null;
             NoticeMessage nm = this.noticeMessage;
             if (nm != null) {
@@ -136,24 +138,39 @@ abstract class PgResultStates implements ResultStates {
         }
 
         @Override
-        public final boolean hasMoreResult() {
+        public  boolean hasMoreResult() {
             return this.moreResult;
         }
 
         @Override
-        public final boolean hasMoreFetch() {
+        public  boolean hasMoreFetch() {
             return this.moreFetch;
         }
 
         @Override
-        public final boolean hasColumn() {
+        public  boolean hasColumn() {
             return this.hasReturningColumn;
         }
 
 
         @Override
-        public final long rowCount() {
+        public  long rowCount() {
             return this.rowCount;
+        }
+
+        @Override
+        public boolean inTransaction() {
+            return false;
+        }
+
+        @Override
+        public Warning warning() {
+            return null;
+        }
+
+        @Override
+        public <T> T valueOf(Option<T> option) {
+            return null;
         }
 
     }
