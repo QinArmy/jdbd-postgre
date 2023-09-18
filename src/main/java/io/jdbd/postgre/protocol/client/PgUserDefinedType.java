@@ -1,8 +1,8 @@
 package io.jdbd.postgre.protocol.client;
 
-import io.jdbd.meta.DataType;
+import io.jdbd.meta.UserDefinedType;
 
-final class UserDefinedType implements DataType {
+final class PgUserDefinedType implements UserDefinedType {
 
     int oid;
 
@@ -26,8 +26,4 @@ final class UserDefinedType implements DataType {
         return false;
     }
 
-    @Override
-    public boolean isUserDefined() {
-        return false;
-    }
 }

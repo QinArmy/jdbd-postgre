@@ -20,6 +20,8 @@ abstract class Messages {
 
     static final byte LENGTH_SIZE = 4;
 
+    static int MAX_CAPACITY = Integer.MAX_VALUE - 128;
+
     /**
      * <ul>
      *     <li>backend (B) : ParseComplete</li>
