@@ -205,7 +205,7 @@ final class PgTaskExecutor extends CommunicationTaskExecutor<TaskAdjutant> {
         }
 
         @Override
-        public final String createPortalName() {
+        public final String nextPortalName() {
             final int nameId = this.portalNameId++;
             final String prefix;
             if (nameId == Integer.MIN_VALUE) {

@@ -71,6 +71,17 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
 
     /**
      * if support fetch ,then create portal name.
+     * <p>named portal life cycle:
+     * <ol>
+     *     <li>created by Bind message</li>
+     *     <li>destroys on the end of the current transaction ( or explicitly destroyed by Close message)</li>
+     * </ol>
+     * <p>unnamed portal life cycle:
+     * <ol>
+     *     <li>created by Bind message</li>
+     *     <li>destroys on end of the transaction ( or next the unnamed portal )</li>
+     * </ol>
+     *  @see <a href="https://www.postgresql.org/docs/current/protocol-flow.html#PROTOCOL-FLOW-EXT-QUERY">Extended Query</a>
      */
     private final String portalName;
 
@@ -83,6 +94,8 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
         this.stmtTask = stmtTask;
         this.stmt = stmtTask.getStmt();
 
+        final TaskAdjutant adjutant = this.adjutant;
+
         final String sql = this.stmt.getSql();
         final PostgreStmt parsedStmt;
         parsedStmt = this.adjutant.parseAsPostgreStmt(sql);
@@ -94,24 +107,26 @@ final class PgExtendedCommandWriter extends CommandWriter implements ExtendedCom
         this.parsedStmt = parsedStmt;
         if (parsedStmt instanceof ServerCacheStmt) {
             this.statementName = ((ServerCacheStmt) parsedStmt).stmtName();
-        } else {
+        } else if (parsedStmt.useCount() >= this.adjutant.factory().prepareThreshold) {
             this.statementName = this.adjutant.nextStmtName();
-        }
-
-        if (this.oneRoundTrip
-                || (parsedStmt instanceof ServerCacheStmt && ((ServerCacheStmt) parsedStmt).getRowMeta() == null)) {
-            this.portalName = "";
         } else {
+            this.statementName = "";
+        }
+
+        if (this.stmt instanceof PrepareStmt) {
+            if (parsedStmt instanceof ServerCacheStmt
+                    && ((ServerCacheStmt) parsedStmt).getRowMeta().getColumnCount() == 0) {
+                this.portalName = "";
+            } else {
+                this.portalName = adjutant.nextPortalName();
+            }
+        } else if (this.stmt.getFetchSize() > 0) {
             this.portalName = this.adjutant.nextPortName(this.statementName);
+        } else {
+            this.portalName = "";
         }
 
 
-    }
-
-
-    @Override
-    public boolean isOneRoundTrip() {
-        return this.oneRoundTrip;
     }
 
     @Override

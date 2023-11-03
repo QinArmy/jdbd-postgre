@@ -41,7 +41,7 @@ interface TaskAdjutant extends ITaskAdjutant, PgParser {
 
     String createPrepareName();
 
-    String createPortalName();
+    String nextPortalName();
 
     @Deprecated
     ZoneOffset clientOffset();
